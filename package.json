@@ -1,0 +1,33 @@
+{
+  "name": "github-actions-access-manager",
+  "version": "1.0.0",
+  "description": "GitHub Action to request a temporary access tokens to access other repository resources.",
+  "private": true,
+  "scripts": {
+    "build": "ncc build index.js --no-cache",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qoomon/github-actions-access-manager.git"
+  },
+  "keywords": [
+    "GitHub",
+    "Actions",
+    "Token",
+    "Access"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "git+https://github.com/qoomon/github-actions-access-manager.git"
+  },
+  "homepage": "git+https://github.com/qoomon/github-actions-access-manager#readme",
+  "dependencies": {
+    "@actions/core": "^1.2.5",
+    "@actions/http-client": "^2.0.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.34.0"
+  }
+}

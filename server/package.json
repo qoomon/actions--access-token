@@ -1,0 +1,35 @@
+{
+  "name": "github-actions-access-manager",
+  "version": "1.0.0",
+  "description": "",
+  "author": "qoomon",
+  "license": "MIT",
+  "scripts": {
+    "start": "vercel --cwd ../ dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qoomon/github-actions-access-manager"
+  },
+  "keywords": [
+    "github",
+    "actions",
+    "access",
+    "token"
+  ],
+  "dependencies": {
+    "@octokit/app": "^13.0.5",
+    "@octokit/auth-app": "^4.0.4",
+    "@octokit/core": "^4.0.4",
+    "@octokit/rest": "^19.0.3",
+    "escape-string-regexp": "^5.0.0",
+    "express": "^4.18.1",
+    "express-async-errors": "^3.1.1",
+    "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^8.5.1",
+    "jwks-rsa": "^2.1.4"
+  },
+  "devDependencies": {
+    "vercel": "^27.3.4"
+  }
+}
