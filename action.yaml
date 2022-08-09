@@ -1,4 +1,4 @@
-name: 'GitHub Actions Access Manager'
+name: 'Access Manager for GitHub Actions'
 description: 'Request a temporary access tokens to access or manage other repository resources.'
 author: 'qoomon'
 branding:
