@@ -1,0 +1,28 @@
+name: Example Access
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      repository:
+        default: self
+        description: Target repository
+
+permissions:
+  id-token: write # required to request id-token
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: qoomon/github-actions-access-manager@main
+        id: github-actions-access
+        with:
+          repository: ${{ github.event.inputs.repository || github.repository }}
+      - name: Utilize access token by environment variable
+        run: echo $GITHUB_ACCESS_TOKEN
+      - name: Use access token to clone repository
+        run: |
+          git config --global credential.helper store
+          git clone --bare https://_:$GITHUB_ACCESS_TOKEN@github.com/${{ github.event.inputs.repository || github.repository }}.git
