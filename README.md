@@ -1,6 +1,8 @@
 
 # ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Manager
 
+Manage access from GitHub actions workflows by providing temporary app access tokens to target repository resources.
+
 ## Workflow
 <p>
   <picture>
