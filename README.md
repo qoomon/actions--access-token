@@ -16,7 +16,7 @@ Manage access from GitHub actions workflows by providing temporary app access to
 1. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access.yaml` file in **Target Repository**.
 1. The [App Server](server/) reads `.github/access.yaml` file from **Target Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
 1. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to the GitHub action from step `1.`.
-1. The GitHub action sets the token as environment variable `$GITHUB_ACCESS_TOKEN` and as step output value `${{ steps.github-actions-access.outputs.token }}`.
+1. The GitHub action sets the token as environment variable `$GITHUB_ACCESS_MANAGER_TOKEN` and as step output value `${{ steps.github-actions-access.outputs.token }}`.
 1. Further steps can then utilize this token to access resources of the **Target Repository**.
 
 ## Usage
@@ -62,13 +62,13 @@ jobs:
         with:
           repository: example/test
       - name: Utilize access token by environment variable
-        run: echo $GITHUB_ACCESS_TOKEN
+        run: echo $GITHUB_ACCESS_MANAGER_TOKEN
       - name: Utilize access token by step output value
         run: echo ${{ steps.github-actions-access.outputs.token }}
       - name: Use access token to clone repository
         run: |
           git config --global credential.helper store
-          git clone https://_:$GITHUB_ACCESS_TOKEN@github.com/example/test.git
+          git clone https://_:$GITHUB_ACCESS_MANAGER_TOKEN@github.com/example/test.git
 ```
 
 ## Deploy your own Access Manager App

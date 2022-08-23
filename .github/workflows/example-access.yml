@@ -21,8 +21,8 @@ jobs:
         with:
           repository: ${{ github.event.inputs.repository || github.repository }}
       - name: Utilize access token by environment variable
-        run: echo $GITHUB_ACCESS_TOKEN
+        run: echo $GITHUB_ACCESS_MANAGER_TOKEN
       - name: Use access token to clone repository
         run: |
           git config --global credential.helper store
-          git clone --bare https://_:$GITHUB_ACCESS_TOKEN@github.com/${{ github.event.inputs.repository || github.repository }}.git
+          git clone --bare https://_:$GITHUB_ACCESS_MANAGER_TOKEN@github.com/${{ github.event.inputs.repository || github.repository }}.git
