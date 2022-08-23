@@ -28,7 +28,8 @@ Manage access from GitHub actions workflows by providing temporary app access to
 * Create `.github/access.yaml` file
 * Set `self` to enclosing repository. 
   * This ensures no unintended access in case you fork a repository with `.github/access.yaml` file.  
-* Add policies and [permissions](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions), see examples below.
+* Add policies and [permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token), see examples below.
+  * ⚠ `metadata: read` permission is implicitly always granted.
 ##### Example configurations
 * Grant read access to GitHub Packages
   ```yaml
