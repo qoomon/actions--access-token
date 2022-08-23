@@ -49,7 +49,9 @@ Manage access from GitHub actions workflows by providing temporary app access to
 
 ### Setup GitHub Action Workflow
 ```yaml
-# ...
+on:
+  # ...
+  
 permissions:
   id-token: write # required to request id-token
   
