@@ -2830,7 +2830,7 @@ async function run() {
     })
 
     core.setSecret(accessToken.token)
-    core.exportVariable('GITHUB_ACCESS_TOKEN', accessToken.token)
+    core.exportVariable('GITHUB_ACCESS_MANAGER_TOKEN', accessToken.token)
     core.setOutput('token', accessToken.token)
     console.info(accessToken)
 }
