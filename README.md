@@ -16,7 +16,7 @@ Manage access from GitHub actions workflows by providing temporary app access to
 1. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access.yaml` file in **Granting Repository**.
 1. The [App Server](server/) reads `.github/access.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
 1. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
-1. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) sets the token as environment variable `$GITHUB_ACCESS_MANAGER_TOKEN` and as step output value `${{ steps.github-actions-access.outputs.token }}`.
+1. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) sets the token as environment variable `$GITHUB_ACCESS_MANAGER_TOKEN` and as step output `${{ steps.access-manager.outputs.GITHUB_ACCESS_MANAGER_TOKEN }}`.
 1. Further steps can then utilize this token to access resources of the **Granting Repository**.
 
 ## Usage
@@ -31,7 +31,7 @@ Manage access from GitHub actions workflows by providing temporary app access to
 * Add `policies` and [permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token), see examples below.
   * `repository` value supports wildcards `*` e.g. `repository: octa-org/*`
   * ⚠ `metadata: read` permission is implicitly always granted.
-##### Example configurations
+##### Example Configurations
 * Self access to trigger workflows from another workflow
   ```yaml
   self: qoomon/example
@@ -56,32 +56,62 @@ Manage access from GitHub actions workflows by providing temporary app access to
       permissions:
         packages: read
     ```
+  
 ### Setup GitHub Action Workflow for Requesting Repository (`example/green`)
-```yaml
-on:
-  # ...
+##### Example Workflow Files
+* Clone a remote repository
+  ```yaml
+  on:
+    # ...
+    
+  permissions:
+    id-token: write # required to request id-token
+    
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Request access token
+          uses: qoomon/github-actions-access-manager@v2
+          with:
+            repositories: |
+              qoomon/sandbox
+            permissions: |
+              contents:read
+        - name: Clone remote repository
+          run: |
+            git config --global credential.helper store
+            git clone https://_:$GITHUB_ACCESS_MANAGER_TOKEN@github.com/qoomon/sandbox.git
+        # ...
+  ```
+* Trigger another workflow within the repository
+  ```yaml
+  on:
+    # ...
+    
+  permissions:
+    id-token: write # required to request id-token
+    
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Request access token
+          id: access-manager
+          uses: qoomon/github-actions-access-manager@v2
+          with:
+            repositories: self
+            permissions: actions:write
+        - name: Trigger workflow
+          run: |
+            gh workflow run post_deploy_checks.yml \
+              --ref my-branch \
+              --field logLevel=debug
+          env:
+            GITHUB_TOKEN: ${{steps.access-manager.outputs.GITHUB_ACCESS_MANAGER_TOKEN}}
+        # ...
+  ```
   
-permissions:
-  id-token: write # required to request id-token
-  
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: qoomon/github-actions-access-manager@v1
-        id: github-actions-access
-        with:
-          repository: example/test
-      - name: Utilize access token by environment variable
-        run: echo $GITHUB_ACCESS_MANAGER_TOKEN
-      - name: Utilize access token by step output value
-        run: echo ${{ steps.github-actions-access.outputs.token }}
-      - name: Use access token to clone repository
-        run: |
-          git config --global credential.helper store
-          git clone https://_:$GITHUB_ACCESS_MANAGER_TOKEN@github.com/example/test.git
-```
-
 ## Deploy your own Access Manager App
 
 ###  Create a GitHub App
@@ -119,11 +149,14 @@ jobs:
   npm --prefix server/ start 
   ```
 * Run GitHub Action
-  ```shell 
-  INPUT_ENDPOINT=http://localhost:3000/oauth2/token \
-  INPUT_REPOSITORY=qoomon/github-actions-access-manager \
-  ACTIONS_ID_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImVCWl9jbjNzWFlBZDBjaDRUSEJLSElnT3dPRSIsImtpZCI6Ijc4MTY3RjcyN0RFQzVEODAxREQxQzg3ODRDNzA0QTFDODgwRUMwRTEifQ.eyJqdGkiOiJjMjQ3NjVjOC04NDAxLTQ3MDEtODFmMi1iZGVmZDYwNzQ1NzIiLCJzdWIiOiJyZXBvOnFvb21vbi9zYW5kYm94OnJlZjpyZWZzL2hlYWRzL21hc3RlciIsImF1ZCI6Imh0dHBzOi8vcHV0c3JlcS5jb20vYUJCOE80czJEMFB1RFdUS2xTSzEiLCJyZWYiOiJyZWZzL2hlYWRzL21hc3RlciIsInNoYSI6ImNkNjMyMTg5ZThmNDI1MGEwNzE3MzEzMjZmNGU4ODk3YWNiNjVmNDMiLCJyZXBvc2l0b3J5IjoicW9vbW9uL3NhbmRib3giLCJyZXBvc2l0b3J5X293bmVyIjoicW9vbW9uIiwicmVwb3NpdG9yeV9vd25lcl9pZCI6IjM5NjMzOTQiLCJydW5faWQiOiIyODE5NjU3NTY2IiwicnVuX251bWJlciI6IjE4IiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6IjM1MjgyNzQxIiwiYWN0b3JfaWQiOiIzOTYzMzk0IiwiYWN0b3IiOiJxb29tb24iLCJ3b3JrZmxvdyI6Ik1hbnVhbCIsImhlYWRfcmVmIjoiIiwiYmFzZV9yZWYiOiIiLCJldmVudF9uYW1lIjoicHVzaCIsInJlZl90eXBlIjoiYnJhbmNoIiwiam9iX3dvcmtmbG93X3JlZiI6InFvb21vbi9zYW5kYm94Ly5naXRodWIvd29ya2Zsb3dzL01hbnVhbC55YW1sQHJlZnMvaGVhZHMvbWFzdGVyIiwiaXNzIjoiaHR0cHM6Ly90b2tlbi5hY3Rpb25zLmdpdGh1YnVzZXJjb250ZW50LmNvbSIsIm5iZiI6MTY1OTk3Nzk0MSwiZXhwIjoxNjU5OTc4ODQxLCJpYXQiOjE2NTk5Nzg1NDF9.iHGmLmUc2jWPww1H97xbOiKmWQv4XBW5eR2hEYhCh8aIoh0HofQLthdqd-cOpvmQ0QpkWtnSZqGmXWDCcUvLwlA2BzThVyCr3awkpiYp6JEdBvfN-_SG6TwZozUTGt4ucoEN5VwPWugfB0145rCa_tE8-HKuinDtzZDiq9MCcdNQzTcUe97fSq9quj4o53CjMkpMkmjWWpYkjuEWpRO007Yp_eDcQlMy3vM5LfUNP619uJ2mgkpNcw1ocjOjKJWgs6rBBAHu47nRpA2RAm3Y5aqM9Co5CnCUW9sccwb48sx3KO0XhGwLvcjOT7mz4qbZvLPH0u3Rz6jhOjl7TkUX7Q \
-  NODE_ENV=development \
+  ```shell
+  export NODE_ENV=development
+  export ACTIONS_ACCESS_MANAGER_ENDPOINT=http://localhost:3000/v2/access_token
+  
+  export ACTIONS_ID_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6ImVCWl9jbjNzWFlBZDBjaDRUSEJLSElnT3dPRSIsImtpZCI6Ijc4MTY3RjcyN0RFQzVEODAxREQxQzg3ODRDNzA0QTFDODgwRUMwRTEifQ.eyJqdGkiOiJjOTAzODNiMC01YTVjLTQ2YTMtODUxZi0wYzQwMDRiMWRkYmUiLCJzdWIiOiJyZXBvOnFvb21vbi9naXRodWItYWN0aW9ucy1hY2Nlc3MtbWFuYWdlcjpyZWY6cmVmcy9oZWFkcy9tYWluIiwiYXVkIjoiaHR0cHM6Ly9naXRodWIuY29tL3Fvb21vbiIsInJlZiI6InJlZnMvaGVhZHMvbWFpbiIsInNoYSI6ImE5Yzk1NDYyM2RkYWE5NTVhMmE3ZjJlYjViYWQ5MjJhNDAzZjAwYzgiLCJyZXBvc2l0b3J5IjoicW9vbW9uL2dpdGh1Yi1hY3Rpb25zLWFjY2Vzcy1tYW5hZ2VyIiwicmVwb3NpdG9yeV9vd25lciI6InFvb21vbiIsInJlcG9zaXRvcnlfb3duZXJfaWQiOiIzOTYzMzk0IiwicnVuX2lkIjoiMzI5MjgxMzc4NCIsInJ1bl9udW1iZXIiOiIxIiwicnVuX2F0dGVtcHQiOiIxIiwicmVwb3NpdG9yeV92aXNpYmlsaXR5IjoicHVibGljIiwicmVwb3NpdG9yeV9pZCI6IjUyMjkyNDUzMSIsImFjdG9yX2lkIjoiMzk2MzM5NCIsImFjdG9yIjoicW9vbW9uIiwid29ya2Zsb3ciOiIuZ2l0aHViL3dvcmtmbG93cy90b2tlbi55YW1sIiwiaGVhZF9yZWYiOiIiLCJiYXNlX3JlZiI6IiIsImV2ZW50X25hbWUiOiJ3b3JrZmxvd19kaXNwYXRjaCIsInJlZl90eXBlIjoiYnJhbmNoIiwiam9iX3dvcmtmbG93X3JlZiI6InFvb21vbi9naXRodWItYWN0aW9ucy1hY2Nlc3MtbWFuYWdlci8uZ2l0aHViL3dvcmtmbG93cy90b2tlbi55YW1sQHJlZnMvaGVhZHMvbWFpbiIsImlzcyI6Imh0dHBzOi8vdG9rZW4uYWN0aW9ucy5naXRodWJ1c2VyY29udGVudC5jb20iLCJuYmYiOjE2NjYyOTgxNjEsImV4cCI6MTY2NjI5OTA2MSwiaWF0IjoxNjY2Mjk4NzYxfQ.37dPzBp031doaTq1alL4s1vpn7ODAX8ks2_cPbloJd-Scaf9fbkdZjYON0Ogm0Gu3yURvSusFVbej22KwHYdTmxQh-NyudXpmqTnTI7RY-9ouiEScY0-D9mc7oUI8INb7phwUOdzOECb48HbPNA04MVwJ2YGQwyWBIXixScMMv3Au3g22NK6Kc_-MPXuSCbBzj2ZLyn2g57BMGs_OveFZy0uRzv5YuzS-QdjBgpesWuJrLgE4DPk3YTkpaLC0rTWo4feNUa53TZStrOREODO-TcWgIAkUJBcNoE3vhJJkBn2NFeovxzW5yj_sO3Kq4E24XYtUrXR52z_34yz9hzdsQ
+  
+  INPUT_REPOSITORIES=qoomon/github-actions-access-manager \
+  INPUT_PERMISSIONS=contents:read \
   node index.js
   ```
 

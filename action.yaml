@@ -1,21 +1,19 @@
 name: 'Access Manager for GitHub Actions'
-description: 'Request a temporary access tokens to access or manage other repository resources.'
+description: 'Request an access tokens to access or manage other repository resources.'
 author: 'qoomon'
 branding:
   icon: unlock
   color: blue
 inputs:
-  repository:
-    description: 'The repository to request access token for. (e.g. example/test)'
-    required: false
-    default: ${{ github.repository }}
-  endpoint:
-    description: 'The app server endpoint to request access token.'
-    required: false
-    default: 'https://github-actions-access-manager.vercel.app/access_tokens'
+  repositories:
+    description: 'The repositories to request access token for. (e.g. owner-name/repo-name)'
+    required: true
+  permissions:
+    description: 'The permissions to request. (e.g. actions:write)'
+    required: true
 outputs:
-  token:
-    description: 'The temporary repository access token'
+  GITHUB_ACCESS_MANAGER_TOKEN:
+    description: 'The requested access token'
 runs:
   using: 'node16'
   main: 'dist/index.js'

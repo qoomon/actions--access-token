@@ -1,6 +1,6 @@
 {
   "name": "github-actions-access-manager",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "GitHub Action to request a temporary access tokens to access other repository resources.",
   "private": true,
   "scripts": {
@@ -24,7 +24,7 @@
   },
   "homepage": "git+https://github.com/qoomon/github-actions-access-manager#readme",
   "dependencies": {
-    "@actions/core": "^1.2.5",
+    "@actions/core": "^1.10.0",
     "@actions/http-client": "^2.0.1"
   },
   "devDependencies": {

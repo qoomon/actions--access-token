@@ -16,7 +16,7 @@ const ACCESS_FILE_LOCATION = '.github/access.yaml'
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-const appOctokit = new Octokit({
+const appClient = new Octokit({
     authStrategy: createAppAuth,
     auth: {
         appId: process.env.GITHUB_APP_ID,
@@ -30,37 +30,97 @@ const app = express()
 app.use(verifyIdToken)
 app.use(express.json())
 
-app.post('/access_tokens', async (request, response) => {
-    const sourceRepo = request.token.repository
-    const targetRepo = (request.query.repository === undefined || request.query.repository === 'self') ? sourceRepo : request.query.repository
-    console.info('[INFO]', `Get access token to ${targetRepo} for ${sourceRepo}`)
+app.post('/v2/access_token', async (request, response) => {
+    console.info('[INFO]', `${request.token.repository} requests access token`)
 
-    const appRepoInstallation = await getAppRepoInstallation({repo: targetRepo}).catch(err => {
-        throw new HttpClientError(403, 'Forbidden', 'No permission granted', err)
-    })
-
-    const targetRepoPermissions = await getRepoAccessPermissions({
-        appInstallation: appRepoInstallation,
-        repo: targetRepo,
-        sourceRepo: sourceRepo,
-    })
-
-    if (Object.entries(targetRepoPermissions).length === 0) {
-        throw new HttpClientError(403, 'Forbidden', 'No permission granted')
+    const requestedRepositories = (request.body.repositories || []).map(repo => repo === 'self' ? request.token.repository : repo)
+    console.log('[INFO]', "  requestedRepositories", requestedRepositories)
+    if (!requestedRepositories.length) {
+        throw new HttpClientError(400, 'Bad Request', 'At least one repository needs to be requested')
     }
 
-    const repoAccessToken = await getRepoAccessToken({
-        appInstallation: appRepoInstallation,
-        repo: targetRepo,
-        permissions: targetRepoPermissions,
-    })
+    // validate all requested repositories
+    for (const repository of requestedRepositories) {
+        if (!isValidRepository(repository)) {
+            throw new HttpClientError(400, 'Bad Request', `Invalid requested repository: ${repository}`)
+        }
+    }
 
+    if (!verifySingleOwner(requestedRepositories)) {
+        throw new HttpClientError(400, 'Bad Request', 'All repositories must belong to the same owner')
+    }
+
+    const requestedPermissions = request.body.permissions || {}
+    console.log('[INFO]', "  requestedPermissions", requestedPermissions)
+    if (!Object.keys(requestedPermissions).length) {
+        throw new HttpClientError(400, 'Bad Request', 'At least one permission needs to be requested')
+    }
+
+    // validate all requested permissions
+    for (const [scope, permission] of Object.entries(requestedPermissions)) {
+        if (!isValidPermission(scope, permission)) {
+            throw new HttpClientError(400, 'Bad Request', `Invalid requested permission: ${scope}:${permission}`)
+        }
+    }
+
+    // TODO handle app is not installed
+    const appInstallation = await appClient.apps.getUserInstallation({
+        username: parseRepo(requestedRepositories[0]).owner
+    }).then(res => res.data)
+
+    // verify if app installation has all requested permissions
+    for (const [scope, permission] of Object.entries(requestedPermissions)) {
+        if (!verifyPermission(permission, appInstallation.permissions[scope])) {
+            throw new HttpClientError(403, 'Forbidden', `App installation does not have requested permission: ${scope}:${permission}`)
+        }
+    }
+
+    // TODO handle missing permissions for specific repositories
+    const accessFileAccessToken = await appClient.apps.createInstallationAccessToken({
+        installation_id: appInstallation.id,
+        // be aware that an empty array will result in requesting permissions for all repositories
+        repositories: ensureNotEmpty(requestedRepositories.map(repo => parseRepo(repo).name)),
+        permissions: {single_file: 'read'},
+    }).then(res => res.data)
+
+    const installationClient = new Octokit({auth: accessFileAccessToken.token});
+
+    // ensure requested permissions are granted for all requested repositories
+    await Promise.all(accessFileAccessToken.repositories.map(async repository => {
+        const repositoryAccessPermissions = await getRepoAccessPermissions(installationClient, {
+            repo: repository.full_name,
+            sourceRepo: request.token.repository,
+        })
+
+        // verify if repository grant all requested permissions
+        for (const [scope, permission] of Object.entries(requestedPermissions)) {
+            if (!verifyPermission(permission, repositoryAccessPermissions[scope])) {
+                throw new HttpClientError(403, 'Forbidden', `${repository.full_name} repository does not grant requested permissions: ${scope}:${permission}`)
+            }
+        }
+    }))
+
+    const accessToken = await appClient.apps.createInstallationAccessToken({
+        installation_id: appInstallation.id,
+        // be aware that an empty array will result in requesting permissions for all repositories
+        repositories: ensureNotEmpty(requestedRepositories.map(repo => parseRepo(repo).name)),
+        // be aware that an empty object will result in requesting all granted permissions
+        permissions: ensureNotEmpty(requestedPermissions),
+    }).then(res => res.data)
+
+
+    // response with access token
     response.json({
-        token: repoAccessToken.token,
-        expires_at: repoAccessToken.expires_at,
-        permissions: repoAccessToken.permissions,
-        repository: repoAccessToken.repository,
+        token: accessToken.token,
+        expires_at: accessToken.expires_at,
+        repositories: accessToken.repositories.map(it => it.full_name),
+        permissions: accessToken.permissions,
     })
+})
+
+// v1 legacy endpoint
+app.post('/access_token', async (request, response) => {
+    throw new HttpClientError(410, 'Gone', 'update github action to version >= v2')
 })
 
 app.use(errorHandler)
@@ -69,95 +129,82 @@ export default app
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-async function getRepoAccessToken(params) {
-    const [_repoOwner, repoName] = params.repo.split('/')
-
-    if (Object.entries(params.permissions).length === 0) {
-        throw new Error('No permission requested')
+function ensureNotEmpty(obj) {
+    if (Array.isArray(obj)) {
+        if (obj.length === 0) throw Error("Illegal argument")
+    } else if (typeof obj === 'object') {
+        if (Object.keys(obj).length === 0) throw Error("Illegal argument")
     }
-
-    const tokenResponse = await appOctokit.rest.apps.createInstallationAccessToken({
-        installation_id: params.appInstallation.id,
-        repositories: [repoName],
-        permissions: params.permissions,
-    })
-    const token = tokenResponse.data
-    token.repository = params.repo
-    return token
-
+    return obj;
 }
 
-async function getAppRepoInstallation(params) {
-    const [repoOwner, repoName] = params.repo.split('/')
-    const installationResponse = await appOctokit.rest.apps.getRepoInstallation({
-        owner: repoOwner,
-        repo: repoName || " ",
-    })
-    return installationResponse.data
+function parseRepo(repository) {
+    const [owner, name] = repository.split('/')
+    return {owner, name}
 }
 
-function filterValidPermissions(permissions, eligiblePermissions) {
-    const validPermissions = {}
-    for (const [scope, permission] of Object.entries(permissions)) {
-        if (isValidPermission(permission, eligiblePermissions[scope])) {
-            validPermissions[scope] = permission
-        }
-    }
-    return validPermissions
+function isValidPermission(scope, permission) {
+    return /^[a-z]+$/.test(scope) && /^(write|read|none|)$/.test(permission)
 }
 
-function isValidPermission(permission, grantedPermission) {
-    const validPermissions = ['write', 'read']
-    if (!validPermissions.includes(permission)) return false
-    if (!validPermissions.includes(grantedPermission)) return false
-    if (permission === grantedPermission) return true
-    return grantedPermission === 'write'
+function isValidRepository(repository) {
+    // valid format owner-name/repo-name
+    // (?!-)  - ensure no leading dash
+    // (?<!-) - ensure no trailing dash
+    return /^(?!-)([a-z\d-]{1,38})(?<!-)\/(?!-)[a-z\d-]{1,100}(?<!-)$/.test(repository)
 }
 
-async function getRepoAccessPermissions(params) {
-    const repoAccessConfig = await getRepoAccessConfig({
-        appInstallation: params.appInstallation,
+function verifySingleOwner(repositories) {
+    return new Set(repositories.map(it => parseRepo(it).owner)).size <= 1
+}
+
+function verifyPermission(requested, granted) {
+    const permissionRanking  = ['read','write']
+    let requestedRank = permissionRanking.indexOf(requested);
+    let grantedRank = permissionRanking.indexOf(granted);
+    return requestedRank <= grantedRank
+}
+
+async function getRepoAccessPermissions(octokit, params) {
+    const repoAccessConfig = await getRepoAccessConfig(octokit, {
         repo: params.repo,
     })
+
     if (!repoAccessConfig || repoAccessConfig.self !== params.repo) {
-        return []
+        return {}
     }
 
     const repoAccessPolicy = repoAccessConfig.policies.find(policy => {
-        if (policy.repository === 'self' && params.sourceRepo === params.repo) return true
-
+        if (policy.repository === 'self') {
+            return params.repo === params.sourceRepo;
+        }
         const policyRepoPattern = escapeStringRegexp(policy.repository)
             .replaceAll('\\*', '.*')
             .replaceAll('\\?', '.')
         const policyRepoRegExp = new RegExp(`^${policyRepoPattern}$`)
         return policyRepoRegExp.test(params.sourceRepo)
     })
-    if (!repoAccessPolicy) {
-        return []
-    }
 
-    return filterValidPermissions(repoAccessPolicy.permissions, params.appInstallation.permissions)
+    return repoAccessPolicy ? repoAccessPolicy.permissions : []
 }
 
-async function getRepoAccessConfig(params) {
-    // create access token to read .github/access.yaml file
-    const appRepoAccessToken = await getRepoAccessToken({
-        appInstallation: params.appInstallation,
-        repo: params.repo,
-        permissions: {single_file: "read"},
+async function getRepoAccessConfig(octokit, params) {
+    const repoObject = parseRepo(params.repo)
+    const repoAccessFile = await octokit.repos.getContent({
+        owner: repoObject.owner,
+        repo: repoObject.name,
+        path: ACCESS_FILE_LOCATION
     })
-
-    const appRepoOctokit = new Octokit({auth: appRepoAccessToken.token})
-    const [repoOwner, repoName] = params.repo.split('/')
-    let repoAccessFileResponse
-    try {
-        repoAccessFileResponse = await appRepoOctokit.repos.getContent({
-            owner: repoOwner, repo: repoName, path: ACCESS_FILE_LOCATION
+        .then(res => res.data)
+        .catch(err => {
+            if (err.status === 404) return undefined
+            throw err
         })
-    } catch (err) {
-        return
+
+    if (repoAccessFile) {
+        return YAML.load(Buffer.from(repoAccessFile.content, 'base64'))
+        // TODO Validate Config
     }
-    return YAML.load(Buffer.from(repoAccessFileResponse.data.content, 'base64'))
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -140,7 +140,6 @@ const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(278);
 const os = __importStar(__nccwpck_require__(37));
 const path = __importStar(__nccwpck_require__(17));
-const uuid_1 = __nccwpck_require__(840);
 const oidc_utils_1 = __nccwpck_require__(41);
 /**
  * The code to exit an action
@@ -170,20 +169,9 @@ function exportVariable(name, val) {
     process.env[name] = convertedVal;
     const filePath = process.env['GITHUB_ENV'] || '';
     if (filePath) {
-        const delimiter = `ghadelimiter_${uuid_1.v4()}`;
-        // These should realistically never happen, but just in case someone finds a way to exploit uuid generation let's not allow keys or values that contain the delimiter.
-        if (name.includes(delimiter)) {
-            throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-        }
-        if (convertedVal.includes(delimiter)) {
-            throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-        }
-        const commandValue = `${name}<<${delimiter}${os.EOL}${convertedVal}${os.EOL}${delimiter}`;
-        file_command_1.issueCommand('ENV', commandValue);
+        return file_command_1.issueFileCommand('ENV', file_command_1.prepareKeyValueMessage(name, val));
     }
-    else {
-        command_1.issueCommand('set-env', { name }, convertedVal);
-    }
+    command_1.issueCommand('set-env', { name }, convertedVal);
 }
 exports.exportVariable = exportVariable;
 /**
@@ -201,7 +189,7 @@ exports.setSecret = setSecret;
 function addPath(inputPath) {
     const filePath = process.env['GITHUB_PATH'] || '';
     if (filePath) {
-        file_command_1.issueCommand('PATH', inputPath);
+        file_command_1.issueFileCommand('PATH', inputPath);
     }
     else {
         command_1.issueCommand('add-path', {}, inputPath);
@@ -241,7 +229,10 @@ function getMultilineInput(name, options) {
     const inputs = getInput(name, options)
         .split('\n')
         .filter(x => x !== '');
-    return inputs;
+    if (options && options.trimWhitespace === false) {
+        return inputs;
+    }
+    return inputs.map(input => input.trim());
 }
 exports.getMultilineInput = getMultilineInput;
 /**
@@ -274,8 +265,12 @@ exports.getBooleanInput = getBooleanInput;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setOutput(name, value) {
+    const filePath = process.env['GITHUB_OUTPUT'] || '';
+    if (filePath) {
+        return file_command_1.issueFileCommand('OUTPUT', file_command_1.prepareKeyValueMessage(name, value));
+    }
     process.stdout.write(os.EOL);
-    command_1.issueCommand('set-output', { name }, value);
+    command_1.issueCommand('set-output', { name }, utils_1.toCommandValue(value));
 }
 exports.setOutput = setOutput;
 /**
@@ -404,7 +399,11 @@ exports.group = group;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function saveState(name, value) {
-    command_1.issueCommand('save-state', { name }, value);
+    const filePath = process.env['GITHUB_STATE'] || '';
+    if (filePath) {
+        return file_command_1.issueFileCommand('STATE', file_command_1.prepareKeyValueMessage(name, value));
+    }
+    command_1.issueCommand('save-state', { name }, utils_1.toCommandValue(value));
 }
 exports.saveState = saveState;
 /**
@@ -470,13 +469,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.issueCommand = void 0;
+exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const fs = __importStar(__nccwpck_require__(147));
 const os = __importStar(__nccwpck_require__(37));
+const uuid_1 = __nccwpck_require__(840);
 const utils_1 = __nccwpck_require__(278);
-function issueCommand(command, message) {
+function issueFileCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
@@ -488,7 +488,22 @@ function issueCommand(command, message) {
         encoding: 'utf8'
     });
 }
-exports.issueCommand = issueCommand;
+exports.issueFileCommand = issueFileCommand;
+function prepareKeyValueMessage(key, value) {
+    const delimiter = `ghadelimiter_${uuid_1.v4()}`;
+    const convertedValue = utils_1.toCommandValue(value);
+    // These should realistically never happen, but just in case someone finds a
+    // way to exploit uuid generation let's not allow keys or values that contain
+    // the delimiter.
+    if (key.includes(delimiter)) {
+        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+    }
+    if (convertedValue.includes(delimiter)) {
+        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+    }
+    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
+}
+exports.prepareKeyValueMessage = prepareKeyValueMessage;
 //# sourceMappingURL=file-command.js.map
 
 /***/ }),
@@ -2803,7 +2818,7 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
 const core = __nccwpck_require__(186)
-const {HttpClient} = __nccwpck_require__(255)
+const {HttpClient, HttpClientError} = __nccwpck_require__(255)
 const httpClient = new HttpClient()
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2811,45 +2826,63 @@ const httpClient = new HttpClient()
 const IS_DEVELOPMENT_ENV = process.env.NODE_ENV === 'development'
 
 // ---------------------------------------------------------------------------------------------------------------------
-
 if (IS_DEVELOPMENT_ENV) {
-    core.getIDToken = async (_) => process.env.ACTIONS_ID_TOKEN
+    core.getIDToken = async (aud) => process.env.ACTIONS_ID_TOKEN
 }
 
-async function run() {
-    const repository = core.getInput('repository', {required: true})
-    const accessTokenEndpoint = core.getInput('endpoint', {required: true})
+const ACCESS_MANAGER_ENDPOINT = (IS_DEVELOPMENT_ENV ? process.env.ACTIONS_ACCESS_MANAGER_ENDPOINT : undefined)
+    || 'https://github-actions-access-manager.vercel.app/v2/access_token'
 
-    const idTokenAudience = new URL(accessTokenEndpoint).host
-    const idToken = await core.getIDToken(idTokenAudience)
+async function run() {
+    const repositories = core.getMultilineInput('repositories')
+    const permissions = core.getMultilineInput('permissions').reduce((result, scopePermission) => {
+        const [scope, permission] = scopePermission.split(':').map(it => it.trim())
+        result[scope] = permission
+        return result
+    }, {})
 
     const accessToken = await getAccessToken({
-        endpoint: accessTokenEndpoint,
-        idToken: idToken,
-        repository: repository,
+        repositories,
+        permissions,
     })
 
     core.setSecret(accessToken.token)
     core.exportVariable('GITHUB_ACCESS_MANAGER_TOKEN', accessToken.token)
-    core.setOutput('token', accessToken.token)
+    core.setOutput('GITHUB_ACCESS_MANAGER_TOKEN', accessToken.token)
     console.info(accessToken)
 }
 
 run().catch(error => {
-    core.setFailed(error.message);
+    if (IS_DEVELOPMENT_ENV) {
+        console.error(error)
+    }
+    core.setFailed(error)
 })
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 async function getAccessToken(params) {
+    const idTokenAudience = new URL(ACCESS_MANAGER_ENDPOINT).host
+    const idToken = await core.getIDToken(idTokenAudience)
     return await httpClient.postJson(
-        params.endpoint + '?' + `repository=${params.repository}`,
-        {},
-        {'Authorization': 'Bearer ' + params.idToken},
+        ACCESS_MANAGER_ENDPOINT,
+        {
+            repositories: params.repositories,
+            permissions: params.permissions,
+        },
+        {'Authorization': 'Bearer ' + idToken},
     ).then(res => {
-        if (res.statusCode !== 200) throw new Error(res.result.error.message)
+        if (res.statusCode > 399) {
+            throw new Error(`endpoint: ${params.endpoint} statusCode: ${res.statusCode}`)
+        }
         return res.result
-    });
+    }).catch(err => {
+        if (err instanceof HttpClientError) {
+            if (err.result && err.result.error)
+                throw new Error(err.result.error.message)
+        }
+        throw err
+    })
 }
 
 

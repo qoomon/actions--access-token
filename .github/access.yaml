@@ -3,6 +3,4 @@ policies:
 - repository: self
   permissions:
     contents: read
-- repository: qoomon/sandbox
-  permissions:
-    contents: read
+    issues: read

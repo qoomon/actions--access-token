@@ -18,18 +18,18 @@
     "token"
   ],
   "dependencies": {
-    "@octokit/app": "^13.0.5",
-    "@octokit/auth-app": "^4.0.4",
-    "@octokit/core": "^4.0.4",
-    "@octokit/rest": "^19.0.3",
+    "@octokit/app": "^13.0.11",
+    "@octokit/auth-app": "^4.0.7",
+    "@octokit/core": "^4.1.0",
+    "@octokit/rest": "^19.0.5",
     "escape-string-regexp": "^5.0.0",
-    "express": "^4.18.1",
+    "express": "^4.18.2",
     "express-async-errors": "^3.1.1",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^8.5.1",
-    "jwks-rsa": "^2.1.4"
+    "jwks-rsa": "^2.1.5"
   },
   "devDependencies": {
-    "vercel": "^27.3.4"
+    "vercel": "^28.4.12"
   }
 }
