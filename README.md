@@ -1,7 +1,7 @@
 
 # ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Manager
 
-Manage access from GitHub actions workflows by providing temporary app access tokens to target repository resources.
+Manage access from GitHub actions workflows by providing temporary app access tokens to repository resources.
 
 ## Workflow
 <p>
@@ -12,19 +12,19 @@ Manage access from GitHub actions workflows by providing temporary app access to
   </picture>
 </p>
 
-1. This GitHub action will request an access token for a **Target Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub). 
-1. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access.yaml` file in **Target Repository**.
-1. The [App Server](server/) reads `.github/access.yaml` file from **Target Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
+1. This GitHub action will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub). 
+1. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access.yaml` file in **Granting Repository**.
+1. The [App Server](server/) reads `.github/access.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
 1. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to the GitHub action from step `1.`.
 1. The GitHub action sets the token as environment variable `$GITHUB_ACCESS_MANAGER_TOKEN` and as step output value `${{ steps.github-actions-access.outputs.token }}`.
-1. Further steps can then utilize this token to access resources of the **Target Repository**.
+1. Further steps can then utilize this token to access resources of the **Granting Repository**.
 
 ## Usage
-### Install Access Manager App to Your Target Repositories
+### Install Access Manager App to Granting Repository (`example/blue`)
 * Install [Access Manger App](https://github.com/marketplace/access-manager-for-github-actions)
 * **or** [Deploy and Install your **Own** GitHub App](#Deploy-your-own-Access-Manager-App)
 
-### Configure Access Permissions for Target Repository
+### Grant Access Permissions in Granting Repository (`example/blue`)
 * Create `.github/access.yaml` file
 * Set `self` to enclosing repository. 
   * This ensures no unintended access in case you fork a repository with `.github/access.yaml` file.  
@@ -56,7 +56,7 @@ Manage access from GitHub actions workflows by providing temporary app access to
       permissions:
         packages: read
     ```
-### Setup GitHub Action Workflow
+### Setup GitHub Action Workflow for Requesting Repository (`example/green`)
 ```yaml
 on:
   # ...
@@ -96,7 +96,7 @@ jobs:
     * Single file: `Read-only`
         * Add file path `.github/access.yaml`
 
-### Install GitHub App for Target Repository
+### Install GitHub App for Granting Repository
 * Go to [User App Settings](https://github.com/settings/apps/new) or [Organizations App Settings](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps)
 * Click on `Edit` of your App
 * Click on `Install App`
