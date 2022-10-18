@@ -12,11 +12,11 @@ Manage access from GitHub actions workflows by providing temporary app access to
   </picture>
 </p>
 
-1. This GitHub action will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub). 
+1. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub). 
 1. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access.yaml` file in **Granting Repository**.
 1. The [App Server](server/) reads `.github/access.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
-1. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to the GitHub action from step `1.`.
-1. The GitHub action sets the token as environment variable `$GITHUB_ACCESS_MANAGER_TOKEN` and as step output value `${{ steps.github-actions-access.outputs.token }}`.
+1. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
+1. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) sets the token as environment variable `$GITHUB_ACCESS_MANAGER_TOKEN` and as step output value `${{ steps.github-actions-access.outputs.token }}`.
 1. Further steps can then utilize this token to access resources of the **Granting Repository**.
 
 ## Usage
