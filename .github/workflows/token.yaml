@@ -1,0 +1,21 @@
+permissions:
+  id-token: write # required to request id-token
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  run:
+    runs-on: [ubuntu-latest]
+    
+    steps:
+    - run: |
+        curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}" \
+          -H "User-Agent: actions/oidc-client" \
+          -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+        >> id-token.jwt
+        
+    - uses: actions/upload-artifact@v3
+      with:
+        name: id-token
+        path: id-token.jwt
