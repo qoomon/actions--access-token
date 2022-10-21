@@ -28,6 +28,4 @@ jobs:
           gh issue list --repo qoomon/github-actions-access-manager
         env:
           GITHUB_TOKEN: ${{ steps.access-manager.outputs.GITHUB_ACCESS_MANAGER_TOKEN }}
-          # GH_TOKEN: ${{ steps.access-manager.outputs.GITHUB_ACCESS_MANAGER_TOKEN }}
-      
-      
+          
