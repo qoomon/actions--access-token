@@ -20,11 +20,11 @@ Manage access from GitHub actions workflows by providing temporary app access to
 1. Further steps can then utilize this token to access resources of the **Granting Repository**.
 
 ## Usage
-### Install Access Manager App to Granting Repository (`example/blue`)
+### Install Access Manager App to Granting Repository `example/blue`
 * Install [Access Manger App](https://github.com/marketplace/access-manager-for-github-actions)
 * **or** [Deploy and Install your **Own** GitHub App](#Deploy-your-own-Access-Manager-App)
 
-### Grant Access Permissions in Granting Repository (`example/blue`)
+### Grant Access Permissions in Granting Repository `example/blue`
 * Create `.github/access.yaml` file
 * Set `self` to enclosing repository. 
   * This ensures no unintended access in case you fork a repository with `.github/access.yaml` file.  
