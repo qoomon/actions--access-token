@@ -58,9 +58,8 @@ async function getAccessToken(params) {
         }
         return res.result
     }).catch(err => {
-        if (err instanceof HttpClientError) {
-            if (err.result && err.result.error)
-                throw new Error(err.result.error.message)
+        if (err instanceof HttpClientError && err.result?.error?.message) {
+            throw new Error(err.result.error.message)
         }
         throw err
     })
