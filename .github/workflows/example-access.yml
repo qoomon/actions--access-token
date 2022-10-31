@@ -15,8 +15,8 @@ jobs:
         with:
           repositories: self
           permissions: |
-            issues:read
-            contents:read
+            issues: read
+            contents: read
 
       - name: Use access token to clone repository
         run: |
