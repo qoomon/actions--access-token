@@ -37,7 +37,7 @@ run().catch(error => {
     if (IS_DEVELOPMENT_ENV) {
         console.error(error)
     }
-    core.setFailed(error)
+    core.setFailed(error.message)
 })
 
 // ---------------------------------------------------------------------------------------------------------------------

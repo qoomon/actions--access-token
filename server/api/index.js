@@ -63,51 +63,17 @@ app.post('/v2/access_token', async (request, response) => {
         }
     }
 
-    // TODO handle app is not installed
-    const appInstallation = await appClient.apps.getUserInstallation({
-        username: parseRepo(requestedRepositories[0]).owner
-    }).then(res => res.data)
+    // -----------------------------------------------------------------------------------------------------------------
 
-    // verify if app installation has all requested permissions
-    for (const [scope, permission] of Object.entries(requestedPermissions)) {
-        if (!verifyPermission(permission, appInstallation.permissions[scope])) {
-            throw new HttpClientError(403, 'Forbidden', `App installation does not have requested permission: ${scope}:${permission}`)
+    const accessToken = await createInstallationAccessTokenForGithubActions(appClient, {
+        repositories: requestedRepositories,
+        permissions: requestedPermissions,
+    }).catch(err => {
+        if(err.name === PermissionError.name){
+            throw new HttpClientError(403, 'Forbidden', err.message, err)
         }
-    }
-
-    // TODO handle missing permissions for specific repositories
-    const accessFileAccessToken = await appClient.apps.createInstallationAccessToken({
-        installation_id: appInstallation.id,
-        // be aware that an empty array will result in requesting permissions for all repositories
-        repositories: ensureNotEmpty(requestedRepositories.map(repo => parseRepo(repo).name)),
-        permissions: {single_file: 'read'},
-    }).then(res => res.data)
-
-    const installationClient = new Octokit({auth: accessFileAccessToken.token});
-
-    // ensure requested permissions are granted for all requested repositories
-    await Promise.all(accessFileAccessToken.repositories.map(async repository => {
-        const repositoryAccessPermissions = await getRepoAccessPermissions(installationClient, {
-            repo: repository.full_name,
-            sourceRepo: request.token.repository,
-        })
-
-        // verify if repository grant all requested permissions
-        for (const [scope, permission] of Object.entries(requestedPermissions)) {
-            if (!verifyPermission(permission, repositoryAccessPermissions[scope])) {
-                throw new HttpClientError(403, 'Forbidden', `${repository.full_name} repository does not grant requested permissions: ${scope}:${permission}`)
-            }
-        }
-    }))
-
-    const accessToken = await appClient.apps.createInstallationAccessToken({
-        installation_id: appInstallation.id,
-        // be aware that an empty array will result in requesting permissions for all repositories
-        repositories: ensureNotEmpty(requestedRepositories.map(repo => parseRepo(repo).name)),
-        // be aware that an empty object will result in requesting all granted permissions
-        permissions: ensureNotEmpty(requestedPermissions),
-    }).then(res => res.data)
-
+        throw err
+    })
 
     // response with access token
     response.json({
@@ -128,6 +94,78 @@ app.use(errorHandler)
 export default app
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+class PermissionError extends Error {
+    constructor(message, err) {
+        super(message, err);
+        this.name = "PermissionError";
+    }
+}
+
+async function createInstallationAccessTokenForGithubActions(appClient, params) {
+    const appInstallation = await appClient.apps.getUserInstallation({
+        username: parseRepo(params.repositories[0]).owner
+    })
+        .then(res => res.data)
+        .catch(err => {
+            // TODO handle app is not installed
+            const app = appClient.apps.getAuthenticated().then(res => res.data)
+            // TODO Repository owner needs to install the access manager app first. https://github.com/apps/access-manager-for-github-actions/installations/new
+            throw new PermissionError(`The repository owner needs to install access manager app first.`, err)
+        })
+
+    // verify if app installation has all requested permissions
+    for (const [scope, permission] of Object.entries(params.permissions)) {
+        if (!verifyPermission(permission, appInstallation.permissions[scope])) {
+            // TODO handle missing permissions
+            const app = appClient.apps.getAuthenticated().then(res => res.data)
+            // TODO App owner needs to request permission first. https://github.com/settings/apps/access-manager-for-github-actions/permissions
+            throw new PermissionError(`The app owner needs to request permission first. ${scope}:${permission}`)
+        }
+    }
+
+    const accessFileAccessToken = await appClient.apps.createInstallationAccessToken({
+        installation_id: appInstallation.id,
+        // be aware that an empty array will result in requesting permissions for all repositories
+        repositories: ensureNotEmpty(params.repositories).map(repo => parseRepo(repo).name),
+        permissions: {single_file: 'read'},
+    })
+        .then(res => res.data)
+        .catch(err => {
+            // TODO handle missing permissions for specific repositories
+            const app = appClient.apps.getAuthenticated().then(res => res.data)
+            // TODO https://github.com/settings/installations/${appInstallation.id} > Repository access
+            throw new PermissionError(`The App must be configured to have access to repository.`, err)
+        })
+
+    const installationClient = new Octokit({auth: accessFileAccessToken.token});
+
+    // ensure requested permissions are granted for all requested repositories
+    await Promise.all(accessFileAccessToken.repositories.map(async repository => {
+        // TODO maybe inline
+        const repoAccessPermissions = await getRepoAccessPermissions(installationClient, {
+            repo: repository.full_name,
+            sourceRepo: params.sourceRepo,
+        })
+        console.log("repoAccessPermissions", repoAccessPermissions)
+
+        // verify if repository grant all requested permissions
+        for (const [scope, permission] of Object.entries(params.permissions)) {
+            if (!verifyPermission(permission, repoAccessPermissions[scope])) {
+                // TODO maybe Aggregate all missing permissions for all repositories
+                throw new PermissionError(`${repository.full_name} repository does not grant requested permission: ${scope}:${permission}`)
+            }
+        }
+    }))
+
+    return await appClient.apps.createInstallationAccessToken({
+        installation_id: appInstallation.id,
+        // be aware that an empty array will result in requesting permissions for all repositories
+        repositories: ensureNotEmpty(params.repositories).map(repo => parseRepo(repo).name),
+        // be aware that an empty object will result in requesting all granted permissions
+        permissions: ensureNotEmpty(params.permissions),
+    }).then(res => res.data)
+}
 
 function ensureNotEmpty(obj) {
     if (Array.isArray(obj)) {
@@ -159,22 +197,29 @@ function verifySingleOwner(repositories) {
 }
 
 function verifyPermission(requested, granted) {
-    const permissionRanking  = ['read','write']
+    const permissionRanking = ['read', 'write']
     let requestedRank = permissionRanking.indexOf(requested);
     let grantedRank = permissionRanking.indexOf(granted);
     return requestedRank <= grantedRank
 }
 
-async function getRepoAccessPermissions(octokit, params) {
-    const repoAccessConfig = await getRepoAccessConfig(octokit, {
+async function getRepoAccessPermissions(installationClient, params) {
+    const repoAccessConfig = await getRepoAccessConfig(installationClient, {
         repo: params.repo,
     })
 
-    if (!repoAccessConfig || repoAccessConfig.self !== params.repo) {
+    if (!repoAccessConfig) {
         return {}
     }
 
-    const repoAccessPolicy = repoAccessConfig.policies.find(policy => {
+    if (repoAccessConfig.self !== params.repo) {
+        // TODO wrong self reference in access.yaml, needs to be fixed by a repo maintainer
+        return {}
+    }
+
+    console.log("repoAccessConfig", JSON.stringify(repoAccessConfig, null, 2))
+
+    const repoAccessPolicy = repoAccessConfig.policies?.find(policy => {
         if (policy.repository === 'self') {
             return params.repo === params.sourceRepo;
         }
@@ -185,18 +230,19 @@ async function getRepoAccessPermissions(octokit, params) {
         return policyRepoRegExp.test(params.sourceRepo)
     })
 
-    return repoAccessPolicy ? repoAccessPolicy.permissions : []
+    return repoAccessPolicy?.permissions || {}
 }
 
-async function getRepoAccessConfig(octokit, params) {
+async function getRepoAccessConfig(installationClient, params) {
     const repoObject = parseRepo(params.repo)
-    const repoAccessFile = await octokit.repos.getContent({
+    const repoAccessFile = await installationClient.repos.getContent({
         owner: repoObject.owner,
         repo: repoObject.name,
         path: ACCESS_FILE_LOCATION
     })
         .then(res => res.data)
         .catch(err => {
+            // TODO throw permission error
             if (err.status === 404) return undefined
             throw err
         })
