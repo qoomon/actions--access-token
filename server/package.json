@@ -30,6 +30,6 @@
     "jwks-rsa": "^2.1.5"
   },
   "devDependencies": {
-    "vercel": "^28.4.12"
+    "vercel": "^28.15.3"
   }
 }
