@@ -151,7 +151,7 @@ function isValidRepository(repository) {
     // valid format owner-name/repo-name
     // (?!-)  - ensure no leading dash
     // (?<!-) - ensure no trailing dash
-    return /^(?!-)([a-z\d-]{1,38})(?<!-)\/(?!-)[a-z\d-]{1,100}(?<!-)$/.test(repository)
+    return /^(?!-)([a-z\d-]{1,38})(?<!-)\/(?!-)[a-z\d-]{1,100}(?<!-)$/i.test(repository)
 }
 
 function verifySingleOwner(repositories) {
