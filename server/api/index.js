@@ -144,7 +144,7 @@ function parseRepo(repository) {
 }
 
 function isValidPermission(scope, permission) {
-    return /^[a-z]+$/.test(scope) && /^(write|read|none|)$/.test(permission)
+    return /^[-_a-z]+$/.test(scope) && /^(write|read|none|)$/.test(permission)
 }
 
 function isValidRepository(repository) {
