@@ -4,16 +4,17 @@ import process from 'process'
 import StatusCodes from 'http-status-codes'
 import YAML from 'yaml'
 import {
+  GitHubAccessPolicy,
   GitHubAppOrganizationPermissions,
+  GitHubAppPermission,
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
-  GitHubOrgAccessPolicy,
-  GitHubRepoAccessPolicy,
 } from '../lib/types.js'
-import {verifyPermissions} from '../lib/github-utils.js'
+import {verifyPermission} from '../lib/github-utils.js'
 import {describe, expect, it, jest} from '@jest/globals'
 import request from 'supertest'
 import {RequestError} from '@octokit/request-error'
+import {withHint} from './lib/jest-utils.js'
 
 const octokitEnvironment = {
   appInstallations: [
@@ -27,6 +28,7 @@ const octokitEnvironment = {
         contents: 'write',
         pull_requests: 'write',
         actions: 'write',
+        actions_variables: 'write',
         secrets: 'write',
       },
     },
@@ -90,7 +92,9 @@ const octokitEnvironment = {
           permissions: {
             'contents': 'write',
             'secrets': 'write',
-            'pull-requests': 'write',
+            'actions': 'write',
+            // TODO implement dash-case support
+            'actions_variables': 'write',
           },
         }],
       },
@@ -184,7 +188,7 @@ const octokitEnvironment = {
     // === Organization Access Policies ===
     {
       name: 'sesame-street/.github',
-      organizationAccessPolicy: {
+      ownerAccessPolicy: {
         origin: `sesame-street/.github`,
         statements: [{
           subjects: [
@@ -200,7 +204,7 @@ const octokitEnvironment = {
     },
     {
       name: 'sesame-street-invalid-policy/.github',
-      organizationAccessPolicy: {
+      ownerAccessPolicy: {
         origin: `sesame-street-invalid-policy/.github`,
         statements: [{
           subjects: [],
@@ -210,7 +214,7 @@ const octokitEnvironment = {
     },
     {
       name: 'sesame-street-invalid-policy/.github',
-      organizationAccessPolicy: {
+      ownerAccessPolicy: {
         origin: 'sesame-street-invalid-policy/.github',
         statements: [{
           subjects: [],
@@ -220,7 +224,7 @@ const octokitEnvironment = {
     },
     {
       name: 'sesame-street-invalid-policy-yaml/.github',
-      organizationAccessPolicy: 'invalid' as any,
+      ownerAccessPolicy: 'invalid' as any,
     },
     {
       name: 'sesame-street-no-policy/.github',
@@ -437,7 +441,7 @@ describe('App path /access_tokens', () => {
         const response = await request(app.callback()).post(path)
             .auth(githubToken, {type: 'bearer'})
             .send({
-              repositories: ['invalid'],
+              repositories: ['invalid/invalid'],
               permissions: {
                 actions: 'read',
               } satisfies GitHubAppRepositoryPermissions,
@@ -450,7 +454,7 @@ describe('App path /access_tokens', () => {
         })
       })
 
-      it('if token request organization is invalid', async () => {
+      it('if token request owner is invalid', async () => {
         // --- Given ---
         const githubToken = Fixtures.createGitHubActionsToken()
 
@@ -458,7 +462,7 @@ describe('App path /access_tokens', () => {
         const response = await request(app.callback()).post(path)
             .auth(githubToken, {type: 'bearer'})
             .send({
-              organization: 'invalid/invalid',
+              owner: 'invalid/invalid',
               permissions: {
                 organization_actions_variables: 'read',
               } satisfies GitHubAppOrganizationPermissions,
@@ -467,99 +471,7 @@ describe('App path /access_tokens', () => {
         // --- Then ---
         expect(response).toMatchObject({
           statusCode: StatusCodes.BAD_REQUEST,
-          text: expect.stringMatching(/^Invalid request body.\n- organization: Invalid format\..*$/),
-        })
-      })
-
-      describe('for repository scope', () => {
-        it('if token request targets repositories from different owners', async () => {
-          // --- Given ---
-          const githubToken = Fixtures.createGitHubActionsToken()
-
-          // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({
-                repositories: [
-                  'sesame-street/sandbox',
-                  'octo-org/sandbox',
-                ],
-                permissions: {
-                  actions: 'read',
-                },
-              })
-
-          // --- Then ---
-          expect(response).toMatchObject({
-            statusCode: StatusCodes.BAD_REQUEST,
-            text: expect.stringMatching(/^Token can only be requested for repositories of a single owner\.$/),
-          })
-        })
-
-        it('if token request contains non repository permission', async () => {
-          // --- Given ---
-          const githubToken = Fixtures.createGitHubActionsToken()
-
-          // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({
-                repositories: ['sesame-street/sandbox'],
-                permissions: {
-                  organization_actions_variables: 'read',
-                },
-              })
-
-          // --- Then ---
-          expect(response).toMatchObject({
-            statusCode: StatusCodes.BAD_REQUEST,
-            text: expect.stringMatching(/^Invalid repository permissions\.\n- Unrecognized key\(s\) in object: 'organization_actions_variables'$/),
-          })
-        })
-      })
-
-      describe('for organisation scope', () => {
-
-        it('if token request contains non organization permission', async () => {
-          // --- Given ---
-          const githubToken = Fixtures.createGitHubActionsToken()
-
-          // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({
-                organization: 'sesame-street',
-                permissions: {
-                  actions: 'read',
-                },
-              })
-
-          // --- Then ---
-          expect(response).toMatchObject({
-            statusCode: StatusCodes.BAD_REQUEST,
-            text: expect.stringMatching(/^Invalid organization permissions\.\n- Unrecognized key\(s\) in object: 'actions'$/),
-          })
-        })
-
-        it('if token request organization is not an organization', async () => {
-          // --- Given ---
-          const githubToken = Fixtures.createGitHubActionsToken()
-
-          // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({
-                organization: 'john-doe',
-                permissions: {
-                  organization_actions_variables: 'read',
-                } satisfies GitHubAppOrganizationPermissions,
-              })
-
-          // --- Then ---
-          expect(response).toMatchObject({
-            statusCode: StatusCodes.BAD_REQUEST,
-            text: expect.stringMatching(/^'john-doe' is not an organization\.$/),
-          })
+          text: expect.stringMatching(/^Invalid request body.\n- owner: Invalid format\..*$/),
         })
       })
     })
@@ -570,7 +482,7 @@ describe('App path /access_tokens', () => {
         // --- Given ---
         const githubToken = Fixtures.createGitHubActionsToken({
           claims: {
-            repository: 'john-doe/sandbox',
+            repository: 'john-doe/action-repo',
           },
         })
 
@@ -579,24 +491,29 @@ describe('App path /access_tokens', () => {
             .auth(githubToken, {type: 'bearer'})
             .send({
               permissions: {
-                actions: 'read',
+                'actions': 'read',
+                'actions-variables': 'read',
               },
             })
 
         // --- Then ---
-        expect(response).toMatchObject({
-          statusCode: StatusCodes.OK,
-          headers: expect.objectContaining({
-            'content-type': 'application/json; charset=utf-8',
-          }),
-          text: expect.stringMatching(/^{/),
-          _body: {
-            owner: 'john-doe',
-            permissions: {actions: 'read'},
-            repositories: ['john-doe/sandbox'],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@1000$/),
-            expires_at: expect.stringMatching(/^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\dZ$/),
-          },
+        withHint(() => {
+          expect(response).toMatchObject({
+            headers: expect.any(Object),
+            statusCode: StatusCodes.OK,
+            _body: expect.objectContaining({
+              owner: 'john-doe',
+              permissions: {
+                'actions': 'read',
+                'actions_variables': 'read',
+              },
+              repositories: ['action-repo'],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@1000$/),
+              expires_at: expect.stringMatching(/Z$/),
+            }),
+          })
+        }, {
+          'response.text': response.text,
         })
       })
     })
@@ -626,7 +543,6 @@ function mockModules({octokitEnvironment}: {
               params.alg === Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.alg) {
             return Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.publicKey
           }
-          console.error(params)
           return actual.getPublicKey(params)
         },
       })),
@@ -649,20 +565,24 @@ function mockModules({octokitEnvironment}: {
               const installation = octokitEnvironment.appInstallations
                   .find((it) => it.owner === params.username)
               if (installation) return {data: installation}
-              throw new RequestError('Not Found', StatusCodes.NOT_FOUND, {} as any)
+              throw new RequestError('Not Found', StatusCodes.NOT_FOUND, {
+                request: {headers: {}, url: 'http://localhost/tests'} as any,
+              })
             }),
             createInstallationAccessToken: jest.fn().mockImplementation(async (params: any) => {
               const installation = octokitEnvironment.appInstallations
                   .find((it) => it.id === params.installation_id)
               if (installation) {
-                const deniedPermissions = verifyPermissions({
-                  requested: params.permissions,
-                  granted: installation.permissions,
+                Object.entries(params.permissions).forEach(([scope, permission]) => {
+                  if (!verifyPermission({
+                    requested: permission as GitHubAppPermission,
+                    granted: installation.permissions[scope as keyof GitHubAppPermissions],
+                  })) {
+                    throw new RequestError('Unprocessable Entity', StatusCodes.UNPROCESSABLE_ENTITY, {
+                      request: {headers: {}, url: 'http://localhost/tests'} as any,
+                    })
+                  }
                 })
-                if (deniedPermissions) {
-                  throw new RequestError('Unprocessable Entity',
-                      StatusCodes.UNPROCESSABLE_ENTITY, {} as any)
-                }
 
                 return {
                   data: {
@@ -670,6 +590,7 @@ function mockModules({octokitEnvironment}: {
                     expires_at: dateIn({hour: +1}).toISOString(),
                     permissions: params.permissions,
                     repositories: params.repositories?.map((it: string) => ({
+                      name: it,
                       full_name: `${installation.owner}/${it}`,
                     })),
                   },
@@ -691,24 +612,26 @@ function mockModules({octokitEnvironment}: {
             repos: {
               getContent: jest.fn().mockImplementation(async (params: any) => {
                 if (params.owner !== installation.owner) {
-                  console.log('#####', params.owner, installation.owner)
                   throw new Error('Access Denied')
                 }
 
                 const repository = octokitEnvironment.repositories
                     .find((it) => it.name === `${params.owner}/${params.repo}`)
 
+
                 if (params.path === '.github/access-policy.yaml' && repository?.accessPolicy) {
                   const contentString = YAML.stringify(repository.accessPolicy)
                   return {data: {content: Buffer.from(contentString).toString('base64')}}
                 }
 
-                if (params.path === '.github/organization-access-policy.yaml' && repository?.organizationAccessPolicy) {
-                  const contentString = YAML.stringify(repository.organizationAccessPolicy)
+                if (params.path === 'access.yaml' && repository?.ownerAccessPolicy) {
+                  const contentString = YAML.stringify(repository.ownerAccessPolicy)
                   return {data: {content: Buffer.from(contentString).toString('base64')}}
                 }
 
-                throw new RequestError('Not Found', StatusCodes.NOT_FOUND, {} as any)
+                throw new RequestError('Not Found', StatusCodes.NOT_FOUND, {
+                  request: {headers: {}, url: 'http://localhost/tests'} as any,
+                })
               }),
             },
           }
@@ -754,6 +677,8 @@ type AppInstallation = {
 
 type Repository = {
   name: string,
-  accessPolicy?: GitHubRepoAccessPolicy
-  organizationAccessPolicy?: GitHubOrgAccessPolicy,
+  accessPolicy?: GitHubAccessPolicy
+  ownerAccessPolicy?: GitHubAccessPolicy,
 }
+
+

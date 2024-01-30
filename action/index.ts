@@ -20,7 +20,7 @@ const GITHUB_ACCESS_MANAGER_API: {
     }
   }
 } = {
-  baseUrl: new URL('https://EXAMPLE.lambda-url.eu-central-1.on.aws/'),
+  baseUrl: new URL('https://EXAMPLE.lambda-url.REGION.on.aws/'),
   // auth: {
   //   aws: {
   //     roleArn: 'arn:aws:iam::0000000000:role/github-access-manager-api-access',

@@ -107,8 +107,11 @@ export function regexpOfWildcardPattern(pattern: string, flags?: string): RegExp
  * @param fn - mapping function
  * @returns new mapped object
  */
-export function mapObject<T, U>(object: Record<string, T>, fn: (entry: [string, T]) => [string, U]): Record<string, U> {
-  return Object.fromEntries(Object.entries(object).map(fn))
+export function mapObject<V, U>(
+    object: Record<string, V>,
+    fn: (entry: [string, V]) => [string, U],
+): Record<string, U> {
+  return Object.fromEntries(Object.entries(object).map(fn)) as Record<string, U>
 }
 
 /**
@@ -133,4 +136,16 @@ export async function promise<T>(func: () => T): Promise<T> {
       reject(error)
     }
   })
+}
+
+/**
+ * Indent string
+ * @param string - string to indent
+ * @param indent - indent string
+ * @returns indented string
+ */
+export function indent(string: string, indent: string = '  ') {
+  return string.split('\n')
+      .map((line) => `${indent}${line}`)
+      .join('\n')
 }

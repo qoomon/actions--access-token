@@ -8,6 +8,7 @@ import buildJwks, {GetJwksOptions} from 'get-jwks'
  */
 export function buildJwksKeyFetcher(options: GetJwksOptions): (jwt: DecodedJwt) => Promise<string> {
   const jwks = buildJwks(options)
+  // TODO maybe implement a retry mechanism if getPublicKey fails
   return async ({header, payload}) => await jwks.getPublicKey({
     kid: header.kid,
     alg: header.alg,

@@ -1,4 +1,4 @@
-self: qoomon/github-actions-access-manager
+origin: qoomon/github-actions-access-manager
 policies:
 - repository: self
   permissions:

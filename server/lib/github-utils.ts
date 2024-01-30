@@ -23,71 +23,81 @@ export function parseSubject(subject: string): Record<string, string | undefined
 }
 
 /**
- * Verify if requested permissions are granted
- * @param requested permissions
- * @param granted permissions
- * @return denied permissions or null if all permissions are granted
- */
-export function verifyPermissions({requested, granted}: {
-  requested: GitHubAppPermissions,
-  granted: GitHubAppPermissions,
-}): GitHubAppPermissions | null {
-  const deniedPermissions = <GitHubAppPermissions>{}
-  for (const [requestedScope, requestedPermission] of Object.entries(requested)) {
-    const _granted = granted as { [index: string]: GitHubAppPermission }
-    if (comparePermission(requestedPermission, _granted[requestedScope]) < 0) {
-      const _deniedPermissions = deniedPermissions as { [index: string]: GitHubAppPermission }
-      _deniedPermissions[requestedScope] = requestedPermission
-    }
-  }
-
-  return Object.keys(deniedPermissions).length > 0 ? deniedPermissions :
-      null
-}
-
-/**
- * Aggregate permission sets, the most permissive permission is applied
+ * Aggregated permission sets to a most permissive permission set
  * @param permissionSets - permission sets
  * @return aggregated permissions
  */
 export function aggregatePermissions(permissionSets: GitHubAppPermissions[]) {
-  const resultingPermissions = <GitHubAppPermissions>{}
-  for (const permissions of permissionSets) {
-    // eslint-disable-next-line max-len
-    for (const [scope, permission] of Object.entries(permissions) as [keyof GitHubAppPermissions, GitHubAppPermission][]) {
-      if (comparePermission(resultingPermissions[scope], permission) > 0) {
-        (resultingPermissions[scope] as string) = permission
+  return permissionSets.reduce((result, permissions) => {
+    Object.entries(permissions).forEach(([scope, permission]) => {
+      const _scope = scope as keyof GitHubAppPermissions
+      if (!result[_scope] || verifyPermission({
+        granted: permission,
+        requested: result[_scope],
+      })) {
+        (result[_scope] satisfies string | undefined) = permission
       }
-    }
-  }
-  return resultingPermissions
+    })
+    return result
+  }, <GitHubAppPermissions>{})
 }
 
 /**
- * Compare permissions by rank (admin > write > read)
- * @param left - 1st permission
- * @param right - 2nd permission
- * @returns comparison result
- * - if left is more permissive: -1
- * - if right is more permissive: +1
- * - else 0
+ * Verify permission is granted (admin > write > read)
+ * @param granted - granted permission
+ * @param requested - requested permission
+ * @returns true if permission was granted
  */
-export function comparePermission(
-    left: GitHubAppPermission | undefined,
-    right: GitHubAppPermission | undefined,
-): 1 | 0 | -1 {
-  const PERMISSION_RANKING: (GitHubAppPermission | undefined)[] = [undefined, 'read', 'write', 'admin']
+export function verifyPermission({requested, granted}: {
+  requested?: GitHubAppPermission,
+  granted?: GitHubAppPermission,
+}): boolean {
+  if (!granted) return false
+  if (!requested) return false
 
-  if (!left && !right) throw Error('Can not compare two undefined permissions')
+  const PERMISSION_RANKING: string[] = ['read', 'write', 'admin'] satisfies GitHubAppPermission[]
 
-  const leftRank = PERMISSION_RANKING.indexOf(left)
-  if (leftRank < 0) throw Error(`Invalid permission '${left}'`)
+  const grantedRank = PERMISSION_RANKING.indexOf(granted)
+  const requestedRank = PERMISSION_RANKING.indexOf(requested)
 
-  const rightRank = PERMISSION_RANKING.indexOf(right)
-  if (rightRank < 0) throw Error(`Invalid permission '${right}'`)
+  if (grantedRank < 0) return false
+  if (requestedRank < 0) return false
 
-  if (leftRank > rightRank) return -1
-  if (leftRank < rightRank) return +1
+  return requestedRank <= grantedRank
+}
 
-  return 0
+export const GitHubAppPermissionScopes = {
+  repository: [
+    'administration',
+    'actions',
+    'actions_variables',
+    'checks',
+    'codespaces',
+    'codespaces_lifecycle_admin',
+    'codespaces_metadata',
+    'codespaces_secrets',
+    'contents',
+    'custom_properties',
+    'dependabot_secrets',
+    'deployments',
+    'discussions',
+    'environments',
+    'issues',
+    'merge_queues',
+    'metadata',
+    'packages',
+    'pages',
+    'projects',
+    'pull_requests',
+    'repository_advisories',
+    'repository_hooks',
+    'repository_projects',
+    'secret_scanning_alerts',
+    'secrets',
+    'security_events',
+    'statuses',
+    'team_discussions',
+    'vulnerability_alerts',
+    'workflows',
+  ],
 }

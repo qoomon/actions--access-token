@@ -2,8 +2,8 @@ import {z} from 'zod'
 import YAML from 'yaml'
 import {mapObject} from './common-utils.js'
 
+export const GitHubOwnerSchema = zStringRegex(/^[a-z\d](-?[a-z\d])+$/i).trim()
 export const GitHubRepositorySchema = zStringRegex(/^[a-z\d](-?[a-z\d])+\/[a-z\d-._]+$/i).trim()
-export const GitHubOrganizationSchema = zStringRegex(/^[a-z\d](-?[a-z\d])+$/i).trim()
 
 export const GitHubAppPermissionSchema = z.enum(['read', 'write', 'admin'])
 type GitHubAppPermission = z.infer<typeof GitHubAppPermissionSchema>
@@ -75,33 +75,35 @@ export const GitHubAppPermissionsSchema = z.strictObject({})
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
 export const GitHubSubjectClaimSchema = z.string().trim()
 
-export const GitHubRepoAccessStatementSchema = z.strictObject({
+export const GitHubAccessStatementSchema = z.strictObject({
   subjects: z.array(GitHubSubjectClaimSchema),
   permissions: GitHubAppPermissionsSchema,
 })
 
-export const GitHubRepoAccessPolicySchema = z.strictObject({
+export const GitHubAccessPolicySchema = z.strictObject({
   origin: GitHubRepositorySchema,
-  statements: z.array(GitHubRepoAccessStatementSchema),
-})
-
-export const GitHubOrgAccessStatementSchema = z.strictObject({
-  subjects: z.array(GitHubSubjectClaimSchema),
-  permissions: GitHubAppPermissionsSchema,
-})
-
-export const GitHubOrgAccessPolicySchema = z.strictObject({
-  origin: GitHubRepositorySchema,
-  statements: z.array(GitHubOrgAccessStatementSchema),
+  statements: z.array(GitHubAccessStatementSchema),
 })
 
 export const AccessTokenRequestBodySchema = z.strictObject({
-  organization: GitHubOrganizationSchema.optional(),
-  repositories: z.array(GitHubRepositorySchema).optional().default([]),
-  permissions: z.record(z.any()).transform((obj) => {
-    return mapObject(obj, ([key, value]) => [key.replaceAll('-', '_'), value])
-  }).pipe(GitHubAppPermissionsSchema),
+  owner: GitHubOwnerSchema.optional(),
+  // TODO rename to repos
+  repositories: z.array(zStringRegex(/^[a-z\d](-?[a-z\d])+$/i).trim()).optional().default([]),
+  permissions: z.record(z.string())
+      .transform(normalizeGitHubAppPermissionScopes())
+      .pipe(GitHubAppPermissionsSchema),
 })
+
+/**
+ * Normalize GitHub App permission scopes from dash-case to snake_case
+ * @returns transformer
+ */
+function normalizeGitHubAppPermissionScopes() {
+  return (obj: Record<string, unknown>) => mapObject(obj, ([key, value]) => [
+    key.replaceAll('-', '_'),
+    value,
+  ])
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 

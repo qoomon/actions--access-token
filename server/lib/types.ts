@@ -1,13 +1,12 @@
 import {z} from 'zod'
 import {
   AccessTokenRequestBodySchema,
+  GitHubAccessPolicySchema,
+  GitHubAccessStatementSchema,
   GitHubAppOrganizationPermissionsSchema,
   GitHubAppPermissionSchema,
   GitHubAppPermissionsSchema,
-  GitHubOrgAccessPolicySchema,
-  GitHubOrgAccessStatementSchema,
-  GitHubRepoAccessPolicySchema,
-  GitHubRepoAccessStatementSchema,
+  GitHubAppRepositoryPermissionsSchema,
 } from './schemas.js'
 import type {
   RestEndpointMethodTypes,
@@ -25,18 +24,20 @@ export type GitHubRepository = {
   repo: string,
 }
 
-type Subset<_T extends U, U> = U;
+/**
+ * Ensures type T is a subset of _U
+ */
+type Subset<T extends _U, _U> = T;
 
-export type GitHubRepoAccessStatement = z.infer<typeof GitHubRepoAccessStatementSchema>
-export type GitHubRepoAccessPolicy = z.infer<typeof GitHubRepoAccessPolicySchema>
-export type GitHubOrgAccessStatement = z.infer<typeof GitHubOrgAccessStatementSchema>
-export type GitHubOrgAccessPolicy = z.infer<typeof GitHubOrgAccessPolicySchema>
+export type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>
+export type GitHubAccessPolicy = z.infer<typeof GitHubAccessPolicySchema>
 export type GitHubAppPermission = z.infer<typeof GitHubAppPermissionSchema>
-export type GitHubAppPermissions = Subset<components['schemas']['app-permissions'],
-    z.infer<typeof GitHubAppPermissionsSchema>>
-// export type GitHubAppRepositoryPermissions = z.infer<typeof GitHubAppRepositoryPermissionsSchema>
-export type GitHubAppRepositoryPermissions = components['schemas']['app-permissions']
-export type GitHubAppOrganizationPermissions = z.infer<typeof GitHubAppOrganizationPermissionsSchema>
+export type GitHubAppPermissions = Subset<z.infer<typeof GitHubAppPermissionsSchema>,
+    components['schemas']['app-permissions']>
+export type GitHubAppRepositoryPermissions = Subset<z.infer<typeof GitHubAppRepositoryPermissionsSchema>,
+    GitHubAppPermissions>
+export type GitHubAppOrganizationPermissions = Subset<z.infer<typeof GitHubAppOrganizationPermissionsSchema>,
+    GitHubAppPermissions>
 export type AccessTokenRequestBody = z.infer<typeof AccessTokenRequestBodySchema>
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
@@ -83,12 +84,18 @@ export type GitHubActionsJwtPayload = {
   runner_environment: string, // e.g. "github-hosted",
 } & Record<string, string>
 
-declare module 'koa' {
-  interface DefaultState {
-    customStateProp: string;
-  }
+/**
+ * Access Policy Error
+ */
+export class PolicyError extends Error {
+  public issues?: string[]
 
-  interface DefaultContext {
-    customContextProp: string;
+  /**
+   * @param message - error message
+   * @param issues - list of issues
+   */
+  constructor(message: string, issues?: string[]) {
+    super(message)
+    this.issues = issues
   }
 }

@@ -1,6 +1,7 @@
 /* eslint-disable require-jsdoc */
 import jwt, {PrivateKey, SignerOptions} from 'fast-jwt'
 import {GitHubActionsJwtPayload} from '../lib/types.js'
+import {parseRepository} from '../lib/github-utils'
 
 export const GITHUB_APP_AUTH = {
   appId: '1234567890',
@@ -139,6 +140,7 @@ function createGitHubActionsTokenPayload(claims?: {
   return {
     iss: GITHUB_ACTIONS_TOKEN_SIGNING.iss,
     repository,
+    repository_owner: parseRepository(repository).owner,
     ref,
     sub: `repo:${repository}:ref:${ref}`,
     workflow_ref: `${repository}/.github/workflows/${workflow}@${ref}`,

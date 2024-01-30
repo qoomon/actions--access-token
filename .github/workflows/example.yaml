@@ -1,0 +1,45 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  OriginRepoAccess:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: qoomon/github-actions-access-tokens@1
+        id: repo-access
+        with:
+          permissions: |
+            secrets: write
+
+      - run: gh secret set RAINBOW_API_KEY --body "UnIcOrN42"
+        env:
+          GH_TOKEN: ${{ steps.repo-access.outputs.token }}
+
+  RemoteRepoAccess:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: qoomon/github-actions-access-tokens@1
+        id: repo-access
+        with:
+          permissions: |
+            secrets: write
+          repositories: |
+            - sesame-street/playground
+
+      - run: gh secret set RAINBOW_API_KEY --body "UnIcOrN42"
+        env:
+          GH_TOKEN: ${{ steps.repo-access.outputs.token }}
+
+  OrgAccess:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: qoomon/github-actions-access-tokens@1
+        id: repo-access
+        with:
+          permissions: |
+            secrets: write
+          organization: sesame-street
+
+      - run: gh secret set RAINBOW_API_KEY --body "UnIcOrN42"
+        env:
+          GH_TOKEN: ${{ steps.repo-access.outputs.token }}

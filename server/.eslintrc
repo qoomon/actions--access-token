@@ -19,11 +19,11 @@
     "no-trailing-spaces":["error", { "skipBlankLines": true }],
     "valid-jsdoc": ["error", {"requireParamType": false, "requireReturnType": false}],
     "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_" }]
+    "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_" }],
   },
   "overrides": [
     {
-      "files": "**/*.test.[tj]s",
+      "files": "tests/**/*.[tj]s",
       "rules": {
         "@typescript-eslint/no-explicit-any": "off",
 
@@ -33,9 +33,5 @@
         "padded-blocks": "off"
       }
     }
-  ],
-  "ignorePatterns": [
-    "dist/**",
-    "deployments/**/infrastructure/**"
   ]
 }

@@ -1,7 +1,8 @@
 
-# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Token Manager
+# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens
 
-Manage access from GitHub actions workflows by providing temporary app access tokens to repository resources.
+Obtain temporary Access Tokens for GitHub Actions workflows by requesting GitHub App Installation Access Tokens.
+Authorization is based on the GitHub Actions OIDC tokens and `.github/access.yaml` file in the target repositories.
 
 ## Workflow
 <p>
@@ -34,7 +35,7 @@ Manage access from GitHub actions workflows by providing temporary app access to
 ##### Example Configurations
 * Self access to trigger workflows from another workflow
   ```yaml
-  self: qoomon/example
+  origin: qoomon/example 
   policies:
   - repository: self
     permissions:
@@ -162,3 +163,23 @@ Manage access from GitHub actions workflows by providing temporary app access to
 
 ## Resources
 * App icon: https://img.icons8.com/cotton/256/000000/grand-master-key.png
+
+[//]: # (TODO)
+## TODOs
+- change origin to repositoryId
+  - can be obtained by 
+  
+    - go to https://github.com/OWNER/REPO and execute following script in browser console 
+      ```js
+      document.querySelector("meta[name=octolytics-dimension-repository_id]").getAttribute('content')
+        ```
+    - got to https://docs.github.com/en/graphql/overview/explorer and execute following query (Only works if graphql explorer App is authorized)
+      ```graphql
+      query {
+        repository(owner: "OWNER", name: "REPO") {
+          databaseId
+        }
+      }
+      ```
+    - go to https://api.github.com/repos/OWNER/REPO (Only works for public repositories)
+
