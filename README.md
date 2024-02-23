@@ -78,10 +78,10 @@ Manage access from GitHub actions workflows by providing temporary app access to
               qoomon/sandbox
             permissions: |
               contents:read
-        - name: Clone remote repository
-          run: |
-            git config --global credential.helper store
-            git clone https://_:$GITHUB_ACCESS_MANAGER_TOKEN@github.com/qoomon/sandbox.git
+        - uses: actions/checkout@v4
+          with:
+            token: ${{steps.access-manager.outputs.GITHUB_ACCESS_MANAGER_TOKEN}}
+            repository: qoomon/sandbox
         # ...
   ```
 * Trigger another workflow within the repository
