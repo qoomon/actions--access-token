@@ -120,11 +120,6 @@ export async function appInit(): Promise<Koa> {
       throw ctx.throw(StatusCodes.METHOD_NOT_ALLOWED)
     }
 
-    // TODO remove debug log
-    log.warn('GitHub OIDC token verify options:', {
-      allowedAud: GITHUB_ACTIONS_TOKEN_VERIFIER_OPTIONS.allowedAud,
-      token: ctx.get('Authorization'),
-    })
     const callerIdentity = await verifyAuthorizationToken(ctx, GITHUB_OIDC_TOKEN_VERIFIER) as GitHubActionsJwtPayload
     log.info('Caller Identity: ' + callerIdentity.workflow_ref, {callerIdentity, requestId})
 
