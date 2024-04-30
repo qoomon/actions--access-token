@@ -1,8 +1,7 @@
-
 # ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens
 
 Obtain temporary Access Tokens for GitHub Actions workflows by requesting GitHub App Installation Access Tokens.
-Authorization is based on the GitHub Actions OIDC tokens and `.github/access.yaml` file in the target repositories.
+Authorization is based on the GitHub Actions OIDC tokens and `.github/access-policy.yaml` file in the target repositories.
 
 ## Workflow
 <p>
@@ -14,11 +13,11 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access.yam
 </p>
 
 1. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub). 
-1. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access.yaml` file in **Granting Repository**.
-1. The [App Server](server/) reads `.github/access.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
-1. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
-1. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) sets the token as environment variable `$GITHUB_ACCESS_MANAGER_TOKEN` and as step output `${{ steps.access-manager.outputs.GITHUB_ACCESS_MANAGER_TOKEN }}`.
-1. Further steps can then utilize this token to access resources of the **Granting Repository**.
+2. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access-policy.yaml` file in **Granting Repository**.
+3. The [App Server](server/) reads `.github/access-policy.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
+4. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
+5. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) sets the token as the step output field `token`
+6. Further job steps can then utilize this token to access resources of the **Granting Repository** e.g. `${{ steps.<ACCESS_TOKEN_STEP_ID>.outputs.token }}`.
 
 ## Usage
 ### Install Access Manager App to Granting Repository `example/blue`

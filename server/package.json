@@ -20,15 +20,16 @@
     "content-type": "^1.0.5",
     "fast-jwt": "^4.0.0",
     "get-jwks": "^9.0.1",
+    "hono": "^4.2.9",
     "http-status-codes": "^2.3.0",
     "koa": "^2.15.0",
     "loglevel": "^1.9.1",
-    "p-retry": "^6.2.0",
     "raw-body": "^2.5.2",
     "yaml": "^2.3.4",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240423.0",
     "@octokit/types": "^13.4.1",
     "@types/aws-lambda": "^8.10.131",
     "@types/content-type": "^1.1.8",

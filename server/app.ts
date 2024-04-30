@@ -36,6 +36,7 @@ import {
   isRecord,
   mapObject,
   regexpOfWildcardPattern,
+  retry,
   unique,
 } from './lib/common-utils.js'
 import {logLevelOf} from './lib/log-utils.js'
@@ -43,12 +44,11 @@ import {buildJwksKeyFetcher} from './lib/jwt-utils.js'
 import getRawBody from 'raw-body'
 import {
   aggregatePermissions,
+  GitHubAppRepositoryPermissions,
   parseRepository,
   parseSubject,
-  verifyPermission,
   verifyPermissions,
 } from './lib/github-utils.js'
-import retry from 'p-retry'
 import limit from 'p-limit'
 
 /**
@@ -127,6 +127,11 @@ export async function appInit(): Promise<Koa> {
         .then((it) => {
           // use caller repository owner as default target owner
           it.owner = it.owner || callerIdentity.repository_owner
+          if (it.scope === 'repos' &&
+              it.owner === callerIdentity.repository_owner &&
+              !hasEntries(it.repositories)) {
+            it.repositories = [parseRepository(callerIdentity.repository).repo]
+          }
           return it as typeof it & { owner: string, permissions: Record<string, string> }
         })
 
@@ -134,6 +139,21 @@ export async function appInit(): Promise<Koa> {
 
     if (Object.entries(tokenRequest.permissions).length === 0) {
       throw ctx.throw(StatusCodes.BAD_REQUEST, 'Token permissions must not be empty.')
+    }
+
+    if (tokenRequest.scope === 'repos') {
+      // ensure only repository permissions are requested
+      const nonRepositoryPermissions = verifyPermissions({
+        requested: tokenRequest.permissions,
+        granted: GitHubAppRepositoryPermissions,
+      }).denied
+
+      if (hasEntries(nonRepositoryPermissions)) {
+        throw ctx.throw(StatusCodes.BAD_REQUEST, 'Token permissions must only contain repository permissions, ' +
+            'if scope is \'repos\'.\n' +
+            'Non repository permissions:\n' +
+            nonRepositoryPermissions.map(({scope, permission}) => `- ${scope}: ${permission}`).join('\n'))
+      }
     }
 
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
@@ -168,7 +188,6 @@ export async function appInit(): Promise<Koa> {
     })
 
     // --- verify requested token permissions --------------------------------------------------------------------------
-
     const pendingTokenPermissions: Record<string, string> = Object.fromEntries(Object.entries(tokenRequest.permissions))
     const rejectedTokenPermissions: {
       reason: string,
@@ -182,13 +201,7 @@ export async function appInit(): Promise<Koa> {
       owner: tokenRequest.owner, repo: ACCESS_POLICY_FILE_LOCATIONS.owner.repo,
       path: ACCESS_POLICY_FILE_LOCATIONS.owner.path,
       strict: false, // ignore invalid access policy entries
-    }).then((policy) => ({
-      ...policy,
-      accessControl: {
-        subjects: [`repo:${tokenRequest.owner}`],
-        permissions: getAllowedRepositoryScopedTokenPermissions(),
-      },
-    }))
+    })
     log.debug(`${tokenRequest.owner} access policy:`, {ownerAccessPolicy, requestId})
 
     const ownerGrantedPermissions = evaluateGrantedPermissions({
@@ -196,29 +209,32 @@ export async function appInit(): Promise<Koa> {
       callerIdentity,
     })
 
-    Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
-      if (verifyPermission({
-        granted: ownerGrantedPermissions[scope],
-        requested: permission,
-      })) {
-        // permission granted
-        grantedTokenPermissions[scope] = permission
-        delete pendingTokenPermissions[scope]
-      } else if (!ownerAccessPolicy.accessControl.permissions[scope]) {
-        // permission rejected
+    // verify requested token permissions by owner permissions
+    verifyPermissions({
+      granted: ownerGrantedPermissions,
+      requested: tokenRequest.permissions,
+    }).granted.forEach(({scope, permission}) => {
+      // permission granted
+      grantedTokenPermissions[scope] = permission
+      delete pendingTokenPermissions[scope]
+    })
+
+    if (tokenRequest.scope === 'owner') {
+      // reject all pending permissions
+      Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
         rejectedTokenPermissions.push({
           reason: `Permission has not been granted by ${tokenRequest.owner}.`,
           scope, permission,
         })
-      }
-    })
+      })
+    }
 
     // --- handle repository access policies ---------------------------------------------------------------------------
-    if (!hasEntries(rejectedTokenPermissions) && hasEntries(pendingTokenPermissions)) {
-      if (!hasEntries(tokenRequest.repositories)) {
-        tokenRequest.repositories = [parseRepository(callerIdentity.repository).repo]
-      }
-
+    if (tokenRequest.scope === 'repos' &&
+        !hasEntries(rejectedTokenPermissions) &&
+        hasEntries(pendingTokenPermissions) && // BE AWARE to ensure only repository permissions are pending
+        hasEntries(tokenRequest.repositories)
+    ) {
       const pendingRepositoryTokenPermissions: Record<string, Set<string>> =
           Object.fromEntries(Object.keys(pendingTokenPermissions)
               .map((scope) => [scope, new Set(tokenRequest.repositories)]))
@@ -238,19 +254,21 @@ export async function appInit(): Promise<Koa> {
               callerIdentity,
             })
 
-            Object.entries(pendingTokenPermissions).forEach(([scope, requestedPermission]) => {
-              if (verifyPermission({
-                granted: repoGrantedPermissions[scope],
-                requested: requestedPermission,
-              })) {
-                // permission granted
-                pendingRepositoryTokenPermissions[scope].delete(repo)
-              } else {
-                rejectedTokenPermissions.push({
-                  reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
-                  scope, permission: requestedPermission,
-                })
-              }
+            // verify requested token permissions by repository permissions
+            const verifiedRepoPermissions = verifyPermissions({
+              granted: repoGrantedPermissions,
+              requested: pendingTokenPermissions,
+            })
+            verifiedRepoPermissions.granted.forEach(({scope}) => {
+              // permission granted
+              pendingRepositoryTokenPermissions[scope].delete(repo)
+            })
+            verifiedRepoPermissions.denied.forEach(({scope, permission}) => {
+              // permission rejected
+              rejectedTokenPermissions.push({
+                reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
+                scope, permission,
+              })
             })
           })),
       )
@@ -271,7 +289,8 @@ export async function appInit(): Promise<Koa> {
               indent(it.reason),
           ).join('\n'))
     }
-    // this is just a safeguard, pending permissions should only occur due to rejected permissions (see above check)
+
+    // SAFEGUARD, pending permissions should only occur due to rejected permissions (see above check)
     if (hasEntries(pendingTokenPermissions)) {
       throw new Error('Unexpected pending permissions.')
     }
@@ -479,7 +498,10 @@ async function getAppInstallation(client: Octokit, {owner}: {
               permissions: normalizePermissionScopes(data.permissions),
             }
           }),
-      {retries: 3})
+      {
+        delay: 1000,
+        retries: 3,
+      })
 }
 
 /**
@@ -532,49 +554,6 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
     repositories,
   })
   return new Octokit({auth: installationAccessToken.token})
-}
-
-
-/**
- * Get allowed repository scoped token permissions
- * @returns allowed token permissions
- */
-function getAllowedRepositoryScopedTokenPermissions() {
-  return filterObject(
-      {
-        // administration: 'write', // BE AWARE CAN NOT be completely limited to a repository e.g. create new repositories
-        'actions': 'write',
-        'actions-variables': 'write',
-        'checks': 'write',
-        'codespaces': 'write',
-        'codespaces-lifecycle-admin': 'write',
-        'codespaces-metadata': 'write',
-        'codespaces-secrets': 'write',
-        'contents': 'write',
-        'custom-properties': 'write',
-        'dependabot-secrets': 'write',
-        'deployments': 'write',
-        'discussions': 'write',
-        'environments': 'write',
-        'issues': 'write',
-        'merge-queues': 'write',
-        'metadata': 'read',
-        'packages': 'write',
-        'pages': 'write',
-        'projects': 'admin',
-        'pull-requests': 'write',
-        'repository-advisories': 'write',
-        'repository-hooks': 'write',
-        'repository-projects': 'write',
-        'secret-scanning-alerts': 'write',
-        'secrets': 'write',
-        'security-events': 'write',
-        'statuses': 'write',
-        'team-discussions': 'write',
-        'vulnerability-alerts': 'write',
-        'workflows': 'write',
-      } satisfies GitHubAppPermissions,
-      ([scope]) => !scope.startsWith('organization-') && scope !== 'member')
 }
 
 /**
@@ -778,6 +757,7 @@ function evaluateGrantedPermissions({statements, callerIdentity}: {
   function matchSubjectPattern(subjectPattern: string, subject: string): boolean {
     // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
     // e.g. repo:foo/bar:* is not allowed
+    // TODO write a test for this
     if (Object.keys(parseSubject(subjectPattern)).some((claim) => claim.includes('*'))) {
       return false
     }
@@ -796,4 +776,3 @@ function evaluateGrantedPermissions({statements, callerIdentity}: {
     return regexpOfWildcardPattern(subjectPattern, 'i')
   }
 }
-

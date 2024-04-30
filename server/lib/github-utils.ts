@@ -97,3 +97,40 @@ export function verifyPermissions({requested, granted}: {
 
   return result
 }
+
+export const GitHubAppRepositoryPermissions: Record<string, string> = {
+  // === BE AWARE ===
+  // - repository scopes do not start with 'organization-'
+  // - 'member' scope is an organization scope
+  // - 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
+  'actions': 'write',
+  'actions-variables': 'write',
+  'checks': 'write',
+  'codespaces': 'write',
+  'codespaces-lifecycle-admin': 'write',
+  'codespaces-metadata': 'write',
+  'codespaces-secrets': 'write',
+  'contents': 'write',
+  'custom-properties': 'write',
+  'dependabot-secrets': 'write',
+  'deployments': 'write',
+  'discussions': 'write',
+  'environments': 'write',
+  'issues': 'write',
+  'merge-queues': 'write',
+  'metadata': 'read',
+  'packages': 'write',
+  'pages': 'write',
+  'projects': 'admin',
+  'pull-requests': 'write',
+  'repository-advisories': 'write',
+  'repository-hooks': 'write',
+  'repository-projects': 'write',
+  'secret-scanning-alerts': 'write',
+  'secrets': 'write',
+  'security-events': 'write',
+  'statuses': 'write',
+  'team-discussions': 'write',
+  'vulnerability-alerts': 'write',
+  'workflows': 'write',
+} satisfies GitHubAppPermissions

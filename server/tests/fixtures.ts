@@ -1,7 +1,11 @@
 /* eslint-disable require-jsdoc */
 import jwt, {PrivateKey, SignerOptions} from 'fast-jwt'
-import {GitHubActionsJwtPayload} from '../lib/types.js'
-import {parseRepository} from '../lib/github-utils'
+import {GitHubAccessPolicy, GitHubActionsJwtPayload} from '../lib/types.js'
+import {parseRepository} from '../lib/github-utils.js'
+import {components} from '@octokit/openapi-types'
+
+export const DEFAULT_OWNER = 'octocat'
+export const DEFAULT_REPO = 'playground'
 
 export const GITHUB_APP_AUTH = {
   appId: '1234567890',
@@ -106,7 +110,7 @@ export const GITHUB_ACTIONS_TOKEN_SIGNING = {
       '-----END PUBLIC KEY-----\n',
 }
 
-export function createGitHubActionsToken(params?: {
+export function createGitHubActionsToken({expiresIn, claims, signing}: {
   expiresIn?: string | number,
   claims?: {
     repository?: string,
@@ -115,16 +119,16 @@ export function createGitHubActionsToken(params?: {
   },
   signing?: Partial<SignerOptions & { key: string | Buffer | PrivateKey }>,
 }) {
-  const payload = createGitHubActionsTokenPayload(params?.claims)
-
   const signer = jwt.createSigner({
     iss: GITHUB_ACTIONS_TOKEN_SIGNING.iss,
     kid: GITHUB_ACTIONS_TOKEN_SIGNING.kid,
     key: GITHUB_ACTIONS_TOKEN_SIGNING.privateKey,
     aud: GITHUB_ACTIONS_TOKEN_SIGNING.aud,
-    expiresIn: '1h',
-    ...params?.signing,
+    expiresIn: expiresIn || '1h',
+    ...signing,
   })
+
+  const payload = createGitHubActionsTokenPayload(claims)
 
   return signer(payload)
 }
@@ -134,9 +138,9 @@ function createGitHubActionsTokenPayload(claims?: {
   ref?: string,
   workflow?: string,
 }) {
-  const repository = claims?.repository ?? 'octo-org/octo-repo'
+  const repository = claims?.repository ?? `${DEFAULT_OWNER}/${DEFAULT_REPO}`
   const ref = claims?.ref ?? 'refs/heads/main'
-  const workflow = claims?.workflow ?? 'ci.yml'
+  const workflow = claims?.workflow ?? 'build.yml'
   return {
     iss: GITHUB_ACTIONS_TOKEN_SIGNING.iss,
     repository,
@@ -175,3 +179,22 @@ export const UNKNOWN_SIGNING_KEY = '-----BEGIN PRIVATE KEY-----\n' +
     'aZfIPJWf5ZXMMKajnGEYBHz2HilRiwWoBId2+1JlGHJqs17zfFFItq8ga1Ev6KFa\n' +
     'gSUTt6QxSBWBgi3oYNRL7bk=\n' +
     '-----END PRIVATE KEY-----'
+
+// ---- Types ----------------------------------------------------------------------------------------------------------
+
+export type AppInstallation = {
+  id: number,
+  permissions: components['schemas']['app-permissions'] & Record<string, string | undefined>,
+  target_type?: string,
+  owner: string,
+}
+
+export type Repository = {
+  name: string,
+  owner: string,
+  repo: string,
+  accessPolicy?: GitHubAccessPolicy
+  ownerAccessPolicy?: GitHubAccessPolicy,
+}
+
+

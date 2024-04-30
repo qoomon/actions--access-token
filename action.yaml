@@ -4,29 +4,38 @@ author: qoomon
 branding:
   icon: unlock
   color: blue
+
 inputs:
-  organization:
-    description: Target organization, e.g. sesame-street
-    required: true
-  repository:
-    description: Target repository, e.g. sesame-street/playground
-    required: true
-  repositories:
+  scope:
+    default: repos
     description: |-
-      Target repositories as YAML array string, e.g. 
-      repositories: |  
-        - sesame-street/playground
-        - sesame-street/shop
-    required: true
+      Token scope - 'repos' or 'owner'
+      If you want to request owner wide permissions, you need to set the scope to 'owner'
   permissions:
     description: |-
       The permissions to request as YAML object string, e.g. 
       permissions: |
-        actions: write
+        secrets: write
     required: true
+  repository:
+    description: |-
+      Target repository e.g. playground
+      Gets merged with repositories input
+      Defaults to OIDC token repository, if owner is equal to OIDC token repository owner
+  repositories:
+    description: |-
+      Target repositories as YAML array string, e.g. 
+      repositories: |  
+        - playground
+        - shop
+  owner:
+    description: |-
+      Target owner e.g. octocat
+      Defaults to OIDC token repository owner
 outputs:
   token:
     description: The requested access token
+
 runs:
   using: node20
   main: action/dist/index.js

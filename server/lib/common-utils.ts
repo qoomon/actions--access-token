@@ -36,19 +36,6 @@ export function unique<T>(iterable: Iterable<T>): T[] {
 }
 
 /**
- * This function will return a formatted string representation of the given array
- * Items will be separated by commas and the word 'and' for the last item
- * @param arr - array of strings
- * @returns formatted string
- */
-export function formatArray(arr: string[]): string {
-  if (arr.length === 0) return ''
-  if (arr.length === 1) return arr[0]
-
-  return arr.slice(0, arr.length - 1).join(', ') + ' and ' + arr[arr.length - 1]
-}
-
-/**
  * This function will transform an array to an array of tuples
  * @param iterable - an iterable
  * @returns array of tuples
@@ -134,21 +121,6 @@ export function filterObject<V>(
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/**
- * This function wraps the given function in a promise
- * @param func - function to wrap
- * @returns promise
- */
-export async function promise<T>(func: () => T): Promise<T> {
-  return new Promise((resolve, reject) => {
-    try {
-      resolve(func())
-    } catch (error: unknown) {
-      reject(error)
-    }
-  })
 }
 
 /**

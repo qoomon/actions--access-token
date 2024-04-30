@@ -1,4 +1,5 @@
 import * as core from '@actions/core'
+import {getInput} from '@actions/core'
 import {HttpClient, HttpClientError, HttpClientResponse} from '@actions/http-client'
 import {SignatureV4} from '@smithy/signature-v4'
 import {Sha256} from '@aws-crypto/sha256-js'
@@ -36,19 +37,21 @@ const GITHUB_ACCESS_MANAGER_API: {
 
 runAction(async () => {
   const input = {
-    organization: core.getInput('organization') || undefined,
-    repository: core.getInput('repository') || undefined,
-    repositories: z.array(z.string()).default([])
-        .parse(getYamlInput('repositories')),
+    scope: z.enum(['repos', 'owner'])
+        .parse(getInput('scope')),
     permissions: z.record(z.string())
         .parse(getYamlInput('permissions', {required: true})),
-    // TODO validate own access policy file
+    repository: getInput('repository'),
+    repositories: z.array(z.string()).default([])
+        .parse(getYamlInput('repositories')),
+    owner: getInput('owner'),
   }
 
   const tokenRequest = {
-    organization: input.organization,
-    repositories: input.repositories,
+    scope: input.scope,
     permissions: input.permissions,
+    repositories: input.repositories,
+    owner: input.owner,
   }
   if (input.repository) {
     tokenRequest.repositories.unshift(input.repository)
@@ -73,9 +76,10 @@ runAction(async () => {
  * @returns token
  */
 async function getAccessToken(tokenRequest: {
-  organization: string | undefined
-  repositories: string[] | undefined
+  scope: 'repos' | 'owner' | undefined
   permissions: GitHubAppPermissions
+  repositories: string[] | undefined
+  owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
   let requestSigner
   if (GITHUB_ACCESS_MANAGER_API.auth?.aws) {

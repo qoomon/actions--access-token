@@ -1,17 +1,13 @@
 import {z} from 'zod'
 import YAML from 'yaml'
 
-export const GitHubRepositorySchema = zStringRegex(/^[a-z\d](-?[a-z\d])+\/[a-z\d-._]+$/i).trim()
-export const GitHubOwnerSchema = zStringRegex(/^[a-z\d](-?[a-z\d])+$/i).trim()
-export const GitHubRepositoryNameSchema = zStringRegex(/^[a-z\d-._]+$/i).trim()
+export const GitHubRepositorySchema = zStringRegex(/^[a-z\d](-?[a-z\d])+\/[a-z\d-._]+$/i).trim().min(3)
+export const GitHubOwnerSchema = zStringRegex(/^[a-z\d](-?[a-z\d])+$/i).trim().min(1)
+export const GitHubRepositoryNameSchema = zStringRegex(/^[a-z\d-._]+$/i).trim().min(1)
 
 export const GitHubAppPermissionSchema = z.enum(['read', 'write', 'admin'])
 type GitHubAppPermission = z.infer<typeof GitHubAppPermissionSchema>
 type GitHubPermissions = NonEmptyArray<GitHubAppPermission>
-
-export const GitHubAppRepositoryPermissionsSchema = z.strictObject({
-
-}).partial()
 
 export const GitHubAppPermissionsSchema = z.strictObject({
   // ---- Repository Permissions ----
@@ -88,8 +84,9 @@ export const GitHubAccessPolicySchema = z.strictObject({
 
 export const AccessTokenRequestBodySchema = z.strictObject({
   owner: GitHubOwnerSchema.optional(),
-  repositories: z.array(GitHubRepositoryNameSchema).optional().default([]),
+  scope: z.enum(['repos', 'owner']).default('repos'),
   permissions: GitHubAppPermissionsSchema,
+  repositories: z.array(GitHubRepositoryNameSchema).optional().default([]),
 })
 
 // ---------------------------------------------------------------------------------------------------------------------
