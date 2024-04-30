@@ -13,6 +13,10 @@ jobs:
           permissions: |
             secrets: write
 
-      - run: gh secret set RAINBOW_API_KEY --body "Unicorn-$(date +%s)"
+      - run: >-
+          gh secret set RAINBOW_API_KEY 
+          --body "Unicorn-$(date +%s)"
+          --app actions
+          --repo $GITHUB_REPOSITORY
         env:
           GH_TOKEN: ${{ steps.access-token.outputs.token }}
