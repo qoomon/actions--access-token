@@ -1,0 +1,8 @@
+# top-most EditorConfig file
+root = true
+
+# 4 space indentation
+[{*.ts,*.cjs}]
+indent_style = space
+indent_size = 2
+ij_continuation_indent_size = 4

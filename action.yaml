@@ -1,19 +1,32 @@
-name: 'Access Manager for GitHub Actions'
-description: 'Request an access tokens to access or manage other repository resources.'
-author: 'qoomon'
+name: Access Tokens for GitHub Actions
+description: GitHub Action to request temporary access tokens
+author: qoomon
 branding:
   icon: unlock
   color: blue
 inputs:
+  organization:
+    description: Target organization, e.g. sesame-street
+    required: true
+  repository:
+    description: Target repository, e.g. sesame-street/playground
+    required: true
   repositories:
-    description: 'The repositories to request access token for. (e.g. owner-name/repo-name)'
+    description: |-
+      Target repositories as YAML array string, e.g. 
+      repositories: |  
+        - sesame-street/playground
+        - sesame-street/shop
     required: true
   permissions:
-    description: 'The permissions to request. (e.g. actions:write)'
+    description: |-
+      The permissions to request as YAML object string, e.g. 
+      permissions: |
+        actions: write
     required: true
 outputs:
-  GITHUB_ACCESS_MANAGER_TOKEN:
-    description: 'The requested access token'
+  token:
+    description: The requested access token
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: node20
+  main: action/dist/index.js

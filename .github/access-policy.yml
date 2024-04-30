@@ -1,0 +1,8 @@
+origin: qoomon/actions--access-token
+statements:
+  - subjects:
+      - "ref:refs/heads/main"
+    permissions:
+      secrets: write
+      contents: write
+      issues: write

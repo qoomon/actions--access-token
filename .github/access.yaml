@@ -1,6 +1,0 @@
-self: qoomon/github-actions-access-manager
-policies:
-- repository: self
-  permissions:
-    contents: read
-    issues: read

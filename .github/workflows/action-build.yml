@@ -1,0 +1,41 @@
+name: Action > Build
+
+on:
+  push:
+    branches: ['**']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: action
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: action
+          sparse-checkout-cone-mode: false
+
+      # build the action
+      - uses: actions/setup-node@v4
+        with:
+          cache-dependency-path: action/package-lock.json
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run test
+      - run: npm run build
+
+      # commit and push changes
+      - run: git add -f dist/
+      - uses: qoomon/actions--create-commit@v1
+        with:
+          message: 'chore: build action'
+          skip-empty: true
+      - run: git push

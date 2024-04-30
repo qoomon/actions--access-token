@@ -1,0 +1,18 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  RepoAccess:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: qoomon/actions--access-token@main
+        id: access-token
+        with:
+          permissions: |
+            secrets: write
+
+      - run: gh secret set RAINBOW_API_KEY --body "Unicorn-$(date +%s)"
+        env:
+          GH_TOKEN: ${{ steps.access-token.outputs.token }}

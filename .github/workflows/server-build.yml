@@ -1,0 +1,33 @@
+name: Server > Build
+
+on:
+  push:
+    branches: ['**']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: server
+          sparse-checkout-cone-mode: false
+
+      # build the action
+      - uses: actions/setup-node@v4
+        with:
+          cache-dependency-path: server/package-lock.json
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test
+      - run: npm run build
+

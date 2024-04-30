@@ -1,35 +1,55 @@
 {
   "name": "github-actions-access-manager",
-  "version": "1.0.0",
-  "description": "",
-  "author": "qoomon",
-  "license": "MIT",
+  "type": "module",
   "scripts": {
-    "start": "vercel --cwd ../ dev"
+    "build": "ncc build server.ts",
+    "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts --out dist/aws",
+    "build:docker-container": "docker build .",
+    "build:vercel-function": "ncc build deployments/vercel/api/index.ts --out dist/vercel",
+    "lint": "eslint .",
+    "start": "ncc run server.ts",
+    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles",
+    "ts-node": "NODE_OPTIONS='--loader ts-node/esm --experimental-specifier-resolution=node --no-warnings' node"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/qoomon/github-actions-access-manager"
-  },
-  "keywords": [
-    "github",
-    "actions",
-    "access",
-    "token"
-  ],
   "dependencies": {
-    "@octokit/app": "^13.0.11",
-    "@octokit/auth-app": "^4.0.7",
-    "@octokit/core": "^4.1.0",
-    "@octokit/rest": "^19.0.5",
-    "escape-string-regexp": "^5.0.0",
-    "express": "^4.18.2",
-    "express-async-errors": "^3.1.1",
-    "js-yaml": "^4.1.0",
-    "jsonwebtoken": "^8.5.1",
-    "jwks-rsa": "^2.1.5"
+    "@aws-sdk/client-lambda": "^3.499.0",
+    "@aws-sdk/client-secrets-manager": "^3.499.0",
+    "@codegenie/serverless-express": "^4.13.0",
+    "@octokit/auth-app": "^6.0.3",
+    "@octokit/rest": "^20.0.2",
+    "content-type": "^1.0.5",
+    "fast-jwt": "^4.0.0",
+    "get-jwks": "^9.0.1",
+    "http-status-codes": "^2.3.0",
+    "koa": "^2.15.0",
+    "loglevel": "^1.9.1",
+    "p-retry": "^6.2.0",
+    "raw-body": "^2.5.2",
+    "yaml": "^2.3.4",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "vercel": "^28.4.12"
+    "@octokit/types": "^13.4.1",
+    "@types/aws-lambda": "^8.10.131",
+    "@types/content-type": "^1.1.8",
+    "@types/jest": "^29.5.11",
+    "@types/koa": "^2.14.0",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "@vercel/ncc": "^0.38.1",
+    "eslint": "^8.56.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-jest": "^27.6.3",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-require-extensions": "^0.1.3",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }

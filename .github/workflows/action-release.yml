@@ -1,0 +1,74 @@
+name: Action > Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref'
+        required: true
+        default: 'main'
+      version:
+        description: 'Version'
+        required: true
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        uses: actions/github-script@v7
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          INPUT_VERSION: ${{ inputs.version }}
+        with:
+          script: |
+            const config = {
+              tagPrefix: 'v'
+            }
+            
+            const inputs = {
+              version: core.getInput('version', {required: true}),
+              ref: core.getInput('ref', {required: true}),
+            }
+            
+            if(!inputs.version.match(/^\d+\.\d+\.\d/)) {
+              core.setFailed('Invalid input(s)')
+              core.error(`  version needs to follow valid semantic version format e.g. 1.0.3`)
+              return
+            }
+
+            const releaseTagName = config.tagPrefix + inputs.version
+            core.info('Create Release ' + inputs.version + ` (${releaseTagName})`)
+            
+            const release = await github.rest.repos.createRelease({
+              ...context.repo,
+              name: inputs.version,
+              tag_name: releaseTagName,
+              target_commitish: inputs.ref,
+            }).then(res => res.data)
+
+             const releaseCommitSha = await github.rest.git.getRef({
+              ...context.repo, 
+              ref: 'tags/' + release.tag_name,
+            }).then(res => res.data.object.sha)
+            
+            const majorReleaseTagName = release.tag_name.replace(/\..*$/,'')
+            core.info('Move Major Release Tag ' + majorReleaseTagName + ' to point to ' + releaseTagName)
+
+            await github.rest.git.updateRef({
+              ...context.repo,
+              ref: 'tags/' + majorReleaseTagName,
+              sha: releaseCommitSha,
+              force: true,
+            }).catch(err => {
+              if (err.status === 422) {
+                return github.rest.git.createRef({
+                  ...context.repo,
+                  ref: 'tags/' + majorReleaseTagName,
+                  sha: releaseCommitSha,
+                })
+              }
+              throw err
+            })

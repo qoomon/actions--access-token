@@ -1,0 +1,20 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:node/recommended",
+    "google"
+  ],
+  "root": true,
+  "rules": {
+    "semi": ["error", "never"],
+    "max-len": ["error", {"code": 120, "ignoreComments": true}],
+    "valid-jsdoc": ["error", {"requireParamType": false, "requireReturnType": false}],
+    "node/no-missing-import": "off",
+    "node/no-extraneous-import": "off"
+  },
+  "ignorePatterns": ["dist/**", "deployments/**/infrastructure/**"]
+}

@@ -1,7 +1,8 @@
 
-# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Manager
+# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens
 
-Manage access from GitHub actions workflows by providing temporary app access tokens to repository resources.
+Obtain temporary Access Tokens for GitHub Actions workflows by requesting GitHub App Installation Access Tokens.
+Authorization is based on the GitHub Actions OIDC tokens and `.github/access.yaml` file in the target repositories.
 
 ## Workflow
 <p>
@@ -24,6 +25,9 @@ Manage access from GitHub actions workflows by providing temporary app access to
 * Install [Access Manger App](https://github.com/marketplace/access-manager-for-github-actions)
 * **or** [Deploy and Install your **Own** GitHub App](#Deploy-your-own-Access-Manager-App)
 
+### Restrict Write Permission for Access Policy File to Repository Admins only
+![access-policy-ruleset](docs/access-policy-ruleset.png)
+
 ### Grant Access Permissions in Granting Repository `example/blue`
 * Create `.github/access.yaml` file
 * Set `self` to enclosing repository. 
@@ -34,7 +38,7 @@ Manage access from GitHub actions workflows by providing temporary app access to
 ##### Example Configurations
 * Self access to trigger workflows from another workflow
   ```yaml
-  self: qoomon/example
+  origin: qoomon/example 
   policies:
   - repository: self
     permissions:
@@ -78,10 +82,10 @@ Manage access from GitHub actions workflows by providing temporary app access to
               qoomon/sandbox
             permissions: |
               contents:read
-        - uses: actions/checkout@v4
-          with:
-            token: ${{steps.access-manager.outputs.GITHUB_ACCESS_MANAGER_TOKEN}}
-            repository: qoomon/sandbox
+        - name: Clone remote repository
+          run: |
+            git config --global credential.helper store
+            git clone https://_:$GITHUB_ACCESS_MANAGER_TOKEN@github.com/qoomon/sandbox.git
         # ...
   ```
 * Trigger another workflow within the repository
@@ -162,3 +166,4 @@ Manage access from GitHub actions workflows by providing temporary app access to
 
 ## Resources
 * App icon: https://img.icons8.com/cotton/256/000000/grand-master-key.png
+
