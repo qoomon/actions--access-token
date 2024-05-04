@@ -41,10 +41,10 @@ runAction(async () => {
         .parse(getInput('scope')),
     permissions: z.record(z.string())
         .parse(getYamlInput('permissions', {required: true})),
-    repository: getInput('repository'),
+    repository: getInput('repository') || undefined,
     repositories: z.array(z.string()).default([])
         .parse(getYamlInput('repositories')),
-    owner: getInput('owner'),
+    owner: getInput('owner') || undefined,
   }
 
   const tokenRequest = {

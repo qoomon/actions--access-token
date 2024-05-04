@@ -1,5 +1,4 @@
 import {z} from 'zod'
-import YAML from 'yaml'
 
 export const GitHubRepositorySchema = zStringRegex(/^[a-z\d](-?[a-z\d])+\/[a-z\d-._]+$/i).trim().min(3)
 export const GitHubOwnerSchema = zStringRegex(/^[a-z\d](-?[a-z\d])+$/i).trim().min(1)
@@ -91,28 +90,11 @@ export const AccessTokenRequestBodySchema = z.strictObject({
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-export const JsonTransformer = z.string().transform((str, ctx) => {
-  try {
-    return JSON.parse(str)
-  } catch (error: unknown) {
-    ctx.addIssue({code: 'custom', message: (error as { message?: string }).message})
-    return z.NEVER
-  }
-})
-
-export const YamlTransformer = z.string().transform((str, ctx) => {
-  try {
-    return YAML.parse(str)
-  } catch (error: unknown) {
-    ctx.addIssue({code: 'custom', message: (error as { message?: string }).message})
-    return z.NEVER
-  }
-})
 
 /**
  * Ensures non empty array
  */
-export type NonEmptyArray<T> = [T, ...T[]]
+type NonEmptyArray<T> = [T, ...T[]]
 
 // ---------------------------------------------------------------------------------------------------------------------
 

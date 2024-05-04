@@ -1,3 +1,4 @@
+import {handle} from 'hono/vercel'
 import {appInit} from '../../../app.js'
 import * as process from 'process'
 
@@ -8,4 +9,6 @@ if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
 }
 
 const app = await appInit()
-export default app.callback()
+
+export const GET = handle(app)
+export const POST = handle(app)

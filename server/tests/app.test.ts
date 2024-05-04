@@ -1,4 +1,3 @@
-import {sleep} from '../lib/common-utils.js'
 import * as Fixtures from './fixtures.js'
 import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from './fixtures.js'
 import process from 'process'
@@ -7,9 +6,22 @@ import YAML from 'yaml'
 import {GitHubAccessPolicy, GitHubAppPermissions} from '../lib/types.js'
 import {parseRepository, verifyPermission} from '../lib/github-utils.js'
 import {describe, expect, it, jest} from '@jest/globals'
-import request from 'supertest'
 import {RequestError} from '@octokit/request-error'
+import {joinRegExp, sleep} from '../lib/common-utils.js'
 import {withHint} from './lib/jest-utils.js'
+
+// WORKAROUND for https://github.com/honojs/hono/issues/2627
+const GlobalRequest = globalThis.Request
+globalThis.Request = class Request extends GlobalRequest {
+  // eslint-disable-next-line require-jsdoc
+  constructor(input: Request | string, init: RequestInit) {
+    if (init) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (init as any).duplex ??= 'half'
+    }
+    super(input, init)
+  }
+} as typeof GlobalRequest
 
 mockJwks()
 const githubMockEnvironment = mockGithub()
@@ -33,12 +45,10 @@ describe('App path /unknown', () => {
       // --- Given ---
 
       // --- When ---
-      const response = await request(app.callback()).get(path)
+      const response = await app.request(path, {method: 'GET'})
 
       // --- Then ---
-      expect(response).toMatchObject({
-        statusCode: StatusCodes.FORBIDDEN,
-      })
+      expect(response.status).toEqual(StatusCodes.NOT_FOUND)
     })
   })
 })
@@ -47,14 +57,12 @@ describe('App path /access_tokens', () => {
   const path = '/access_tokens'
 
   describe('GET request', () => {
-    it('should response with status METHOD_NOT_ALLOWED', async () => {
+    it('should response with status NOT_FOUND', async () => {
       // --- When ---
-      const response = await request(app.callback()).get(path)
+      const response = await app.request(path, {method: 'GET'})
 
       // --- Then ---
-      expect(response).toMatchObject({
-        statusCode: StatusCodes.METHOD_NOT_ALLOWED,
-      })
+      expect(response.status).toEqual(StatusCodes.NOT_FOUND)
     })
   })
 
@@ -65,67 +73,53 @@ describe('App path /access_tokens', () => {
       it('if authorization header is missing', async () => {
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
+        const response = await app.request(path, {method: 'POST'})
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.UNAUTHORIZED,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Unauthorized',
-              message: 'Missing authorization header',
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Unauthorized',
+          message: 'Missing authorization header',
         })
       })
 
       it('if authorization scheme is invalid', async () => {
+
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .set('Authorization', 'Boom xxx')
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: 'Invalid ___'},
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.UNAUTHORIZED,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Unauthorized',
-              message: 'Unexpected authorization scheme Boom',
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Unauthorized',
+          message: 'Unexpected authorization scheme Invalid',
         })
       })
 
       it('if authorization token value is malformed', async () => {
+
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth('malformed', {type: 'bearer'})
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: 'Bearer malformed'},
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.UNAUTHORIZED,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Unauthorized',
-              message: 'The token is malformed.',
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Unauthorized',
+          message: 'The token is malformed.',
         })
       })
 
       it('if authorization token signature is invalid', async () => {
+
         // --- Given ---
         const githubToken = Fixtures.createGitHubActionsToken({
           signing: {
@@ -134,51 +128,40 @@ describe('App path /access_tokens', () => {
         })
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+        })
+
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.UNAUTHORIZED,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Unauthorized',
-              message: 'The token signature is invalid.',
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Unauthorized',
+          message: 'The token signature is invalid.',
         })
       })
 
       it('if authorization token is expired', async () => {
         // --- Given ---
         const githubToken = Fixtures.createGitHubActionsToken({
-          signing: {
-            expiresIn: 1,
-          },
+          signing: {expiresIn: 1},
         })
         await sleep(2) // ensure token is expired
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.UNAUTHORIZED,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Unauthorized',
-              message: expect.stringMatching(/^The token has expired at /),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Unauthorized',
+          message: expect.stringMatching(/^The token has expired at /),
         })
       })
     })
@@ -191,25 +174,23 @@ describe('App path /access_tokens', () => {
         // --- Given ---
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .type('text')
-            .set('Content-type', 'application/json')
-            .send('{invalid_json}')
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: 'invalid json',
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Invalid request body\.\n.* JSON .*/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Invalid request body\.\n/,
+              /.* is not valid JSON/,
+          )),
         })
       })
 
@@ -217,23 +198,22 @@ describe('App path /access_tokens', () => {
         // --- Given ---
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .send({permissions: {}})
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            permissions: {},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Token permissions must not be empty\.$/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json(),}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(/^Token permissions must not be empty\.$/),
         })
       })
 
@@ -241,23 +221,25 @@ describe('App path /access_tokens', () => {
         // --- Given ---
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .send({permissions: {unexpected: 'write'}})
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            permissions: {unexpected: 'write'},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Invalid request body\.\n- permissions: Unrecognized key\(s\) in object: 'unexpected'$/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Invalid request body\.\n/,
+              /- permissions: Unrecognized key\(s\) in object: 'unexpected'$/,
+          )),
         })
       })
 
@@ -265,23 +247,25 @@ describe('App path /access_tokens', () => {
         // --- Given ---
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .send({permissions: {secrets: 'invalid' as any}})
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            permissions: {secrets: 'invalid' as any},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Invalid request body.\n- permissions.secrets: Invalid enum value\..*$/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Invalid request body.\n/,
+              /- permissions.secrets: Invalid enum value\..*$/,
+          )),
         })
       })
 
@@ -293,27 +277,25 @@ describe('App path /access_tokens', () => {
         })
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .type('text')
-            .set('Content-type', 'application/json')
-            .send({
-              permissions: {'organization-secrets': 'read'},
-            })
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            permissions: {'organization-secrets': 'read'},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Token permissions must only contain repository permissions, if scope is 'repos'\.\n/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Invalid permissions scopes for token scope 'repos'\.\n/,
+              /- organization-secrets/,
+          )),
         })
       })
 
@@ -321,26 +303,26 @@ describe('App path /access_tokens', () => {
         // --- Given ---
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .send({
-              repositories: ['invalid/invalid'],
-              permissions: {actions: 'read'},
-            })
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            repositories: ['invalid/invalid'],
+            permissions: {actions: 'read'},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Invalid request body.\n- repositories.0: Invalid format\..*$/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Invalid request body.\n/,
+              /- repositories.0: Invalid format\..*$/,
+          )),
         })
       })
 
@@ -348,26 +330,26 @@ describe('App path /access_tokens', () => {
         // --- Given ---
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .send({
-              owner: 'invalid/invalid',
-              permissions: {'secrets': 'write'},
-            })
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            owner: 'invalid/invalid',
+            permissions: {'secrets': 'write'},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Invalid request body.\n- owner: Invalid format\..*$/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Invalid request body.\n/,
+              /- owner: Invalid format\..*$/,
+          )),
         })
       })
 
@@ -375,26 +357,26 @@ describe('App path /access_tokens', () => {
         // --- Given ---
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .send({
-              scope: 'invalid',
-              permissions: {'secrets': 'write'},
-            })
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            scope: 'invalid',
+            permissions: {'secrets': 'write'},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.BAD_REQUEST,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Bad Request',
-              message: expect.stringMatching(/^Invalid request body.\n- scope: Invalid enum value\..*$/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Invalid request body.\n/,
+              /- scope: Invalid enum value\..*$/,
+          )),
         })
       })
     })
@@ -406,25 +388,25 @@ describe('App path /access_tokens', () => {
         const githubToken = Fixtures.createGitHubActionsToken({})
 
         // --- When ---
-        const response = await request(app.callback()).post(path)
-            .auth(githubToken, {type: 'bearer'})
-            .type('text')
-            .set('Content-type', 'application/json')
-            .send({permissions: {'secrets': 'write'}})
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            permissions: {'secrets': 'write'},
+          }),
+        })
 
         // --- Then ---
-        withHint(() => {
-          expect(response).toMatchObject({
-            headers: expect.any(Object),
-            statusCode: StatusCodes.FORBIDDEN,
-            _body: expect.objectContaining({
-              requestId: expect.any(String),
-              error: 'Forbidden',
-              message: expect.stringMatching(/ has not been installed for .*\.\n.*/),
-            }),
-          })
-        }, {
-          'response.text': response.text,
+        await withHint(() => {
+          expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+        }, async () => ({'response.json()': await response.json()}))
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Forbidden',
+          message: expect.stringMatching(joinRegExp(
+              / has not been installed for .*\.\n/,
+              /.*/,
+          )),
         })
       })
 
@@ -440,25 +422,25 @@ describe('App path /access_tokens', () => {
           const githubToken = Fixtures.createGitHubActionsToken({})
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .type('text')
-              .set('Content-type', 'application/json')
-              .send({permissions: {'secrets': 'write'}})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'secrets': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.FORBIDDEN,
-              _body: expect.objectContaining({
-                requestId: expect.any(String),
-                error: 'Forbidden',
-                message: expect.stringMatching(/installation for .* is missing some permissions\.\n- secrets: write.*/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          await withHint(() => {
+            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /Some requested permissions got rejected\.\n/,
+                /- secrets: write/,
+            )),
           })
         })
 
@@ -470,25 +452,26 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .type('text')
-              .set('Content-type', 'application/json')
-              .send({permissions: {'contents': 'read'}})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'secrets': 'read'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.FORBIDDEN,
-              _body: expect.objectContaining({
-                requestId: expect.any(String),
-                error: 'Forbidden',
-                message: expect.stringMatching(/^Some requested permissions got rejected\.\n- contents: read\n {2}Permission has not been granted by.*/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          await withHint(() => {
+            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /^Some requested permissions got rejected\.\n/,
+                /- secrets: read\n/,
+                / {2}Permission has not been granted to .* installation/,
+            )),
           })
         })
 
@@ -507,25 +490,25 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .type('text')
-              .set('Content-type', 'application/json')
-              .send({permissions: {'contents': 'write'}})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'contents': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.FORBIDDEN,
-              _body: expect.objectContaining({
-                requestId: expect.any(String),
-                error: 'Forbidden',
-                message: expect.stringMatching(/^Some requested permissions got rejected\.\n- contents: write\n {2}Permission has not been granted by.*/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          await withHint(() => {
+            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /^Some requested permissions got rejected\.\n/,
+                /- contents: write\n {2}Permission has not been granted by.*/,
+            )),
           })
         })
 
@@ -545,25 +528,25 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .type('text')
-              .set('Content-type', 'application/json')
-              .send({permissions: {'contents': 'write'}})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'contents': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.FORBIDDEN,
-              _body: expect.objectContaining({
-                requestId: expect.any(String),
-                error: 'Forbidden',
-                message: expect.stringMatching(/^Some requested permissions got rejected\.\n- contents: write\n {2}Permission has not been granted by.*/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          await withHint(() => {
+            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /^Some requested permissions got rejected\.\n/,
+                /- contents: write\n {2}Permission has not been granted by.*/,
+            )),
           })
         })
       })
@@ -590,28 +573,26 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .type('text')
-              .set('Content-type', 'application/json')
-              .send({
-                scope: 'owner',
-                permissions: {'contents': 'read'},
-              })
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              scope: 'owner',
+              permissions: {'contents': 'read'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.FORBIDDEN,
-              _body: expect.objectContaining({
-                requestId: expect.any(String),
-                error: 'Forbidden',
-                message: expect.stringMatching(/^Some requested permissions got rejected\.\n- contents: read\n {2}Permission has not been granted by.*/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          await withHint(() => {
+            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /^Some requested permissions got rejected\.\n/,
+                /- contents: read\n {2}Permission has not been granted by.*/,
+            )),
           })
         })
 
@@ -623,27 +604,26 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .type('text')
-              .set('Content-type', 'application/json')
-              .send({
-                permissions: {'contents': 'read'},
-              })
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              scope: 'owner',
+              permissions: {'contents': 'read'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.FORBIDDEN,
-              _body: expect.objectContaining({
-                requestId: expect.any(String),
-                error: 'Forbidden',
-                message: expect.stringMatching(/^Some requested permissions got rejected\.\n- contents: read\n {2}Permission has not been granted by.*/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          await withHint(() => {
+            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /^Some requested permissions got rejected\.\n/,
+                /- contents: read\n {2}Permission has not been granted by.*/,
+            )),
           })
         })
       })
@@ -672,27 +652,22 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({permissions: {'secrets': 'write'}})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'secrets': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.OK,
-              _body: expect.objectContaining({
-                owner: actionRepo.owner,
-                permissions: {
-                  'secrets': 'write',
-                },
-                repositories: [parseRepository(actionRepo.name).repo],
-                token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-                expires_at: expect.stringMatching(/Z$/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          expect(response.status).toEqual(StatusCodes.OK)
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {'secrets': 'write'},
+            repositories: [parseRepository(actionRepo.name).repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
           })
         })
 
@@ -713,27 +688,24 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({permissions: {'secrets': 'write'} satisfies GitHubAppPermissions})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${githubToken}`,
+            },
+            body: JSON.stringify({
+              permissions: {'secrets': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.OK,
-              _body: expect.objectContaining({
-                owner: actionRepo.owner,
-                permissions: {
-                  'secrets': 'write',
-                },
-                repositories: [actionRepo.repo],
-                token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-                expires_at: expect.stringMatching(/Z$/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          expect(response.status).toEqual(StatusCodes.OK)
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {'secrets': 'write'},
+            repositories: [actionRepo.repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
           })
         })
 
@@ -752,25 +724,22 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({permissions: {'secrets': 'write'}})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'secrets': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.OK,
-              _body: expect.objectContaining({
-                owner: actionRepo.owner,
-                permissions: {'secrets': 'write'},
-                repositories: [actionRepo.repo],
-                token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-                expires_at: expect.stringMatching(/Z$/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          expect(response.status).toEqual(StatusCodes.OK)
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {'secrets': 'write'},
+            repositories: [actionRepo.repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
           })
         })
 
@@ -791,25 +760,22 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({permissions: {'secrets': 'write'}})
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'secrets': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.OK,
-              _body: expect.objectContaining({
-                owner: actionRepo.owner,
-                permissions: {'secrets': 'write'},
-                repositories: [actionRepo.repo],
-                token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-                expires_at: expect.stringMatching(/Z$/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          expect(response.status).toEqual(StatusCodes.OK)
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {'secrets': 'write'},
+            repositories: [actionRepo.repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
           })
         })
       })
@@ -832,28 +798,26 @@ describe('App path /access_tokens', () => {
           })
 
           // --- When ---
-          const response = await request(app.callback()).post(path)
-              .auth(githubToken, {type: 'bearer'})
-              .send({
-                scope: 'owner',
-                permissions: {'organization-secrets': 'write'} satisfies GitHubAppPermissions,
-              })
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              scope: 'owner',
+              permissions: {'organization-secrets': 'write'},
+            }),
+          })
 
           // --- Then ---
-          withHint(() => {
-            expect(response).toMatchObject({
-              headers: expect.any(Object),
-              statusCode: StatusCodes.OK,
-              _body: expect.objectContaining({
-                owner: actionRepo.owner,
-                permissions: {'organization-secrets': 'write'},
-                repositories: [],
-                token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-                expires_at: expect.stringMatching(/Z$/),
-              }),
-            })
-          }, {
-            'response.text': response.text,
+          await withHint(() => {
+            expect(response.status).toEqual(StatusCodes.OK)
+          }, async () => ({'response.json()': await response.json()}))
+
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {'organization-secrets': 'write'},
+            repositories: [],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
           })
         })
       })
@@ -1029,9 +993,7 @@ function mockGithub() {
       return repository
     },
 
-    addAppInstallation({
-      target_type, owner, permissions,
-    }: {
+    addAppInstallation({target_type, owner, permissions}: {
       target_type?: 'User' | 'Organization',
       owner?: string,
       permissions?: Record<string, string>,

@@ -1,7 +1,7 @@
+import {handle} from 'hono/aws-lambda'
 import process from 'process'
 import {GetFunctionUrlConfigCommand, LambdaClient} from '@aws-sdk/client-lambda'
 import {GetSecretValueCommand, SecretsManager} from '@aws-sdk/client-secrets-manager'
-import serverlessExpress from '@codegenie/serverless-express'
 import {appInit} from '../../app.js'
 
 if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
@@ -22,5 +22,5 @@ process.env['GITHUB_ACTIONS_APP_ID'] = githubAppSecret.appId
 process.env['GITHUB_ACTIONS_APP_PRIVATE_KEY'] = githubAppSecret.privateKey
 
 const app = await appInit()
-export const handler = serverlessExpress({app: app.callback()})
+export const handler = handle(app)
 

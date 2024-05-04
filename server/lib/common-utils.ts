@@ -186,3 +186,12 @@ export function indent(string: string, indent: string = '  ') {
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
+
+/**
+ * Joins multiple regular expressions into a single regular expression
+ * @param regexps - regular expressions
+ * @returns regular expression
+ */
+export function joinRegExp(...regexps: RegExp[]): RegExp {
+  return new RegExp(regexps.map((r) => r.source).join(''), regexps[regexps.length-1]?.flags)
+}

@@ -10,16 +10,19 @@ RUN --mount=type=bind,source=package.json,target=package.json \
     npm ci
 
 COPY . .
+
 ENV NODE_ENV production
+
 RUN npm run build
 
 FROM node:20-alpine as image
 
-ENV NODE_ENV production
-
 WORKDIR /srv
 
+COPY --from=build /usr/src/app/dist/package.json .
 COPY --from=build /usr/src/app/dist/index.js .
+
+ENV NODE_ENV production
 
 USER node
 

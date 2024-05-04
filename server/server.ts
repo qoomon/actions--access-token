@@ -1,10 +1,9 @@
+import {serve} from '@hono/node-server'
 import {appInit} from './app.js'
 import process from 'process'
 
-const PORT = parseInt(process.env.PORT ?? '') || 3000
-
 const app = await appInit()
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`)
-})
 
+const port = parseInt(process.env.PORT ?? '') || 3000
+console.log(`Server is listening on port ${port}`)
+serve({fetch: app.fetch, port})

@@ -60228,6 +60228,7 @@ function canonicalHeadersOf(headers) {
 
 
 
+
 // --- Configuration ---------------------------------------------------------------------------------------------------
 const GITHUB_ACCESS_MANAGER_API = {
     // TODO move to config file
@@ -60244,18 +60245,20 @@ const GITHUB_ACCESS_MANAGER_API = {
 // --- Main ------------------------------------------------------------------------------------------------------------
 runAction(async () => {
     const input = {
-        organization: core.getInput('organization') || undefined,
-        repository: core.getInput('repository') || undefined,
-        repositories: z.array(z.string()).default([])
-            .parse(getYamlInput('repositories')),
+        scope: z["enum"](['repos', 'owner'])
+            .parse((0,core.getInput)('scope')),
         permissions: z.record(z.string())
             .parse(getYamlInput('permissions', { required: true })),
-        // TODO validate own access policy file
+        repository: (0,core.getInput)('repository'),
+        repositories: z.array(z.string()).default([])
+            .parse(getYamlInput('repositories')),
+        owner: (0,core.getInput)('owner'),
     };
     const tokenRequest = {
-        organization: input.organization,
-        repositories: input.repositories,
+        scope: input.scope,
         permissions: input.permissions,
+        repositories: input.repositories,
+        owner: input.owner,
     };
     if (input.repository) {
         tokenRequest.repositories.unshift(input.repository);
