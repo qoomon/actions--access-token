@@ -28,9 +28,21 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-pol
 [//]: # (TODO)
 
 
-
-
-
+## AWS [config.json](config.json) example with additional IAM authorization
+```json
+{
+  "api": {
+    "baseUrl": "https://EXAMPLE.lambda-url.REGION.on.aws/",
+    "auth": {
+      "aws": {
+        "roleArn": "arn:aws:iam::0000000000:role/github-actions-access-tokens-api-access",
+        "region": "eu-central-1",
+        "service": "lambda"
+      }
+    }
+  }
+}
+```
 
 ## Setup Repository Access
 

@@ -1,7 +1,6 @@
 import * as Fixtures from './fixtures.js'
 import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from './fixtures.js'
 import process from 'process'
-import StatusCodes from 'http-status-codes'
 import YAML from 'yaml'
 import {GitHubAccessPolicy, GitHubAppPermissions} from '../lib/types.js'
 import {parseRepository, verifyPermission} from '../lib/github-utils.js'
@@ -9,6 +8,7 @@ import {describe, expect, it, jest} from '@jest/globals'
 import {RequestError} from '@octokit/request-error'
 import {joinRegExp, sleep} from '../lib/common-utils.js'
 import {withHint} from './lib/jest-utils.js'
+import {Status} from '../lib/http-utils.js'
 
 // WORKAROUND for https://github.com/honojs/hono/issues/2627
 const GlobalRequest = globalThis.Request
@@ -30,7 +30,7 @@ beforeEach(() => githubMockEnvironment.reset())
 
 const {appInit} = await import('../app')
 
-process.env['LOG_LEVEL'] = 'info'
+process.env['LOG_LEVEL'] = process.env['LOG_LEVEL'] || 'warn'
 process.env['GITHUB_APP_ID'] = Fixtures.GITHUB_APP_AUTH.appId
 process.env['GITHUB_APP_PRIVATE_KEY'] = Fixtures.GITHUB_APP_AUTH.privateKey
 process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] = Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.aud
@@ -48,7 +48,7 @@ describe('App path /unknown', () => {
       const response = await app.request(path, {method: 'GET'})
 
       // --- Then ---
-      expect(response.status).toEqual(StatusCodes.NOT_FOUND)
+      expect(response.status).toEqual(Status.NOT_FOUND)
     })
   })
 })
@@ -62,7 +62,7 @@ describe('App path /access_tokens', () => {
       const response = await app.request(path, {method: 'GET'})
 
       // --- Then ---
-      expect(response.status).toEqual(StatusCodes.NOT_FOUND)
+      expect(response.status).toEqual(Status.NOT_FOUND)
     })
   })
 
@@ -76,7 +76,7 @@ describe('App path /access_tokens', () => {
         const response = await app.request(path, {method: 'POST'})
 
         // --- Then ---
-        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(response.status).toEqual(Status.UNAUTHORIZED)
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
@@ -93,7 +93,7 @@ describe('App path /access_tokens', () => {
         })
 
         // --- Then ---
-        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(response.status).toEqual(Status.UNAUTHORIZED)
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
@@ -110,7 +110,7 @@ describe('App path /access_tokens', () => {
         })
 
         // --- Then ---
-        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(response.status).toEqual(Status.UNAUTHORIZED)
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
@@ -135,7 +135,7 @@ describe('App path /access_tokens', () => {
 
 
         // --- Then ---
-        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(response.status).toEqual(Status.UNAUTHORIZED)
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
@@ -157,7 +157,7 @@ describe('App path /access_tokens', () => {
         })
 
         // --- Then ---
-        expect(response.status).toEqual(StatusCodes.UNAUTHORIZED)
+        expect(response.status).toEqual(Status.UNAUTHORIZED)
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
@@ -182,7 +182,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+          expect(response.status).toEqual(Status.BAD_REQUEST)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -208,8 +208,8 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
-        }, async () => ({'response.json()': await response.json(),}))
+          expect(response.status).toEqual(Status.BAD_REQUEST)
+        }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
@@ -231,7 +231,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+          expect(response.status).toEqual(Status.BAD_REQUEST)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -257,7 +257,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+          expect(response.status).toEqual(Status.BAD_REQUEST)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -287,7 +287,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+          expect(response.status).toEqual(Status.BAD_REQUEST)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -314,7 +314,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+          expect(response.status).toEqual(Status.BAD_REQUEST)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -341,7 +341,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+          expect(response.status).toEqual(Status.BAD_REQUEST)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -368,7 +368,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.BAD_REQUEST)
+          expect(response.status).toEqual(Status.BAD_REQUEST)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -398,7 +398,7 @@ describe('App path /access_tokens', () => {
 
         // --- Then ---
         await withHint(() => {
-          expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+          expect(response.status).toEqual(Status.FORBIDDEN)
         }, async () => ({'response.json()': await response.json()}))
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
@@ -432,7 +432,7 @@ describe('App path /access_tokens', () => {
 
           // --- Then ---
           await withHint(() => {
-            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+            expect(response.status).toEqual(Status.FORBIDDEN)
           }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             requestId: expect.any(String),
@@ -462,7 +462,7 @@ describe('App path /access_tokens', () => {
 
           // --- Then ---
           await withHint(() => {
-            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+            expect(response.status).toEqual(Status.FORBIDDEN)
           }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             requestId: expect.any(String),
@@ -500,7 +500,7 @@ describe('App path /access_tokens', () => {
 
           // --- Then ---
           await withHint(() => {
-            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+            expect(response.status).toEqual(Status.FORBIDDEN)
           }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             requestId: expect.any(String),
@@ -538,7 +538,7 @@ describe('App path /access_tokens', () => {
 
           // --- Then ---
           await withHint(() => {
-            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+            expect(response.status).toEqual(Status.FORBIDDEN)
           }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             requestId: expect.any(String),
@@ -584,7 +584,7 @@ describe('App path /access_tokens', () => {
 
           // --- Then ---
           await withHint(() => {
-            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+            expect(response.status).toEqual(Status.FORBIDDEN)
           }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             requestId: expect.any(String),
@@ -615,7 +615,7 @@ describe('App path /access_tokens', () => {
 
           // --- Then ---
           await withHint(() => {
-            expect(response.status).toEqual(StatusCodes.FORBIDDEN)
+            expect(response.status).toEqual(Status.FORBIDDEN)
           }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             requestId: expect.any(String),
@@ -661,7 +661,7 @@ describe('App path /access_tokens', () => {
           })
 
           // --- Then ---
-          expect(response.status).toEqual(StatusCodes.OK)
+          expect(response.status).toEqual(Status.OK)
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -699,7 +699,7 @@ describe('App path /access_tokens', () => {
           })
 
           // --- Then ---
-          expect(response.status).toEqual(StatusCodes.OK)
+          expect(response.status).toEqual(Status.OK)
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -733,7 +733,7 @@ describe('App path /access_tokens', () => {
           })
 
           // --- Then ---
-          expect(response.status).toEqual(StatusCodes.OK)
+          expect(response.status).toEqual(Status.OK)
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -769,7 +769,7 @@ describe('App path /access_tokens', () => {
           })
 
           // --- Then ---
-          expect(response.status).toEqual(StatusCodes.OK)
+          expect(response.status).toEqual(Status.OK)
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -809,7 +809,7 @@ describe('App path /access_tokens', () => {
 
           // --- Then ---
           await withHint(() => {
-            expect(response.status).toEqual(StatusCodes.OK)
+            expect(response.status).toEqual(Status.OK)
           }, async () => ({'response.json()': await response.json()}))
 
           expect(await response.json()).toMatchObject({
@@ -880,7 +880,7 @@ function mockGithub() {
               const installation = mock.appInstallations
                   .find((it) => it.owner === params.username)
               if (installation) return {data: installation}
-              throw new RequestError('Not Found', StatusCodes.NOT_FOUND, {
+              throw new RequestError('Not Found', Status.NOT_FOUND, {
                 request: {headers: {}, url: 'http://localhost/tests'} as any,
               })
             }),
@@ -894,7 +894,7 @@ function mockGithub() {
                     granted: installation.permissions[scope as keyof GitHubAppPermissions],
                   })) {
                     console.error(`Invalid permission: ${scope} requested=${permission} granted=${installation.permissions[scope as keyof GitHubAppPermissions]}`)
-                    throw new RequestError('Unprocessable Entity', StatusCodes.UNPROCESSABLE_ENTITY, {
+                    throw new RequestError('Unprocessable Entity', Status.UNPROCESSABLE_ENTITY, {
                       request: {headers: {}, url: 'http://localhost/tests'} as any,
                     })
                   }
@@ -934,7 +934,7 @@ function mockGithub() {
                 const repository = mock.repositories
                     .find((it) => it.name === `${params.owner}/${params.repo}`)
                 if (!repository) {
-                  throw new RequestError('Not Found', StatusCodes.NOT_FOUND, {
+                  throw new RequestError('Not Found', Status.NOT_FOUND, {
                     request: {headers: {}, url: 'http://localhost/tests'} as any,
                   })
                 }
@@ -949,7 +949,7 @@ function mockGithub() {
                   return {data: {content: Buffer.from(contentString).toString('base64')}}
                 }
 
-                throw new RequestError('Not Found', StatusCodes.NOT_FOUND, {
+                throw new RequestError('Not Found', Status.NOT_FOUND, {
                   request: {headers: {}, url: 'http://localhost/tests'} as any,
                 })
               }),

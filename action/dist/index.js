@@ -56141,10 +56141,19 @@ function runAction(action) {
  * @returns   parsed input as object
  */
 function getYamlInput(name, options) {
-    const input = core.getInput(name, options);
-    if (input === '')
+    const input = getInput(name, options);
+    if (input === undefined)
         return;
     return dist/* parse */.Qc(input);
+}
+/**
+ * Get input value
+ * @param     name     name of the input to get
+ * @param     options  optional. See InputOptions.
+ * @returns   input value
+ */
+function getInput(name, options) {
+    return core.getInput(name, options) || undefined;
 }
 
 ;// CONCATENATED MODULE: ./node_modules/zod/lib/index.mjs
@@ -60228,7 +60237,6 @@ function canonicalHeadersOf(headers) {
 
 
 
-
 // --- Configuration ---------------------------------------------------------------------------------------------------
 const GITHUB_ACCESS_MANAGER_API = {
     // TODO move to config file
@@ -60246,13 +60254,13 @@ const GITHUB_ACCESS_MANAGER_API = {
 runAction(async () => {
     const input = {
         scope: z["enum"](['repos', 'owner'])
-            .parse((0,core.getInput)('scope')),
+            .parse(getInput('scope')),
         permissions: z.record(z.string())
             .parse(getYamlInput('permissions', { required: true })),
-        repository: (0,core.getInput)('repository') || undefined,
+        repository: getInput('repository'),
         repositories: z.array(z.string()).default([])
             .parse(getYamlInput('repositories')),
-        owner: (0,core.getInput)('owner') || undefined,
+        owner: getInput('owner'),
     };
     const tokenRequest = {
         scope: input.scope,

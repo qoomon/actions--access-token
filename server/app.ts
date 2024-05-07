@@ -1,4 +1,3 @@
-import StatusCodes from 'http-status-codes'
 import {createVerifier} from 'fast-jwt'
 import process from 'process'
 import log from 'loglevel'
@@ -47,7 +46,6 @@ import {
 import limit from 'p-limit'
 import {Hono} from 'hono'
 import {prettyJSON} from 'hono/pretty-json'
-import {bodyLimit} from 'hono/body-limit'
 import {
   debugLogger,
   errorHandler,
@@ -65,7 +63,7 @@ import {HTTPException} from 'hono/http-exception'
  */
 export async function appInit() {
   // --- Configuration -------------------------------------------------------------------------------------------------
-  log.setDefaultLevel(logLevelOf(process.env['LOG_LEVEL']) || 'info')
+  log.setDefaultLevel(logLevelOf(process.env['LOG_LEVEL']) || (process.env['NODE_ENV'] === 'test' ? 'warn' : 'info'))
 
   const ACCESS_POLICY_FILE_LOCATIONS = {
     repository: {
@@ -126,7 +124,7 @@ export async function appInit() {
       async (context) => {
         const requestId = context.get('id')
         const callerIdentity = context.get('token')
-        log.info('Caller Identity: ' + callerIdentity.workflow_ref, {callerIdentity, requestId})
+        log.info(`${requestId} - Caller Identity: ${callerIdentity.workflow_ref}`, {callerIdentity})
 
         const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
             .then((it) => {
@@ -146,7 +144,7 @@ export async function appInit() {
               }
             })
 
-        log.info('Token Request:', {tokenRequest, requestId})
+        log.info(`${requestId} - Token Request:`, {tokenRequest})
 
         if (Object.entries(tokenRequest.permissions).length === 0) {
           throw new HTTPException(Status.BAD_REQUEST, {
@@ -189,7 +187,7 @@ export async function appInit() {
                 `Install from ${GITHUB_APP_INFOS.html_url}`,
           })
         }
-        log.debug(`App installation`, {appInstallation, requestId})
+        log.debug(`${requestId} - App installation`, {appInstallation})
 
         const verifiedTargetInstallationPermissions = verifyPermissions({
           requested: tokenRequest.permissions,
@@ -220,7 +218,7 @@ export async function appInit() {
             path: ACCESS_POLICY_FILE_LOCATIONS.owner.path,
             strict: false, // ignore invalid access policy entries
           })
-          log.debug(`${tokenRequest.owner} access policy:`, {ownerAccessPolicy, requestId})
+          log.debug(`${requestId} - ${tokenRequest.owner} access policy:`, {ownerAccessPolicy})
 
           const ownerGrantedPermissions = evaluateGrantedPermissions({
             statements: ownerAccessPolicy.statements,
@@ -269,7 +267,7 @@ export async function appInit() {
                   path: ACCESS_POLICY_FILE_LOCATIONS.repository.path,
                   strict: false, // ignore invalid access policy entries
                 })
-                log.debug(`${tokenRequest.owner}/${repo} access policy:`, {repoAccessPolicy, requestId})
+                log.debug(`${requestId} - ${tokenRequest.owner}/${repo} access policy:`, {repoAccessPolicy})
 
                 const repoGrantedPermissions = evaluateGrantedPermissions({
                   statements: repoAccessPolicy.statements,
@@ -380,7 +378,7 @@ async function getAppInstallation(client: Octokit, {owner}: {
   return await retry(
       async () => client.apps.getUserInstallation({username: owner})
           .then((res) => res.data)
-          .catch(async (error) => error.status === StatusCodes.NOT_FOUND ? null : _throw(error))
+          .catch(async (error) => error.status === Status.NOT_FOUND ? null : _throw(error))
           .then((data) => {
             if (!data) return data
             return {
@@ -505,7 +503,7 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
     if (strict) {
       throw new PolicyError(`${owner} access policy is invalid.`, issues)
     }
-    log.debug(`${owner} access policy is invalid:`, {issues, requestId})
+    log.debug(`${requestId} - ${owner} access policy is invalid:`, {issues})
     return {statements: []}
   }
 
@@ -517,7 +515,7 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
     if (strict) {
       throw new PolicyError(`${owner} access policy is invalid.`, issues)
     }
-    log.debug(`${owner} access policy is invalid:`, {issues, requestId})
+    log.debug(`${requestId} - ${owner} access policy is invalid:`, {issues})
     return {statements: []}
   }
 
@@ -547,7 +545,7 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
             'base64').toString(),
         )
         .catch((error) => {
-          if (error.status === StatusCodes.NOT_FOUND) return null
+          if (error.status === Status.NOT_FOUND) return null
           throw error
         })
   }

@@ -87,11 +87,21 @@ export function debugLogger(logger: {
     const requestId = context.get('id')
 
     // TODO meaningful logs
-    logger.debug(requestId + ' - Http Request ' + JSON.stringify(context.req, null, 4))
+    logger.debug(requestId + ' - Http Request ' + JSON.stringify({
+      path: context.req.path,
+      method: context.req.method,
+      query: context.req.query,
+      // headers: context.req.header(),
+      // body: await context.req.text(),
+    }, null, 2))
 
     await next()
 
-    logger.debug(requestId + ' - Http Response ' + JSON.stringify(context.res, null, 4))
+    logger.debug(requestId + ' - Http Response ' + JSON.stringify({
+      status: context.res.status,
+      // headers: context.res.headers,
+      // body: await context.res.text(),
+    }, null, 2))
   })
 }
 

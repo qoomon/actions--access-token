@@ -14,6 +14,7 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "exclude": [
     "./dist",
