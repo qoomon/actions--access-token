@@ -29,7 +29,17 @@ export function runAction(action: () => Promise<void>): void {
  * @returns   parsed input as object
  */
 export function getYamlInput(name: string, options?: InputOptions): unknown | undefined {
-  const input = core.getInput(name, options)
-  if (input === '') return
+  const input = getInput(name, options)
+  if (input === undefined) return
   return YAML.parse(input)
+}
+
+/**
+ * Get input value
+ * @param     name     name of the input to get
+ * @param     options  optional. See InputOptions.
+ * @returns   input value
+ */
+export function getInput(name: string, options?: InputOptions): string | undefined {
+  return core.getInput(name, options) || undefined
 }

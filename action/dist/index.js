@@ -60249,10 +60249,10 @@ runAction(async () => {
             .parse((0,core.getInput)('scope')),
         permissions: z.record(z.string())
             .parse(getYamlInput('permissions', { required: true })),
-        repository: (0,core.getInput)('repository'),
+        repository: (0,core.getInput)('repository') || undefined,
         repositories: z.array(z.string()).default([])
             .parse(getYamlInput('repositories')),
-        owner: (0,core.getInput)('owner'),
+        owner: (0,core.getInput)('owner') || undefined,
     };
     const tokenRequest = {
         scope: input.scope,

@@ -1,11 +1,10 @@
 import * as core from '@actions/core'
-import {getInput} from '@actions/core'
 import {HttpClient, HttpClientError, HttpClientResponse} from '@actions/http-client'
 import {SignatureV4} from '@smithy/signature-v4'
 import {Sha256} from '@aws-crypto/sha256-js'
 import {fromWebToken} from '@aws-sdk/credential-providers'
 import type {GitHubAccessTokenResponse, GitHubAppPermissions, HttpClientRequest} from './lib/types'
-import {getYamlInput, runAction} from './lib/github-actions-utils'
+import {getInput, getYamlInput, runAction} from './lib/github-actions-utils'
 import {z} from 'zod'
 import {signHttpRequest} from './lib/signature4'
 
@@ -41,10 +40,10 @@ runAction(async () => {
         .parse(getInput('scope')),
     permissions: z.record(z.string())
         .parse(getYamlInput('permissions', {required: true})),
-    repository: getInput('repository') || undefined,
+    repository: getInput('repository'),
     repositories: z.array(z.string()).default([])
         .parse(getYamlInput('repositories')),
-    owner: getInput('owner') || undefined,
+    owner: getInput('owner'),
   }
 
   const tokenRequest = {
