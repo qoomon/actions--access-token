@@ -14,6 +14,7 @@ import {TokenError} from 'fast-jwt'
 export function methodNotAllowedHandler(): Handler {
   return (context) => context.text('Method not allowed', 405)
 }
+
 /**
  * Creates a NotFoundHandler that responses with json
  * @returns NotFoundHandler
@@ -81,27 +82,27 @@ export function requestId(header: string = 'x-request-id') {
  * @returns middleware
  */
 export function debugLogger(logger: {
-  debug: (log: string) => void,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  debug: (...log: any[]) => void,
 } = console) {
   return createMiddleware(async (context, next) => {
     const requestId = context.get('id')
 
-    // TODO meaningful logs
-    logger.debug(requestId + ' - Http Request ' + JSON.stringify({
-      path: context.req.path,
-      method: context.req.method,
-      query: context.req.query,
-      // headers: context.req.header(),
-      // body: await context.req.text(),
-    }, null, 2))
+    const prefix = requestId ? `${requestId} - ` : ''
+
+    logger.debug(prefix + 'Http Request ',
+        JSON.stringify({
+          path: context.req.path,
+          method: context.req.method,
+          query: context.req.query,
+        }))
 
     await next()
 
-    logger.debug(requestId + ' - Http Response ' + JSON.stringify({
-      status: context.res.status,
-      // headers: context.res.headers,
-      // body: await context.res.text(),
-    }, null, 2))
+    logger.debug(prefix + 'Http Response ',
+        JSON.stringify({
+          status: context.res.status,
+        }))
   })
 }
 

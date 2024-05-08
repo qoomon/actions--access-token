@@ -77,15 +77,15 @@ export function regexpOfWildcardPattern(pattern: string, flags?: string): RegExp
       .replace(/\\\*/g, '.+') // replace * with match one or more characters
       .replace(/\\\?/g, '.') // replace ? with match one characters
   return RegExp(`^${regexp}$`, flags)
+}
 
-  /**
-   * Escape regular expression special characters
-   * @param string - string to escape
-   * @returns escaped string
-   */
-  function escapeRegexp(string: string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  }
+/**
+ * Escape regular expression special characters
+ * @param string - string to escape
+ * @returns escaped string
+ */
+export function escapeRegexp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**

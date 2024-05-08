@@ -24,7 +24,7 @@ import {
 import {formatZodIssue, YamlTransformer} from './lib/zod-utils.js'
 import {
   _throw,
-  ensureHasEntries,
+  ensureHasEntries, escapeRegexp,
   filterObject,
   hasEntries,
   indent,
@@ -46,16 +46,10 @@ import {
 import limit from 'p-limit'
 import {Hono} from 'hono'
 import {prettyJSON} from 'hono/pretty-json'
-import {
-  debugLogger,
-  errorHandler,
-  notFoundHandler,
-  parseJsonBody,
-  requestId,
-  tokenVerifier,
-} from './lib/hono-utils.js'
+import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, requestId, tokenVerifier,} from './lib/hono-utils.js'
 import {Status} from './lib/http-utils.js'
 import {HTTPException} from 'hono/http-exception'
+import {bodyLimit} from "hono/body-limit";
 
 /**
  * This function will initialize the application
@@ -84,7 +78,7 @@ export async function appInit() {
     privateKey: formatPEMKey(process.env['GITHUB_APP_PRIVATE_KEY'] ??
         _throw(new Error('Environment variable GITHUB_APP_ID is required'))),
   }
-  log.debug('GitHub app id: ' + GITHUB_APP_AUTH.appId)
+  log.debug('GitHub app id:', GITHUB_APP_AUTH.appId)
 
   const GITHUB_ACTIONS_TOKEN_VERIFIER_OPTIONS = {
     allowedAud: process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] ??
@@ -116,7 +110,7 @@ export async function appInit() {
   app.use(debugLogger(log))
   app.onError(errorHandler(log))
   app.notFound(notFoundHandler())
-  // app.use(bodyLimit({maxSize: 100 * 1024})) // 100kb
+  app.use(bodyLimit({maxSize: 100 * 1024})) // 100kb
   app.use(prettyJSON())
 
   app.post('/access_tokens',
@@ -124,7 +118,8 @@ export async function appInit() {
       async (context) => {
         const requestId = context.get('id')
         const callerIdentity = context.get('token')
-        log.info(`${requestId} - Caller Identity: ${callerIdentity.workflow_ref}`, {callerIdentity})
+        log.info(`${requestId} - Caller Identity: ${callerIdentity.workflow_ref}`,
+            JSON.stringify({callerIdentity}))
 
         const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
             .then((it) => {
@@ -144,7 +139,8 @@ export async function appInit() {
               }
             })
 
-        log.info(`${requestId} - Token Request:`, {tokenRequest})
+        log.info(`${requestId} - Token Request:`,
+            JSON.stringify({tokenRequest}))
 
         if (Object.entries(tokenRequest.permissions).length === 0) {
           throw new HTTPException(Status.BAD_REQUEST, {
@@ -187,7 +183,8 @@ export async function appInit() {
                 `Install from ${GITHUB_APP_INFOS.html_url}`,
           })
         }
-        log.debug(`${requestId} - App installation`, {appInstallation})
+        log.debug(`${requestId} - App installation`,
+            JSON.stringify({appInstallation}))
 
         const verifiedTargetInstallationPermissions = verifyPermissions({
           requested: tokenRequest.permissions,
@@ -218,7 +215,8 @@ export async function appInit() {
             path: ACCESS_POLICY_FILE_LOCATIONS.owner.path,
             strict: false, // ignore invalid access policy entries
           })
-          log.debug(`${requestId} - ${tokenRequest.owner} access policy:`, {ownerAccessPolicy})
+          log.debug(`${requestId} - ${tokenRequest.owner} access policy:`,
+              JSON.stringify({ownerAccessPolicy}))
 
           const ownerGrantedPermissions = evaluateGrantedPermissions({
             statements: ownerAccessPolicy.statements,
@@ -267,7 +265,8 @@ export async function appInit() {
                   path: ACCESS_POLICY_FILE_LOCATIONS.repository.path,
                   strict: false, // ignore invalid access policy entries
                 })
-                log.debug(`${requestId} - ${tokenRequest.owner}/${repo} access policy:`, {repoAccessPolicy})
+                log.debug(`${requestId} - ${tokenRequest.owner}/${repo} access policy:`,
+                    JSON.stringify({repoAccessPolicy}))
 
                 const repoGrantedPermissions = evaluateGrantedPermissions({
                   statements: repoAccessPolicy.statements,
@@ -503,7 +502,8 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
     if (strict) {
       throw new PolicyError(`${owner} access policy is invalid.`, issues)
     }
-    log.debug(`${requestId} - ${owner} access policy is invalid:`, {issues})
+    log.debug(`${requestId} - ${owner} access policy is invalid:`,
+        JSON.stringify({issues}))
     return {statements: []}
   }
 
@@ -515,7 +515,8 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
     if (strict) {
       throw new PolicyError(`${owner} access policy is invalid.`, issues)
     }
-    log.debug(`${requestId} - ${owner} access policy is invalid:`, {issues})
+    log.debug(`${requestId} - ${owner} access policy is invalid:`,
+        JSON.stringify({issues}))
     return {statements: []}
   }
 
@@ -645,7 +646,6 @@ function evaluateGrantedPermissions({statements, callerIdentity}: {
   function matchSubjectPattern(subjectPattern: string, subject: string): boolean {
     // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
     // e.g. repo:foo/bar:* is not allowed
-    // TODO write a test for this
     if (Object.keys(parseSubject(subjectPattern)).some((claim) => claim.includes('*'))) {
       return false
     }
@@ -661,6 +661,9 @@ function evaluateGrantedPermissions({statements, callerIdentity}: {
    * @returns regexp
    */
   function regexpOfSubjectPattern(subjectPattern: string): RegExp {
-    return regexpOfWildcardPattern(subjectPattern, 'i')
+    const regexp = escapeRegexp(subjectPattern)
+        .replace(/\\\*/g, '[^:]+') // replace * with match one or more characters except ':' char
+        .replace(/\\\?/g, '[^:]') // replace ? with match one characters except ':' char
+    return RegExp(`^${regexp}$`, 'i')
   }
 }

@@ -60228,6 +60228,8 @@ function canonicalHeadersOf(headers) {
     }, {});
 }
 
+;// CONCATENATED MODULE: ./config.json
+const config_namespaceObject = JSON.parse('{"api":{"url":"https://github-actions-access-tokens.vercel.app"}}');
 ;// CONCATENATED MODULE: ./index.ts
 
 
@@ -60237,19 +60239,19 @@ function canonicalHeadersOf(headers) {
 
 
 
-// --- Configuration ---------------------------------------------------------------------------------------------------
-const GITHUB_ACCESS_MANAGER_API = {
-    // TODO move to config file
-    baseUrl: new URL('https://github-actions-access-tokens.vercel.app'),
-    // baseUrl: new URL('https://EXAMPLE.lambda-url.REGION.on.aws/'),
-    // auth: {
-    //   aws: {
-    //     roleArn: 'arn:aws:iam::0000000000:role/github-actions-access-tokens-api-access',
-    //     region: 'eu-central-1',
-    //     service: 'lambda',
-    //   }
-    // }
-};
+
+const CONFIG = z.object({
+    api: z.object({
+        url: z.string().url().transform((url) => new URL(url)),
+        auth: z.object({
+            aws: z.object({
+                roleArn: z.string(),
+                region: z.string(),
+                service: z["enum"](['lambda', 'execute-api']),
+            }),
+        }).optional(),
+    }),
+}).parse(config_namespaceObject);
 // --- Main ------------------------------------------------------------------------------------------------------------
 runAction(async () => {
     const input = {
@@ -60288,21 +60290,21 @@ runAction(async () => {
  */
 async function getAccessToken(tokenRequest) {
     let requestSigner;
-    if (GITHUB_ACCESS_MANAGER_API.auth?.aws) {
+    if (CONFIG.api.auth?.aws) {
         requestSigner = new dist_cjs.SignatureV4({
             sha256: main.Sha256,
-            service: GITHUB_ACCESS_MANAGER_API.auth.aws.service,
-            region: GITHUB_ACCESS_MANAGER_API.auth.aws.region,
+            service: CONFIG.api.auth.aws.service,
+            region: CONFIG.api.auth.aws.region,
             credentials: (0,credential_providers_dist_cjs.fromWebToken)({
                 webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
-                roleArn: GITHUB_ACCESS_MANAGER_API.auth.aws.roleArn,
+                roleArn: CONFIG.api.auth.aws.roleArn,
                 durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
             }),
         });
     }
-    const idTokenForAccessManager = await core.getIDToken(GITHUB_ACCESS_MANAGER_API.baseUrl.hostname);
+    const idTokenForAccessManager = await core.getIDToken(CONFIG.api.url.hostname);
     return await httpRequest({
-        verb: 'POST', requestUrl: new URL('/access_tokens', GITHUB_ACCESS_MANAGER_API.baseUrl).href,
+        verb: 'POST', requestUrl: new URL('/access_tokens', CONFIG.api.url).href,
         data: JSON.stringify(tokenRequest),
         additionalHeaders: {
             'authorization': 'Bearer ' + idTokenForAccessManager,

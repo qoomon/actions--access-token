@@ -10,15 +10,13 @@ import {joinRegExp, sleep} from '../lib/common-utils.js'
 import {withHint} from './lib/jest-utils.js'
 import {Status} from '../lib/http-utils.js'
 
-// WORKAROUND for https://github.com/honojs/hono/issues/2627
+// // WORKAROUND for https://github.com/honojs/hono/issues/2627
 const GlobalRequest = globalThis.Request
 globalThis.Request = class Request extends GlobalRequest {
   // eslint-disable-next-line require-jsdoc
   constructor(input: Request | string, init: RequestInit) {
-    if (init) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (init as any).duplex ??= 'half'
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (init) (init as any).duplex ??= 'half'
     super(input, init)
   }
 } as typeof GlobalRequest
@@ -519,6 +517,81 @@ describe('App path /access_tokens', () => {
               origin: 'wrong',
               statements: [{
                 subjects: ['ref:refs/heads/*'],
+                permissions: {'contents': 'write'},
+              }],
+            },
+          })
+          const githubToken = Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          })
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'contents': 'write'},
+            }),
+          })
+
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /^Some requested permissions got rejected\.\n/,
+                /- contents: write\n {2}Permission has not been granted by.*/,
+            )),
+          })
+        })
+
+        it('if requested target repo grants access with a subject contains a wildcard', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['*:refs/heads/*'],
+                permissions: {'contents': 'write'},
+              }],
+            },
+          })
+          const githubToken = Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          })
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {'contents': 'write'},
+            }),
+          })
+
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.FORBIDDEN)
+          }, async () => ({'response.json()': await response.json()}))
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp(
+                /^Some requested permissions got rejected\.\n/,
+                /- contents: write\n {2}Permission has not been granted by.*/,
+            )),
+          })
+        })
+
+        it('if requested target repo grants access with a subject pattern is not complete', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            name: 'octocat/sandbox',
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:octocat/*'],
                 permissions: {'contents': 'write'},
               }],
             },
