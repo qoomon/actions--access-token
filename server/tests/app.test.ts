@@ -751,7 +751,7 @@ describe('App path /access_tokens', () => {
             claims: {repository: actionRepo.name},
           })
           githubMockEnvironment.addRepository({
-            name: `${DEFAULT_OWNER}/.github-access-tokens`,
+            name: `${DEFAULT_OWNER}/.github-access-token`,
             ownerAccessPolicy: {
               statements: [{
                 subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
@@ -861,7 +861,7 @@ describe('App path /access_tokens', () => {
             claims: {repository: actionRepo.name},
           })
           githubMockEnvironment.addRepository({
-            name: `${DEFAULT_OWNER}/.github-access-tokens`,
+            name: `${DEFAULT_OWNER}/.github-access-token`,
             ownerAccessPolicy: {
               statements: [{
                 subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],

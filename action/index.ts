@@ -8,20 +8,7 @@ import {getInput, getYamlInput, runAction} from './lib/github-actions-utils'
 import {z} from 'zod'
 import {signHttpRequest} from './lib/signature4'
 
-import config from './config.json' assert {type: 'json'}
-
-const CONFIG = z.object({
-  api: z.object({
-    url: z.string().url().transform((url) => new URL(url)),
-    auth: z.object({
-      aws: z.object({
-        roleArn: z.string(),
-        region: z.string(),
-        service: z.enum(['lambda', 'execute-api']),
-      }),
-    }).optional(),
-  }),
-}).parse(config)
+import {config} from './config.js'
 
 // --- Main ------------------------------------------------------------------------------------------------------------
 
@@ -72,23 +59,23 @@ async function getAccessToken(tokenRequest: {
   owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
   let requestSigner
-  if (CONFIG.api.auth?.aws) {
+  if (config.api.auth?.aws) {
     requestSigner = new SignatureV4({
       sha256: Sha256,
-      service: CONFIG.api.auth.aws.service,
-      region: CONFIG.api.auth.aws.region,
+      service: config.api.auth.aws.service,
+      region: config.api.auth.aws.region,
       credentials: fromWebToken({
         webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
-        roleArn: CONFIG.api.auth.aws.roleArn,
+        roleArn: config.api.auth.aws.roleArn,
         durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
       }),
     })
   }
 
-  const idTokenForAccessManager = await core.getIDToken(CONFIG.api.url.hostname)
+  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
 
   return await httpRequest({
-    verb: 'POST', requestUrl: new URL('/access_tokens', CONFIG.api.url).href,
+    verb: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
     data: JSON.stringify(tokenRequest),
     additionalHeaders: {
       'authorization': 'Bearer ' + idTokenForAccessManager,

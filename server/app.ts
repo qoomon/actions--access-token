@@ -3,7 +3,6 @@ import process from 'process'
 import log from 'loglevel'
 import {Octokit} from '@octokit/rest'
 import {createAppAuth} from '@octokit/auth-app'
-import {formatPEMKey} from './lib/ras-key-utils.js'
 import {components} from '@octokit/openapi-types'
 import {
   GitHubAccessPolicy,
@@ -30,7 +29,6 @@ import {
   indent,
   isRecord,
   mapObject,
-  regexpOfWildcardPattern,
   retry,
   unique,
 } from './lib/common-utils.js'
@@ -46,10 +44,12 @@ import {
 import limit from 'p-limit'
 import {Hono} from 'hono'
 import {prettyJSON} from 'hono/pretty-json'
-import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, requestId, tokenVerifier,} from './lib/hono-utils.js'
+import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, requestId, tokenVerifier} from './lib/hono-utils.js'
 import {Status} from './lib/http-utils.js'
 import {HTTPException} from 'hono/http-exception'
-import {bodyLimit} from "hono/body-limit";
+import {bodyLimit} from 'hono/body-limit'
+
+import {config} from './config.js'
 
 /**
  * This function will initialize the application
@@ -59,46 +59,18 @@ export async function appInit() {
   // --- Configuration -------------------------------------------------------------------------------------------------
   log.setDefaultLevel(logLevelOf(process.env['LOG_LEVEL']) || (process.env['NODE_ENV'] === 'test' ? 'warn' : 'info'))
 
-  const ACCESS_POLICY_FILE_LOCATIONS = {
-    repository: {
-      path: '.github/access-policy.yml',
-    },
-    owner: {
-      path: 'access-policy.yml',
-      repo: '.github-access-tokens',
-    },
-  }
-  log.debug('Access policy file locations:', ACCESS_POLICY_FILE_LOCATIONS)
-
-  const GITHUB_APP_AUTH = {
-    appId: process.env['GITHUB_APP_ID'] ??
-        _throw(new Error('Environment variable GITHUB_APP_ID is required')),
-    // depending on the environment multiple environment variables are not supported,
-    // due to this limitation formatPEMKey ensure the right format
-    privateKey: formatPEMKey(process.env['GITHUB_APP_PRIVATE_KEY'] ??
-        _throw(new Error('Environment variable GITHUB_APP_ID is required'))),
-  }
-  log.debug('GitHub app id:', GITHUB_APP_AUTH.appId)
-
-  const GITHUB_ACTIONS_TOKEN_VERIFIER_OPTIONS = {
-    allowedAud: process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] ??
-        _throw(new Error('Environment variable GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE is required')),
-    allowedSub: process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS']
-        ?.split(/\s*,\s*/)
-        ?.map((subjectPattern) => regexpOfWildcardPattern(subjectPattern, 'i')),
-  }
-  log.debug('GitHub OIDC token verify options:', GITHUB_ACTIONS_TOKEN_VERIFIER_OPTIONS)
+  log.debug('Config', config)
 
   // --- Initialization ------------------------------------------------------------------------------------------------
 
   const GITHUB_OIDC_TOKEN_VERIFIER = createVerifier({
     key: buildJwksKeyFetcher({providerDiscovery: true}),
     allowedIss: 'https://token.actions.githubusercontent.com',
-    allowedAud: GITHUB_ACTIONS_TOKEN_VERIFIER_OPTIONS.allowedAud,
-    allowedSub: GITHUB_ACTIONS_TOKEN_VERIFIER_OPTIONS.allowedSub,
+    allowedAud: config.githubActionsTokenVerifier.allowedAud,
+    allowedSub: config.githubActionsTokenVerifier.allowedSub,
   })
 
-  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: GITHUB_APP_AUTH})
+  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: config.githubAppAuth})
   const GITHUB_APP_INFOS = await GITHUB_APP_CLIENT.apps.getAuthenticated()
       .then((res) => res.data)
   log.debug('GitHub app infos:', GITHUB_APP_INFOS)
@@ -211,8 +183,8 @@ export async function appInit() {
         // --- handle owner access policy ------------------------------------------------------------------------------
         {
           const ownerAccessPolicy = await getAccessPolicy(appInstallationClient, {
-            owner: tokenRequest.owner, repo: ACCESS_POLICY_FILE_LOCATIONS.owner.repo,
-            path: ACCESS_POLICY_FILE_LOCATIONS.owner.path,
+            owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
+            path: config.accessPolicyLocation.owner.path,
             strict: false, // ignore invalid access policy entries
           })
           log.debug(`${requestId} - ${tokenRequest.owner} access policy:`,
@@ -262,7 +234,7 @@ export async function appInit() {
               tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
                 const repoAccessPolicy = await getAccessPolicy(appInstallationClient, {
                   owner: tokenRequest.owner, repo,
-                  path: ACCESS_POLICY_FILE_LOCATIONS.repository.path,
+                  path: config.accessPolicyLocation.repository.path,
                   strict: false, // ignore invalid access policy entries
                 })
                 log.debug(`${requestId} - ${tokenRequest.owner}/${repo} access policy:`,

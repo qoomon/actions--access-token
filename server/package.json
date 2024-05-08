@@ -2,13 +2,13 @@
   "name": "github-actions-access-manager",
   "type": "module",
   "scripts": {
-    "build": "ncc build server.ts",
-    "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts --out dist/aws",
-    "build:docker-container": "docker build .",
-    "build:vercel-function": "ncc build deployments/vercel/api/index.ts --out dist/vercel",
     "lint": "eslint .",
-    "start": "ncc run server.ts",
-    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose"
+    "build": "ncc build server.ts",
+    "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts ",
+    "build:docker-container": "docker build -t localhost/github-access-token-server:latest .",
+    "build:vercel-function": "ncc build deployments/vercel/api/index.ts",
+    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
+    "start": "ncc run server.ts"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.499.0",

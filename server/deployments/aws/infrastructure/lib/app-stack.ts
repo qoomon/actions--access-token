@@ -7,7 +7,7 @@ import {FunctionUrlAuthType} from 'aws-cdk-lib/aws-lambda'
 import * as path from 'path'
 import * as secretManager from 'aws-cdk-lib/aws-secretsmanager'
 
-const API_ACCESS_ROLE_NAME = 'github-actions-access-tokens-api-access'
+const API_ACCESS_ROLE_NAME = 'github-actions-access-token-api-access'
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
 const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: string[] = [] // e.g. ['repo:octo-org/*']
 

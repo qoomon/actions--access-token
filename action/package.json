@@ -5,10 +5,10 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build index.ts",
     "lint": "eslint .",
-    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles",
-    "ts-node": "NODE_OPTIONS='--loader ts-node/esm --experimental-specifier-resolution=node --no-warnings' node"
+    "build": "ncc build index.ts",
+    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
+    "start": "ncc run index.ts"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",

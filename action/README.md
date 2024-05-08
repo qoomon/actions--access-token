@@ -1,9 +1,9 @@
-# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens
+# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens 2
 
 Obtain temporary Access Tokens for GitHub Actions workflows by requesting GitHub App Installation Access Tokens.
-Authorization is based on the GitHub Actions OIDC tokens and `.github/access-policy.yaml` file in the target repositories.
+Authorization is based on the GitHub Actions OIDC tokens and `.github/access-token.yaml` file in the target repositories.
 
-## Workflow
+## Concept
 <p>
   <picture>
     <source media="(prefers-color-scheme: dark)"
@@ -12,43 +12,42 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-pol
   </picture>
 </p>
 
-1. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub).
-2. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access-policy.yaml` file in **Granting Repository**.
-3. The [App Server](server/) reads `.github/access-policy.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
+1. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub).
+2. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access-token.yaml` file in **Granting Repository**.
+3. The [App Server](server/) reads `.github/access-token.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
 4. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
-5. [This GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) sets the token as the step output field `token`
+5. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) sets the token as the step output field `token`
 6. Further job steps can then utilize this token to access resources of the **Granting Repository** e.g. `${{ steps.<ACCESS_TOKEN_STEP_ID>.outputs.token }}`.
 
+## Usage
 
+### Install Access Manager App to Target Repositories
 
+> [!WARNING]
+> **Be aware** by installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
 
+> [!TIP]
+> **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
+> - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
+> - Set `Ruleset Name` to `Protect access token policy`
+> - Set `Enforcement status` to `Active`
+> - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
+> - Set `Target repositories` to `All repositories`
+> - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+> - Hit `Create` button
 
+Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.com/marketplace/access-manager-for-github-actions)
+ **or** [host and install **your own** GitHub App](../server/README.md)
 
+### Setup Repository Access
+To grant repository permission create an `access-token.yaml` file within the `.github` directory of the target repository.
 
-[//]: # (TODO)
+#### Repository Access Policy Example
+<details><summary>Click me</summary>
 
+> [!WARNING]
+> Every statement will always implicitly grant `metadata: read` permission.
 
-## AWS [config.json](config.json) example with additional IAM authorization
-```json
-{
-  "api": {
-    "baseUrl": "https://EXAMPLE.lambda-url.REGION.on.aws/",
-    "auth": {
-      "aws": {
-        "roleArn": "arn:aws:iam::0000000000:role/github-actions-access-tokens-api-access",
-        "region": "eu-central-1",
-        "service": "lambda"
-      }
-    }
-  }
-}
-```
-
-## Setup Repository Access
-
-Create an access policy file `.github/access-policy.yaml` within the repository you want to manage access for.
-
-### Repository Access Policy Example
 ```yaml
 origin: sandbox_owner/sandbox # needs to equals to the repository name the policy file belongs to
 statements:
@@ -98,82 +97,19 @@ statements:
         # pages: read | write
 ```
 
-### Example Usage - GitHub Action Workflow
+</details>
 
-#### Rotate Secrets
+### Setup Owner Access
+
+To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file within.
+`statements` are alike to the repository access policy file, but you can grant any permission including organization permissions and/or user permissions
+
+#### Owner Access Policy Example
+<details>
+  <summary>Click me</summary>
+
 ```yaml
-name: GitHub Actions Access Manager Example
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-jobs:
-  update-secret:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-      
-    steps:
-      - uses: JH-JDS/github-actions-access-manager@v1
-        id: access-token
-        with:
-          permissions: |
-              secrets: write
-
-      - name: Update Secret
-        run: gh secret set API_KEY --body "Hello-World"
-        env:
-          GITHUB_TOKEN: ${{ steps.access-token.outputs.token }}
-
-  read-secret:
-    needs: update-secret
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ${{ secrets.API_KEY }}
-```
-
-#### Checkout Another Repository
-```yaml
-name: GitHub Actions Access Manager Example
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-jobs:
-  checkout:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - uses: JH-JDS/github-actions-access-manager@v1
-        with:
-          repository: JH-JDS/sandbox
-          permissions: |
-            contents: read
-        id: github-access-manager
-
-      - uses: actions/checkout@v4
-        with:
-          repository: JH-JDS/sandbox
-          token: ${{ steps.github-access-manager.outputs.token }}
-```
-
----
-
-## Setup Organization Access
-
-Create an access policy file `.github/organization-access-policy.yaml` within the repository `YOUR_ORGANOZATION/.github` you want to manage access for.
-
-### Organization Access Policy Example
-```yaml
-origin: YOUR_ORGANIZATION/.github # needs to equals to the repository name the policy file belongs to
+origin: OWNER/.github-access-token # needs to equals to the repository name the policy file belongs to
 statements:
   - subjects:
       # --- This repository subject examples ---
@@ -245,33 +181,39 @@ statements:
         # pages: read | write
 ```
 
-## Example Usage - GitHub Action Workflow
+</details>
 
-### Rotate Secrets
+### Example Use Cases
+
+##### Update Secrets
+<details>
+  <summary>Click me</summary>
+
 ```yaml
-name: GitHub Actions Access Manager Example
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+  schedule:
+    - cron: '0 12 * * *' # every day at 12:00 UTC
 
 jobs:
   update-secret:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       id-token: write
       
     steps:
-      - uses: JH-JDS/github-actions-access-manager@v1
+      - uses: qoomon/actions--access-token@v3
         id: access-token
         with:
-          organization: sesame-street
           permissions: |
-            organization_secrets: write
-      - name: Update Secret
-        run: gh secret set API_KEY --body "Hello-World" --org sesame-street
+              secrets: write
+
+      - name: Update secret
+        run: >- 
+          gh secret 
+          set 'API_KEY' 
+          --body "$(date +%s)" 
+          --repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ steps.access-token.outputs.token }}
 
@@ -281,6 +223,81 @@ jobs:
     steps:
       - run: echo ${{ secrets.API_KEY }}
 ```
+
+ </details>
+
+##### Clone an Internal or Private Repository
+<details>
+  <summary>Click me</summary>
+
+```yaml
+name: GitHub Actions Access Manager Example
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: qoomon/actions--access-token@v3
+        id: access-token
+        with:
+          repository: [target repository]
+          permissions: |
+            contents: read
+
+      - uses: actions/checkout@v4
+        with:
+          repository: [target repository]
+          token: ${{ steps.access-token.outputs.token }}
+```
+
+ </details>
+
+##### Trigger a Workflow
+<details>
+  <summary>Click me</summary>
+
+```yaml
+on:
+workflow_dispatch:
+push:
+  branches:
+    - main
+
+permissions:
+id-token: write
+
+jobs:
+build:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: qoomon/actions--access-token@v3
+      id: access-token
+      with:
+        permissions: |
+          actions: write
+          
+    - name: Trigger workflow
+      run: >-
+        gh workflow 
+        run [target workflow].yml
+        --field logLevel=debug
+      env:
+        GITHUB_TOKEN: ${{steps.access-token.outputs.token}}
+    # ...
+```
+
+</details>
+
+---
 
 ## Development
 
@@ -304,3 +321,7 @@ git push origin "$RELEASE_VERSION_TAG"
 git tag --force -a -m "$RELEASE_VERSION"  ${RELEASE_VERSION_TAG%%.*} 
 git push --force origin  ${RELEASE_VERSION_TAG%%.*} 
 ```
+
+## Resources
+* App icon: https://img.icons8.com/cotton/256/000000/grand-master-key.png
+
