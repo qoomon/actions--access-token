@@ -1,5 +1,5 @@
 import {handle} from 'hono/vercel'
-import {appInit} from '../../../app.js'
+
 import * as process from 'process'
 
 if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
@@ -8,7 +8,7 @@ if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
       .replace(/-[^-]+(?=\.vercel\.app$)/, '')
 }
 
-const app = await appInit()
+const {app} = await import('../../../app.js')
 
 export const GET = handle(app)
 export const POST = handle(app)

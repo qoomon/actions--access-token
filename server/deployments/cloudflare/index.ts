@@ -1,5 +1,3 @@
-import {appInit} from '../../app.js'
-
-const app = await appInit()
+const {app} = await import('../../app.js')
 
 export default app

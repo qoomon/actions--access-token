@@ -3,17 +3,18 @@
 This readme describes how to deploy a GitHub Actions Access Token Server.
 
 ## Prerequisites
-> [!IMPORTANT]
+> [!WARNING]
 > Be aware by installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
-> <br>
-> - **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
->   - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
->   - Set `Ruleset Name` to `Protect access token policy`
->   - Set `Enforcement status` to `Active`
->   - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
->   - Set `Target repositories` to `All repositories`
->   - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
->   - Hit `Create` button
+
+> [!TIP]
+> **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
+> - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
+> - Set `Ruleset Name` to `Protect access token policy`
+> - Set `Enforcement status` to `Active`
+> - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
+> - Set `Target repositories` to `All repositories`
+> - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+> - Hit `Create` button
 
 > [!IMPORTANT]
 > Be aware that this server is a security sensitive application.
@@ -100,6 +101,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     - Go to project `Settings` > `Domains`
         - `optional` adjust production domain to your liking
     - Take a note of `Production` domain
+   - Set function environment variable `GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE` to vercel project `Production` domain
 
 3. **Adjust [actions config](../action/config.ts) `api.url` to vercel project `Production` domain**
 

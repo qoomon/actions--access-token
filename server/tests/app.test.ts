@@ -10,7 +10,7 @@ import {joinRegExp, sleep} from '../lib/common-utils.js'
 import {withHint} from './lib/jest-utils.js'
 import {Status} from '../lib/http-utils.js'
 
-// // WORKAROUND for https://github.com/honojs/hono/issues/2627
+// --- WORKAROUND for https://github.com/honojs/hono/issues/2627 ---
 const GlobalRequest = globalThis.Request
 globalThis.Request = class Request extends GlobalRequest {
   // eslint-disable-next-line require-jsdoc
@@ -20,20 +20,20 @@ globalThis.Request = class Request extends GlobalRequest {
     super(input, init)
   }
 } as typeof GlobalRequest
-
-mockJwks()
-const githubMockEnvironment = mockGithub()
-
-beforeEach(() => githubMockEnvironment.reset())
-
-const {appInit} = await import('../app')
+// --- END OF WORKAROUND ---
 
 process.env['LOG_LEVEL'] = process.env['LOG_LEVEL'] || 'warn'
 process.env['GITHUB_APP_ID'] = Fixtures.GITHUB_APP_AUTH.appId
 process.env['GITHUB_APP_PRIVATE_KEY'] = Fixtures.GITHUB_APP_AUTH.privateKey
 process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] = Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.aud
 
-const app = await appInit()
+mockJwks()
+const githubMockEnvironment = mockGithub()
+
+const {config} = await import('../config')
+const {app} = await import('../app')
+
+beforeEach(() => githubMockEnvironment.reset())
 
 describe('App path /unknown', () => {
   const path = '/unknown'
@@ -751,7 +751,7 @@ describe('App path /access_tokens', () => {
             claims: {repository: actionRepo.name},
           })
           githubMockEnvironment.addRepository({
-            name: `${DEFAULT_OWNER}/.github-access-token`,
+            name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
             ownerAccessPolicy: {
               statements: [{
                 subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
@@ -861,7 +861,7 @@ describe('App path /access_tokens', () => {
             claims: {repository: actionRepo.name},
           })
           githubMockEnvironment.addRepository({
-            name: `${DEFAULT_OWNER}/.github-access-token`,
+            name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
             ownerAccessPolicy: {
               statements: [{
                 subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
@@ -1012,12 +1012,12 @@ function mockGithub() {
                   })
                 }
 
-                if (params.path === '.github/access-policy.yml' && repository?.accessPolicy) {
+                if (params.path === config.accessPolicyLocation.repository.path && repository?.accessPolicy) {
                   const contentString = YAML.stringify(repository.accessPolicy)
                   return {data: {content: Buffer.from(contentString).toString('base64')}}
                 }
 
-                if (params.path === 'access-policy.yml' && repository?.ownerAccessPolicy) {
+                if (params.path === config.accessPolicyLocation.owner.path && repository?.ownerAccessPolicy) {
                   const contentString = YAML.stringify(repository.ownerAccessPolicy)
                   return {data: {content: Buffer.from(contentString).toString('base64')}}
                 }

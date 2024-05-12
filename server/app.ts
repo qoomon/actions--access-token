@@ -23,7 +23,8 @@ import {
 import {formatZodIssue, YamlTransformer} from './lib/zod-utils.js'
 import {
   _throw,
-  ensureHasEntries, escapeRegexp,
+  ensureHasEntries,
+  escapeRegexp,
   filterObject,
   hasEntries,
   indent,
@@ -49,258 +50,256 @@ import {Status} from './lib/http-utils.js'
 import {HTTPException} from 'hono/http-exception'
 import {bodyLimit} from 'hono/body-limit'
 
-import {config} from './config.js'
-
 /**
  * This function will initialize the application
  * @returns application
  */
-export async function appInit() {
-  // --- Configuration -------------------------------------------------------------------------------------------------
-  log.setDefaultLevel(logLevelOf(process.env['LOG_LEVEL']) || (process.env['NODE_ENV'] === 'test' ? 'warn' : 'info'))
+// --- Configuration -------------------------------------------------------------------------------------------------
+log.setDefaultLevel(logLevelOf(process.env['LOG_LEVEL']) || (process.env['NODE_ENV'] === 'test' ? 'warn' : 'info'))
 
-  log.debug('Config', config)
+const {config} = await import('./config.js')
+log.debug('Config', {
+  ...config,
+  githubAppAuth: {...config.githubAppAuth, privateKey: '***'},
+})
 
-  // --- Initialization ------------------------------------------------------------------------------------------------
+// --- Initialization ------------------------------------------------------------------------------------------------
 
-  const GITHUB_OIDC_TOKEN_VERIFIER = createVerifier({
-    key: buildJwksKeyFetcher({providerDiscovery: true}),
-    allowedIss: 'https://token.actions.githubusercontent.com',
-    allowedAud: config.githubActionsTokenVerifier.allowedAud,
-    allowedSub: config.githubActionsTokenVerifier.allowedSub,
-  })
+const GITHUB_OIDC_TOKEN_VERIFIER = createVerifier({
+  key: buildJwksKeyFetcher({providerDiscovery: true}),
+  allowedIss: 'https://token.actions.githubusercontent.com',
+  allowedAud: config.githubActionsTokenVerifier.allowedAud,
+  allowedSub: config.githubActionsTokenVerifier.allowedSub,
+})
 
-  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: config.githubAppAuth})
-  const GITHUB_APP_INFOS = await GITHUB_APP_CLIENT.apps.getAuthenticated()
-      .then((res) => res.data)
-  log.debug('GitHub app infos:', GITHUB_APP_INFOS)
+const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: config.githubAppAuth})
+const GITHUB_APP_INFOS = await GITHUB_APP_CLIENT.apps.getAuthenticated()
+    .then((res) => res.data)
+log.debug('GitHub app infos:', GITHUB_APP_INFOS)
 
-  // --- Server Setup --------------------------------------------------------------------------------------------------
+// --- Server Setup --------------------------------------------------------------------------------------------------
 
-  const app = new Hono<{ Variables: { id: string, token: GitHubActionsJwtPayload } }>()
-  app.use(requestId())
-  app.use(debugLogger(log))
-  app.onError(errorHandler(log))
-  app.notFound(notFoundHandler())
-  app.use(bodyLimit({maxSize: 100 * 1024})) // 100kb
-  app.use(prettyJSON())
+export const app = new Hono<{ Variables: { id: string, token: GitHubActionsJwtPayload } }>()
+app.use(requestId())
+app.use(debugLogger(log))
+app.onError(errorHandler(log))
+app.notFound(notFoundHandler())
+app.use(bodyLimit({maxSize: 100 * 1024})) // 100kb
+app.use(prettyJSON())
 
-  app.post('/access_tokens',
-      tokenVerifier<GitHubActionsJwtPayload>(GITHUB_OIDC_TOKEN_VERIFIER),
-      async (context) => {
-        const requestId = context.get('id')
-        const callerIdentity = context.get('token')
-        log.info(`${requestId} - Caller Identity: ${callerIdentity.workflow_ref}`,
-            JSON.stringify({callerIdentity}))
+app.post('/access_tokens',
+    tokenVerifier<GitHubActionsJwtPayload>(GITHUB_OIDC_TOKEN_VERIFIER),
+    async (context) => {
+      const requestId = context.get('id')
+      const callerIdentity = context.get('token')
+      log.info(`${requestId} - Caller Identity: ${callerIdentity.workflow_ref}`,
+          JSON.stringify({callerIdentity}))
 
-        const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
-            .then((it) => {
-              // use caller repository owner as default target owner
-              it.owner = it.owner || callerIdentity.repository_owner
+      const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
+          .then((it) => {
+            // use caller repository owner as default target owner
+            it.owner = it.owner || callerIdentity.repository_owner
 
-              // use caller repository as default repository
-              if (it.scope === 'repos' &&
-                  it.owner === callerIdentity.repository_owner &&
-                  !hasEntries(it.repositories)) {
-                it.repositories = [parseRepository(callerIdentity.repository).repo]
-              }
+            // use caller repository as default repository
+            if (it.scope === 'repos' &&
+                it.owner === callerIdentity.repository_owner &&
+                !hasEntries(it.repositories)) {
+              it.repositories = [parseRepository(callerIdentity.repository).repo]
+            }
 
-              return it as typeof it & {
-                owner: string,
-                permissions: Record<string, string>
-              }
-            })
-
-        log.info(`${requestId} - Token Request:`,
-            JSON.stringify({tokenRequest}))
-
-        if (Object.entries(tokenRequest.permissions).length === 0) {
-          throw new HTTPException(Status.BAD_REQUEST, {
-            message: 'Token permissions must not be empty.',
+            return it as typeof it & {
+              owner: string,
+              permissions: Record<string, string>
+            }
           })
-        }
 
-        if (tokenRequest.scope === 'repos') {
-          // ensure only repository permissions are requested
-          const nonRepositoryPermissions = verifyPermissions({
-            requested: tokenRequest.permissions,
-            granted: GitHubAppRepositoryPermissions,
-          }).denied
+      log.info(`${requestId} - Token Request:`,
+          JSON.stringify({tokenRequest}))
 
-          if (hasEntries(nonRepositoryPermissions)) {
-            throw new HTTPException(Status.BAD_REQUEST, {
-              message: 'Invalid permissions scopes for token scope \'repos\'.\n' +
-                  nonRepositoryPermissions.map(({scope}) => `- ${scope}`).join('\n'),
-            })
-          }
-        }
-
-        // --- verify requested token permissions --------------------------------------------------------------------------
-        // eslint-disable-next-line max-len
-        const pendingTokenPermissions: Record<string, string> = Object.fromEntries(Object.entries(tokenRequest.permissions))
-        const rejectedTokenPermissions: {
-          reason: string,
-          scope: string, permission: string,
-        }[] = []
-        // granted token permission object will be used as safeguard to prevent unintentional permission granting
-        const grantedTokenPermissions: Record<string, string> = {}
-
-        // --- handle app installation ---------------------------------------------------------------------------------
-        const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
-          owner: tokenRequest.owner,
+      if (Object.entries(tokenRequest.permissions).length === 0) {
+        throw new HTTPException(Status.BAD_REQUEST, {
+          message: 'Token permissions must not be empty.',
         })
-        if (!appInstallation) {
-          throw new HTTPException(Status.FORBIDDEN, {
-            message: `${GITHUB_APP_INFOS.name} has not been installed for ${tokenRequest.owner}.\n` +
-                `Install from ${GITHUB_APP_INFOS.html_url}`,
-          })
-        }
-        log.debug(`${requestId} - App installation`,
-            JSON.stringify({appInstallation}))
+      }
 
-        const verifiedTargetInstallationPermissions = verifyPermissions({
+      if (tokenRequest.scope === 'repos') {
+        // ensure only repository permissions are requested
+        const nonRepositoryPermissions = verifyPermissions({
           requested: tokenRequest.permissions,
-          granted: appInstallation.permissions,
-        })
-        verifiedTargetInstallationPermissions.denied.forEach(({scope, permission}) => {
-          rejectedTokenPermissions.push({
-            scope, permission,
-            // eslint-disable-next-line max-len
-            reason: `Permission has not been granted to ${GITHUB_APP_INFOS.name} installation for ${tokenRequest.owner}.`,
+          granted: GitHubAppRepositoryPermissions,
+        }).denied
+
+        if (hasEntries(nonRepositoryPermissions)) {
+          throw new HTTPException(Status.BAD_REQUEST, {
+            message: 'Invalid permissions scopes for token scope \'repos\'.\n' +
+                nonRepositoryPermissions.map(({scope}) => `- ${scope}`).join('\n'),
           })
+        }
+      }
+
+      // --- verify requested token permissions --------------------------------------------------------------------------
+      // eslint-disable-next-line max-len
+      const pendingTokenPermissions: Record<string, string> = Object.fromEntries(Object.entries(tokenRequest.permissions))
+      const rejectedTokenPermissions: {
+        reason: string,
+        scope: string, permission: string,
+      }[] = []
+      // granted token permission object will be used as safeguard to prevent unintentional permission granting
+      const grantedTokenPermissions: Record<string, string> = {}
+
+      // --- handle app installation ---------------------------------------------------------------------------------
+      const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
+        owner: tokenRequest.owner,
+      })
+      if (!appInstallation) {
+        throw new HTTPException(Status.FORBIDDEN, {
+          message: `${GITHUB_APP_INFOS.name} has not been installed for ${tokenRequest.owner}.\n` +
+              `Install from ${GITHUB_APP_INFOS.html_url}`,
+        })
+      }
+      log.debug(`${requestId} - App installation`,
+          JSON.stringify({appInstallation}))
+
+      const verifiedTargetInstallationPermissions = verifyPermissions({
+        requested: tokenRequest.permissions,
+        granted: appInstallation.permissions,
+      })
+      verifiedTargetInstallationPermissions.denied.forEach(({scope, permission}) => {
+        rejectedTokenPermissions.push({
+          scope, permission,
+          // eslint-disable-next-line max-len
+          reason: `Permission has not been granted to ${GITHUB_APP_INFOS.name} installation for ${tokenRequest.owner}.`,
+        })
+      })
+
+      if (hasEntries(rejectedTokenPermissions)) {
+        throw createPermissionRejectedHttpException(rejectedTokenPermissions)
+      }
+
+      const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
+        permissions: {
+          single_file: 'read', // to read access policy files
+        },
+      })
+
+      // --- handle owner access policy ------------------------------------------------------------------------------
+      {
+        const ownerAccessPolicy = await getAccessPolicy(appInstallationClient, {
+          owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
+          path: config.accessPolicyLocation.owner.path,
+          strict: false, // ignore invalid access policy entries
+        })
+        log.debug(`${requestId} - ${tokenRequest.owner} access policy:`,
+            JSON.stringify({ownerAccessPolicy}))
+
+        const ownerGrantedPermissions = evaluateGrantedPermissions({
+          statements: ownerAccessPolicy.statements,
+          callerIdentity,
+        })
+
+        // verify requested token permissions by owner permissions
+        verifyPermissions({
+          granted: ownerGrantedPermissions,
+          requested: tokenRequest.permissions,
+        }).granted.forEach(({scope, permission}) => {
+          // permission granted
+          grantedTokenPermissions[scope] = permission
+          delete pendingTokenPermissions[scope]
+        })
+
+        if (tokenRequest.scope === 'owner') {
+          // reject all pending permissions
+          Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
+            rejectedTokenPermissions.push({
+              reason: `Permission has not been granted by ${tokenRequest.owner}.`,
+              scope, permission,
+            })
+          })
+        }
+
+        if (hasEntries(rejectedTokenPermissions)) {
+          throw createPermissionRejectedHttpException(rejectedTokenPermissions)
+        }
+      }
+
+      // --- handle repository access policies -----------------------------------------------------------------------
+      if (tokenRequest.scope === 'repos' &&
+          hasEntries(pendingTokenPermissions) && // BE AWARE to ensure only repository permissions are pending
+          hasEntries(tokenRequest.repositories)
+      ) {
+        const pendingRepositoryTokenPermissions: Record<string, Set<string>> =
+            Object.fromEntries(Object.keys(pendingTokenPermissions)
+                .map((scope) => [scope, new Set(tokenRequest.repositories)]))
+
+        const limitRepoPermissionRequests = limit(8)
+        await Promise.all(
+            tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
+              const repoAccessPolicy = await getAccessPolicy(appInstallationClient, {
+                owner: tokenRequest.owner, repo,
+                path: config.accessPolicyLocation.repository.path,
+                strict: false, // ignore invalid access policy entries
+              })
+              log.debug(`${requestId} - ${tokenRequest.owner}/${repo} access policy:`,
+                  JSON.stringify({repoAccessPolicy}))
+
+              const repoGrantedPermissions = evaluateGrantedPermissions({
+                statements: repoAccessPolicy.statements,
+                callerIdentity,
+              })
+
+              // verify requested token permissions by repository permissions
+              const verifiedRepoPermissions = verifyPermissions({
+                granted: repoGrantedPermissions,
+                requested: pendingTokenPermissions,
+              })
+              verifiedRepoPermissions.granted.forEach(({scope}) => {
+                // permission granted
+                pendingRepositoryTokenPermissions[scope].delete(repo)
+              })
+              verifiedRepoPermissions.denied.forEach(({scope, permission}) => {
+                // permission rejected
+                rejectedTokenPermissions.push({
+                  reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
+                  scope, permission,
+                })
+              })
+            })),
+        )
+
+        Object.entries(pendingRepositoryTokenPermissions).forEach(([scope, repositories]) => {
+          if (repositories.size == 0) {
+            grantedTokenPermissions[scope] = pendingTokenPermissions[scope]
+            delete pendingTokenPermissions[scope]
+          }
         })
 
         if (hasEntries(rejectedTokenPermissions)) {
           throw createPermissionRejectedHttpException(rejectedTokenPermissions)
         }
+      }
 
-        const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
-          permissions: {
-            single_file: 'read', // to read access policy files
-          },
-        })
-
-        // --- handle owner access policy ------------------------------------------------------------------------------
-        {
-          const ownerAccessPolicy = await getAccessPolicy(appInstallationClient, {
-            owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
-            path: config.accessPolicyLocation.owner.path,
-            strict: false, // ignore invalid access policy entries
-          })
-          log.debug(`${requestId} - ${tokenRequest.owner} access policy:`,
-              JSON.stringify({ownerAccessPolicy}))
-
-          const ownerGrantedPermissions = evaluateGrantedPermissions({
-            statements: ownerAccessPolicy.statements,
-            callerIdentity,
+      // --- create requested access token ---------------------------------------------------------------------------
+      // SAFEGUARD, pending permissions should only occur due to rejected permissions (see above check)
+      if (hasEntries(pendingTokenPermissions)) {
+        throw new Error('Unexpected pending permissions.')
+      }
+      const appInstallationAccessToken = await createInstallationAccessToken(
+          GITHUB_APP_CLIENT, appInstallation, {
+            // BE AWARE that an empty object will result in a token with all app installation permissions
+            permissions: ensureHasEntries(grantedTokenPermissions),
+            // BE AWARE that an empty array will result in a token with access to all app installation repositories
+            repositories: tokenRequest.repositories,
           })
 
-          // verify requested token permissions by owner permissions
-          verifyPermissions({
-            granted: ownerGrantedPermissions,
-            requested: tokenRequest.permissions,
-          }).granted.forEach(({scope, permission}) => {
-            // permission granted
-            grantedTokenPermissions[scope] = permission
-            delete pendingTokenPermissions[scope]
-          })
-
-          if (tokenRequest.scope === 'owner') {
-            // reject all pending permissions
-            Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
-              rejectedTokenPermissions.push({
-                reason: `Permission has not been granted by ${tokenRequest.owner}.`,
-                scope, permission,
-              })
-            })
-          }
-
-          if (hasEntries(rejectedTokenPermissions)) {
-            throw createPermissionRejectedHttpException(rejectedTokenPermissions)
-          }
-        }
-
-        // --- handle repository access policies -----------------------------------------------------------------------
-        if (tokenRequest.scope === 'repos' &&
-            hasEntries(pendingTokenPermissions) && // BE AWARE to ensure only repository permissions are pending
-            hasEntries(tokenRequest.repositories)
-        ) {
-          const pendingRepositoryTokenPermissions: Record<string, Set<string>> =
-              Object.fromEntries(Object.keys(pendingTokenPermissions)
-                  .map((scope) => [scope, new Set(tokenRequest.repositories)]))
-
-          const limitRepoPermissionRequests = limit(8)
-          await Promise.all(
-              tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
-                const repoAccessPolicy = await getAccessPolicy(appInstallationClient, {
-                  owner: tokenRequest.owner, repo,
-                  path: config.accessPolicyLocation.repository.path,
-                  strict: false, // ignore invalid access policy entries
-                })
-                log.debug(`${requestId} - ${tokenRequest.owner}/${repo} access policy:`,
-                    JSON.stringify({repoAccessPolicy}))
-
-                const repoGrantedPermissions = evaluateGrantedPermissions({
-                  statements: repoAccessPolicy.statements,
-                  callerIdentity,
-                })
-
-                // verify requested token permissions by repository permissions
-                const verifiedRepoPermissions = verifyPermissions({
-                  granted: repoGrantedPermissions,
-                  requested: pendingTokenPermissions,
-                })
-                verifiedRepoPermissions.granted.forEach(({scope}) => {
-                  // permission granted
-                  pendingRepositoryTokenPermissions[scope].delete(repo)
-                })
-                verifiedRepoPermissions.denied.forEach(({scope, permission}) => {
-                  // permission rejected
-                  rejectedTokenPermissions.push({
-                    reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
-                    scope, permission,
-                  })
-                })
-              })),
-          )
-
-          Object.entries(pendingRepositoryTokenPermissions).forEach(([scope, repositories]) => {
-            if (repositories.size == 0) {
-              grantedTokenPermissions[scope] = pendingTokenPermissions[scope]
-              delete pendingTokenPermissions[scope]
-            }
-          })
-
-          if (hasEntries(rejectedTokenPermissions)) {
-            throw createPermissionRejectedHttpException(rejectedTokenPermissions)
-          }
-        }
-
-        // --- create requested access token ---------------------------------------------------------------------------
-        // SAFEGUARD, pending permissions should only occur due to rejected permissions (see above check)
-        if (hasEntries(pendingTokenPermissions)) {
-          throw new Error('Unexpected pending permissions.')
-        }
-        const appInstallationAccessToken = await createInstallationAccessToken(
-            GITHUB_APP_CLIENT, appInstallation, {
-              // BE AWARE that an empty object will result in a token with all app installation permissions
-              permissions: ensureHasEntries(grantedTokenPermissions),
-              // BE AWARE that an empty array will result in a token with access to all app installation repositories
-              repositories: tokenRequest.repositories,
-            })
-
-        // --- response with requested access token --------------------------------------------------------------------
-        return context.json({
-          token: appInstallationAccessToken.token,
-          expires_at: appInstallationAccessToken.expires_at,
-          permissions: appInstallationAccessToken.permissions,
-          repositories: appInstallationAccessToken.repositories?.map((it) => it.name),
-          owner: appInstallation.account?.name ?? tokenRequest.owner,
-        })
+      // --- response with requested access token --------------------------------------------------------------------
+      return context.json({
+        token: appInstallationAccessToken.token,
+        expires_at: appInstallationAccessToken.expires_at,
+        permissions: appInstallationAccessToken.permissions,
+        repositories: appInstallationAccessToken.repositories?.map((it) => it.name),
+        owner: appInstallation.account?.name ?? tokenRequest.owner,
       })
-
-  return app
-}
+    })
 
 /**
  * Create permission rejected http exception

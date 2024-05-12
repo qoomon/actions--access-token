@@ -2,7 +2,6 @@ import {handle} from 'hono/aws-lambda'
 import process from 'process'
 import {GetFunctionUrlConfigCommand, LambdaClient} from '@aws-sdk/client-lambda'
 import {GetSecretValueCommand, SecretsManager} from '@aws-sdk/client-secrets-manager'
-import {appInit} from '../../app.js'
 
 if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
   const lambda = new LambdaClient({region: process.env.AWS_REGION})
@@ -21,6 +20,6 @@ const githubAppSecret = await secretsManager.send(new GetSecretValueCommand({
 process.env['GITHUB_ACTIONS_APP_ID'] = githubAppSecret.appId
 process.env['GITHUB_ACTIONS_APP_PRIVATE_KEY'] = githubAppSecret.privateKey
 
-const app = await appInit()
+const {app} = await import('../../app.js')
 export const handler = handle(app)
 

@@ -1,8 +1,7 @@
 import {serve} from '@hono/node-server'
-import {appInit} from './app.js'
 import process from 'process'
 
-const app = await appInit()
+const {app} = await import('./app')
 
 const port = parseInt(process.env.PORT ?? '') || 3000
 console.log(`Server is listening on port ${port}`)

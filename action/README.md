@@ -1,4 +1,4 @@
-# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens 2
+# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens
 
 Obtain temporary Access Tokens for GitHub Actions workflows by requesting GitHub App Installation Access Tokens.
 Authorization is based on the GitHub Actions OIDC tokens and `.github/access-token.yaml` file in the target repositories.
@@ -7,21 +7,25 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
 <p>
   <picture>
     <source media="(prefers-color-scheme: dark)"
-      srcset="docs/workflow_dark.png">
-    <img src="docs/workflow.png">
+      srcset="/action/docs/workflow_dark.png">
+    <img alt="" src="/action/docs/workflow.png">
   </picture>
 </p>
 
 1. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub).
-2. The [App Server](server/) requests a **GitHub App Installation Token** to read `.github/access-token.yaml` file in **Granting Repository**.
-3. The [App Server](server/) reads `.github/access-token.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
-4. The [App Server](server/) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
+2. The [App Server](/server/README.md) requests a **GitHub App Installation Token** to read `.github/access-token.yaml` file in **Granting Repository**.
+3. The [App Server](/server/README.md) reads `.github/access-token.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
+4. The [App Server](/server/README.md) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
 5. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) sets the token as the step output field `token`
 6. Further job steps can then utilize this token to access resources of the **Granting Repository** e.g. `${{ steps.<ACCESS_TOKEN_STEP_ID>.outputs.token }}`.
 
 ## Usage
+> [!Note]
+> Jump to [example use cases](#example-use-cases) to see how to use this action in workflows.
 
-### Install Access Manager App to Target Repositories
+### Prerequisites
+
+#### Install Access Manager App to Target Repositories
 
 > [!WARNING]
 > **Be aware** by installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
@@ -39,14 +43,18 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
 Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.com/marketplace/access-manager-for-github-actions)
  **or** [host and install **your own** GitHub App](../server/README.md)
 
-### Setup Repository Access
-To grant repository permission create an `access-token.yaml` file within the `.github` directory of the target repository.
-
-#### Repository Access Policy Example
-<details><summary>Click me</summary>
-
+#### Setup Repository Permission Access
 > [!WARNING]
 > Every statement will always implicitly grant `metadata: read` permission.
+
+> [!Note]
+> You can also grant repository permissions by owner access token policy see [Setup Owner Permission Access](#setup-owner-permission-access)
+
+<details><summary>Click me</summary>
+
+To grant repository permission create an `access-token.yaml` file within the `.github` directory of the target repository.
+
+##### Repository Access Policy Example
 
 ```yaml
 origin: sandbox_owner/sandbox # needs to equals to the repository name the policy file belongs to
@@ -99,14 +107,16 @@ statements:
 
 </details>
 
-### Setup Owner Access
+#### Setup Owner Permission Access
+> [!WARNING]
+> Every statement will always implicitly grant `metadata: read` permission.
+
+<details><summary>Click me</summary>
 
 To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file within.
 `statements` are alike to the repository access policy file, but you can grant any permission including organization permissions and/or user permissions
 
-#### Owner Access Policy Example
-<details>
-  <summary>Click me</summary>
+##### Owner Access Policy Example
 
 ```yaml
 origin: OWNER/.github-access-token # needs to equals to the repository name the policy file belongs to
@@ -186,8 +196,7 @@ statements:
 ### Example Use Cases
 
 ##### Update Secrets
-<details>
-  <summary>Click me</summary>
+<details><summary>Click me</summary>
 
 ```yaml
 on:
@@ -227,8 +236,7 @@ jobs:
  </details>
 
 ##### Clone an Internal or Private Repository
-<details>
-  <summary>Click me</summary>
+<details><summary>Click me</summary>
 
 ```yaml
 name: GitHub Actions Access Manager Example
@@ -262,8 +270,7 @@ jobs:
  </details>
 
 ##### Trigger a Workflow
-<details>
-  <summary>Click me</summary>
+<details><summary>Click me</summary>
 
 ```yaml
 on:
@@ -302,25 +309,7 @@ build:
 ## Development
 
 ### Action Release Workflow
-
-```bash
-RELEASE_VERSION="0.0.0"
-
-npm ci
-npm run build
-
-git add -f dist/
-git commit -m "build(release): action release $RELEASE_VERSION"
-git push
-
-RELEASE_VERSION_TAG="v$RELEASE_VERSION"
-git tag -a -m "$RELEASE_VERSION" "$RELEASE_VERSION_TAG"
-git push origin "$RELEASE_VERSION_TAG"
-
-# move the major version tag
-git tag --force -a -m "$RELEASE_VERSION"  ${RELEASE_VERSION_TAG%%.*} 
-git push --force origin  ${RELEASE_VERSION_TAG%%.*} 
-```
+- Run [actions-release workflow](/.github/workflows/action-release.yml) to create a new action release
 
 ## Resources
 * App icon: https://img.icons8.com/cotton/256/000000/grand-master-key.png
