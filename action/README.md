@@ -27,6 +27,9 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
 
 #### Install Access Manager App to Target Repositories
 
+Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.com/marketplace/access-manager-for-github-actions)
+ **or** [host and install **your own** GitHub App](../server/README.md)
+
 > [!WARNING]
 > **Be aware** by installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
 
@@ -40,8 +43,6 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
 > - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
 > - Hit `Create` button
 
-Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.com/marketplace/access-manager-for-github-actions)
- **or** [host and install **your own** GitHub App](../server/README.md)
 
 #### Setup Repository Permission Access
 > [!WARNING]
