@@ -12,10 +12,10 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
   </picture>
 </p>
 
-1. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) will request an access token for a **Granting Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub).
+1. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) will request an access token for a **Target Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub).
 2. The [App Server](/server/README.md) requests a **GitHub App Installation Token** to read `.github/access-token.yaml` file in **Granting Repository**.
-3. The [App Server](/server/README.md) reads `.github/access-token.yaml` file from **Granting Repository** and determine which permissions should be granted to **Requesting Repository**, authorized by the **GitHub App Installation Token** from step `2.`.
-4. The [App Server](/server/README.md) requests a **GitHub App Installation Token** with granted permissions for **Source Directory** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
+3. The [App Server](/server/README.md) reads `.github/access-token.yaml` file from **Target Repository** and determine which permissions should be granted to **Requesting GitHub Action Identity**.
+4. The [App Server](/server/README.md) requests a **GitHub App Installation Token** with granted permissions for **Requesting GitHub Action Identity** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
 5. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) sets the token as the step output field `token`
 6. Further job steps can then utilize this token to access resources of the **Granting Repository** e.g. `${{ steps.<ACCESS_TOKEN_STEP_ID>.outputs.token }}`.
 
