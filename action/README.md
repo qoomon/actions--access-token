@@ -310,7 +310,7 @@ build:
 ## Development
 
 ### Action Release Workflow
-- Run [actions-release workflow](/.github/workflows/action-release.yml) to create a new action release
+- Run [actions-release workflow](https://github.com/qoomon/actions--access-token/actions/workflows/action-release.yml) to create a new action release
 
 ## Resources
 * App icon: https://img.icons8.com/cotton/256/000000/grand-master-key.png
