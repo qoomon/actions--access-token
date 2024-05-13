@@ -9,11 +9,11 @@ inputs:
   scope:
     default: repos
     description: |
-      Token scope - 'repos' or 'owner'
+      Token scope eighter 'repos' or 'owner'
       If you want to request owner wide permissions, you need to set the scope to 'owner'
   permissions:
     description: |
-      The permissions to request as YAML object string, e.g. 
+      Permissions to request as YAML object string, e.g. 
       permissions: |
         secrets: write
     required: true
