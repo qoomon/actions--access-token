@@ -35,14 +35,17 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
 > [!TIP]
 > **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
-> - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
-> - Set `Ruleset Name` to `Protect access token policy`
-> - Set `Enforcement status` to `Active`
-> - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
-> - Set `Target repositories` to `All repositories`
-> - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
-> - Hit `Create` button
+<details><summary>Click me</summary>
+  
+  - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
+- Set `Ruleset Name` to `Protect access token policy`
+- Set `Enforcement status` to `Active`
+- Hit `Add bypass`, select `Repository admin` and hit `Add selected`
+- Set `Target repositories` to `All repositories`
+- Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+- Hit `Create` button
 
+ </details>
 
 #### Setup Repository Permission Access
 > [!WARNING]
