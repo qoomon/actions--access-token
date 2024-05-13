@@ -46,7 +46,7 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
  </details>
 
-### Setup Repository Permission Access
+### Grant Repository Permissions
 > [!WARNING]
 > Every statement will always implicitly grant `metadata: read` permission.
 
@@ -110,7 +110,7 @@ statements:
 
 </details>
 
-### Setup Owner Permission Access
+### Grant Owner Permissions
 > [!WARNING]
 > Every statement will always implicitly grant `metadata: read` permission.
 
