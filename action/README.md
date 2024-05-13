@@ -23,9 +23,9 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
 > [!Note]
 > Jump to [example use cases](#example-use-cases) to see how to use this action in workflows.
 
-### Prerequisites
+## Prerequisites
 
-#### Install Access Manager App to Target Repositories
+### Install Access Manager App to Target Repositories
 
 Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.com/marketplace/access-manager-for-github-actions)
  **or** [host and install **your own** GitHub App](../server/README.md)
@@ -47,7 +47,7 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
  </details>
 
-#### Setup Repository Permission Access
+### Setup Repository Permission Access
 > [!WARNING]
 > Every statement will always implicitly grant `metadata: read` permission.
 
@@ -58,7 +58,7 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
 To grant repository permission create an `access-token.yaml` file within the `.github` directory of the target repository.
 
-##### Repository Access Policy Example
+#### Repository Access Policy Example
 
 ```yaml
 origin: sandbox_owner/sandbox # needs to equals to the repository name the policy file belongs to
@@ -111,7 +111,7 @@ statements:
 
 </details>
 
-#### Setup Owner Permission Access
+### Setup Owner Permission Access
 > [!WARNING]
 > Every statement will always implicitly grant `metadata: read` permission.
 
@@ -120,7 +120,7 @@ statements:
 To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file within.
 `statements` are alike to the repository access policy file, but you can grant any permission including organization permissions and/or user permissions
 
-##### Owner Access Policy Example
+#### Owner Access Policy Example
 
 ```yaml
 origin: OWNER/.github-access-token # needs to equals to the repository name the policy file belongs to
@@ -197,9 +197,9 @@ statements:
 
 </details>
 
-### Example Use Cases
+## Example Use Cases
 
-##### Update Secrets
+#### Update Secrets
 <details><summary>Click me</summary>
 
 ```yaml
@@ -239,7 +239,7 @@ jobs:
 
  </details>
 
-##### Clone an Internal or Private Repository
+#### Clone an Internal or Private Repository
 <details><summary>Click me</summary>
 
 ```yaml
@@ -273,7 +273,7 @@ jobs:
 
  </details>
 
-##### Trigger a Workflow
+#### Trigger a Workflow
 <details><summary>Click me</summary>
 
 ```yaml
