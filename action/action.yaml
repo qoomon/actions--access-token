@@ -8,28 +8,28 @@ branding:
 inputs:
   scope:
     default: repos
-    description: |-
+    description: |
       Token scope - 'repos' or 'owner'
       If you want to request owner wide permissions, you need to set the scope to 'owner'
   permissions:
-    description: |-
+    description: |
       The permissions to request as YAML object string, e.g. 
       permissions: |
         secrets: write
     required: true
   repository:
-    description: |-
+    description: |
       Target repository e.g. playground
       Gets merged with repositories input
       Defaults to OIDC token repository, only if inputs.owner is equal to OIDC token repository owner
   repositories:
-    description: |-
+    description: |
       Target repositories as YAML array string, e.g. 
       repositories: |  
         - playground
         - shop
   owner:
-    description: |-
+    description: |
       Target owner e.g. octocat
       Defaults to OIDC token repository owner
 
