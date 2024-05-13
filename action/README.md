@@ -20,8 +20,7 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
 6. Further job steps can then utilize this token to access resources of the **Granting Repository** e.g. `${{ steps.<ACCESS_TOKEN_STEP_ID>.outputs.token }}`.
 
 ## Usage
-> [!Note]
-> Jump to [example use cases](#example-use-cases) to see how to use this action in workflows.
+See [Action Metadata](/action/action.yaml) and [Example Use Cases](#example-use-cases).
 
 ## Prerequisites
 
