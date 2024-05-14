@@ -1,6 +1,6 @@
 import * as iam from 'aws-cdk-lib/aws-iam'
 import {OpenIdConnectProvider} from 'aws-cdk-lib/aws-iam'
-import {CfnOutput, Duration, SecretValue, Stack, StackProps} from 'aws-cdk-lib'
+import {CfnOutput, Duration, Fn, SecretValue, Stack, StackProps} from 'aws-cdk-lib'
 import {Construct} from 'constructs'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import {FunctionUrlAuthType} from 'aws-cdk-lib/aws-lambda'
@@ -45,6 +45,7 @@ export class AppStack extends Stack {
     const httpApiAccessTokenFunctionUrl = httpApiAccessTokenFunction.addFunctionUrl({
       authType: FunctionUrlAuthType.AWS_IAM,
     })
+    const httpApiAccessTokenFunctionUrlDomain = Fn.split('://', httpApiAccessTokenFunctionUrl.url, 2)[1]
 
     // --- API Access Role------------------------------------------------------------------------------------------
 
@@ -57,7 +58,7 @@ export class AppStack extends Stack {
       roleName: API_ACCESS_ROLE_NAME,
       maxSessionDuration: Duration.hours(1), // should set to minimum value for security reasons
       assumedBy: new iam.OpenIdConnectPrincipal(githubOidcProvider, {
-        'StringEquals': {[`${githubOidcProvider.openIdConnectProviderIssuer}:aud`]: 'sts.amazonaws.com'},
+        'StringEquals': {[`${githubOidcProvider.openIdConnectProviderIssuer}:aud`]: httpApiAccessTokenFunctionUrlDomain},
         'ForAnyValue:StringLike': {[`${githubOidcProvider.openIdConnectProviderIssuer}:sub`]: GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS},
       }),
     })

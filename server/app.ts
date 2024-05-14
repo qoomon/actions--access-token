@@ -553,8 +553,9 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
     let effectiveSubject = subject
     // prefix subject with repo claim if not already prefixed
     if (!effectiveSubject.startsWith('repo:')) {
-      effectiveSubject = `repo:${owner}/${repo}:` + effectiveSubject
+      effectiveSubject = 'repo:${origin}:' + effectiveSubject
     }
+    effectiveSubject = effectiveSubject.replaceAll('${origin}', `${owner}/${repo}`)
 
     const subjectRepo = effectiveSubject.match(/^repo:(?<repo>[^:]+)/)!.groups!.repo
 

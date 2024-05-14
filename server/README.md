@@ -172,3 +172,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     - add artificial subjects to error messages
 
 - add verify policy option to action to verify access policy
+
+- statement variables 
+  - ${origin} instead of automatically prefix subjects with repo:owner/repo e.g. `subjects: [ repo:${origin}:refs:* ]
+  - ${subject.repo} for owner statement repositories e.g. `repositories: [ ${subject.repo}:*:refs:* ]` 

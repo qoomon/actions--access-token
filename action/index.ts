@@ -58,6 +58,8 @@ async function getAccessToken(tokenRequest: {
   repositories: string[] | undefined
   owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
+  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
+
   let requestSigner
   if (config.api.auth?.aws) {
     requestSigner = new SignatureV4({
@@ -65,14 +67,12 @@ async function getAccessToken(tokenRequest: {
       service: config.api.auth.aws.service,
       region: config.api.auth.aws.region,
       credentials: fromWebToken({
-        webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
+        webIdentityToken: idTokenForAccessManager,
         roleArn: config.api.auth.aws.roleArn,
         durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
       }),
     })
   }
-
-  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
 
   return await httpRequest({
     verb: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
