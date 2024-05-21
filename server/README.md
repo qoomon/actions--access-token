@@ -160,19 +160,16 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 
 ## TODOs
 - refactor startup debug logging and request response logging
-- owner options
-    - define allowed repo permissions
-        - repo permissions
-    - define allowed requesting subjects patterns
-        - defaults to all owner repositories
 
 - extract policy and permission evaluation to separate lib file
 
 - review error messages and improve them
     - add artificial subjects to error messages
 
-- add verify policy option to action to verify access policy
+- ownerAccessPolicy
+  - allowedRepositoryPermissions
+  - allowedSubjects
+  - statements[].repositories
+    - variable ${subject.repository} e.g. `repositories: [ "${subject.repo}" ]`
 
-- statement variables 
-  - ${origin} instead of automatically prefix subjects with repo:owner/repo e.g. `subjects: [ repo:${origin}:refs:* ]
-  - ${subject.repo} for owner statement repositories e.g. `repositories: [ ${subject.repo}:*:refs:* ]` 
+- Verify repository policy with action run

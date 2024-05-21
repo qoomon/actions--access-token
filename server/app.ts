@@ -49,6 +49,7 @@ import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, requestId, to
 import {Status} from './lib/http-utils.js'
 import {HTTPException} from 'hono/http-exception'
 import {bodyLimit} from 'hono/body-limit'
+import {sha256} from 'hono/utils/crypto'
 
 /**
  * This function will initialize the application
@@ -207,6 +208,10 @@ app.post('/access_tokens',
           delete pendingTokenPermissions[scope]
         })
 
+        // TODO ownerAccessPolicy.allowedSubjects
+        // TODO ownerAccessPolicy.allowedRepositoryPermissions
+        // TODO ownerAccessPolicy.statements[].targets
+
         if (tokenRequest.scope === 'owner') {
           // reject all pending permissions
           Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
@@ -292,6 +297,10 @@ app.post('/access_tokens',
           })
 
       // --- response with requested access token --------------------------------------------------------------------
+      const accessTokenHash = await sha256(appInstallationAccessToken.token)
+          .then((it) => Buffer.from(it!).toString('base64'))
+      log.info(`${requestId} - Action access token hash: ${accessTokenHash}`)
+
       return context.json({
         token: appInstallationAccessToken.token,
         expires_at: appInstallationAccessToken.expires_at,
@@ -550,21 +559,7 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
     owner: string,
     repo: string
   }): string {
-    let effectiveSubject = subject
-    // prefix subject with repo claim if not already prefixed
-    if (!effectiveSubject.startsWith('repo:')) {
-      effectiveSubject = 'repo:${origin}:' + effectiveSubject
-    }
-    effectiveSubject = effectiveSubject.replaceAll('${origin}', `${owner}/${repo}`)
-
-    const subjectRepo = effectiveSubject.match(/^repo:(?<repo>[^:]+)/)!.groups!.repo
-
-    // resolve repo relative workflow refs (starting with a `/`)
-    effectiveSubject = effectiveSubject.replaceAll(
-        /:(?<claim>(job_)?workflow_ref):(?<relative_ref>\/[^:]+)/g,
-        `:$<claim>:${subjectRepo}$<relative_ref>`,
-    )
-    return effectiveSubject
+    return subject.replaceAll('${origin}', `${owner}/${repo}`)
   }
 }
 
@@ -583,7 +578,10 @@ function evaluateGrantedPermissions({statements, callerIdentity}: {
     // --- add artificial subjects
     // repo : ref
     // => repo:qoomon/sandbox:ref:refs/heads/main
-    `repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`, // e.g. repo:qoomon/sandbox:ref:refs/heads/main
+    `repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`,
+    // repo : environment
+    // => repo:qoomon/sandbox:environment:production
+    `repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`,
     // repo : workflow_ref
     // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
     `repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`,

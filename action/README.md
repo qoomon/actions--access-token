@@ -60,21 +60,41 @@ To grant repository permission create an `access-token.yaml` file within the `.g
 #### Repository Access Policy Example
 
 ```yaml
-origin: sandbox_owner/sandbox # needs to equals to the repository name the policy file belongs to
+origin: octocat/sandbox # needs to equals to the repository name the policy file belongs to
 statements:
   - subjects:
-      # --- This repository subject examples ---
-      - ref:refs/heads/main # grant access to jobs running on the main branch
-      # - ref:refs/tags/v* # grant access jobs running on any tag starting with a v
-      # - ref:refs/* # grant access to jobs running on any branches and tags
-      # - environment:production # grant access to jobs using production environment
-      # - workflow_ref:/.github/workflows/build.yml@refs/heads/main # grant access to jobs of a specific workflow file
+     # grant access to jobs running on any branches or tags
+     - ref:refs/* 
+      # Fully qualified subject
+      # - repo:octocat/sandbox:ref:refs/heads/main 
       
-      # --- Remote repository subject examples ---
-      # - repo:remote_owner/sandbox:ref:refs/heads/main grant access to jobs running on the main branch
-      # - repo:remote_owner/sandbox:ref:refs/* # grant access to jobs running on any branches and tags
-      # - repo:remote_owner/sandbox:environment:production # grant access to jobs using production environment
-      # - repo:remote_owner/sandbox:workflow_ref:/.github/workflows/build.yml@refs/heads/main # grant access to a remote job, if it uses a reusable workflow from this repository
+      # --- Variables ---
+      # - ${origin} - the origin repository name
+      #     e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+
+      # --- Job Identities or Subjects ---
+      # A GitHub Actions job always has the following identities or subjects 
+      # - The original OIDC token 'sub' claim 
+      #     e.g. repo:${origin}:ref:refs/heads/main or repo:${origin}:environment:production
+      # - repo:${origin}:ref:<ref> 
+      #     e.g. repo:${origin}:ref:refs/heads/main
+      # - repo:${origin}:environment:<environment> 
+      #     e.g. repo:${origin}:environment:production
+      # - repo:${origin}:workflow_ref:<workflow_ref> 
+      #     e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+      # - repo:${origin}:job_workflow_ref:<job_workflow_ref> 
+      #     e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+
+      # --- Subject examples ---
+      # grant access to jobs running on the main branch
+      # - repo:${origin}:ref:refs/heads/main
+      # grant access jobs running on any tag starting with a v
+      # - repo:${origin}:ref:refs/tags/v*
+      # grant access to jobs using production environment
+      # - repo:${origin}:environment:production
+      # grant access to jobs of a specific workflow file
+      # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main 
+    
     permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
         contents: read
         # --- Repository permissions ---
