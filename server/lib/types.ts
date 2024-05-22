@@ -1,10 +1,10 @@
 import {z} from 'zod'
 import {
   AccessTokenRequestBodySchema,
-  GitHubAccessPolicySchema,
+  GitHubOwnerAccessPolicySchema,
   GitHubAccessStatementSchema,
   GitHubAppPermissionSchema,
-  GitHubAppPermissionsSchema,
+  GitHubAppPermissionsSchema, GitHubRepositoryAccessPolicySchema, GitHubAppRepositoryPermissionsSchema,
 } from './schemas.js'
 import type {
   RestEndpointMethodTypes,
@@ -27,9 +27,11 @@ export type GitHubRepository = {
 export type Subset<T extends _U, _U> = T;
 
 export type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>
-export type GitHubAccessPolicy = z.infer<typeof GitHubAccessPolicySchema>
+export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>
+export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>
 export type GitHubAppPermission = z.infer<typeof GitHubAppPermissionSchema>
 export type GitHubAppPermissions = z.infer<typeof GitHubAppPermissionsSchema>
+export type GitHubAppRepositoryPermissions = z.infer<typeof GitHubAppRepositoryPermissionsSchema>
 export type AccessTokenRequestBody = z.infer<typeof AccessTokenRequestBodySchema>
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims

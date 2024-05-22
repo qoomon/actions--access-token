@@ -66,6 +66,47 @@ export const GitHubAppPermissionsSchema = z.strictObject({
   'organization-user-blocking': z.enum(['read', 'write'] satisfies GitHubPermissions),
 }).partial()
 
+/**
+ * === BE AWARE ===
+ * - 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
+ * - repository scopes do not start with 'organization-'
+ * - 'member' scope is an organization scope
+ */
+export const GitHubAppRepositoryPermissionsSchema = GitHubAppPermissionsSchema.pick({
+  'actions': true,
+  'actions-variables': true,
+  'administration': true,
+  'checks': true,
+  'codespaces': true,
+  'codespaces-lifecycle-admin': true,
+  'codespaces-metadata': true,
+  'codespaces-secrets': true,
+  'contents': true,
+  'custom-properties': true,
+  'dependabot-secrets': true,
+  'deployments': true,
+  'discussions': true,
+  'environments': true,
+  'issues': true,
+  'merge-queues': true,
+  'metadata': true,
+  'packages': true,
+  'pages': true,
+  'projects': true,
+  'pull-requests': true,
+  'repository-advisories': true,
+  'repository-hooks': true,
+  'repository-projects': true,
+  'secret-scanning-alerts': true,
+  'secrets': true,
+  'security-events': true,
+  'single-file': true,
+  'statuses': true,
+  'team-discussions': true,
+  'vulnerability-alerts': true,
+  'workflows': true,
+})
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
@@ -76,16 +117,27 @@ export const GitHubAccessStatementSchema = z.strictObject({
   permissions: GitHubAppPermissionsSchema,
 })
 
-export const GitHubAccessPolicySchema = z.strictObject({
+export const GitHubBaseAccessPolicySchema = z.strictObject({
   origin: GitHubRepositorySchema,
-  statements: z.array(GitHubAccessStatementSchema),
 })
+
+export const GitHubOwnerAccessPolicySchema = GitHubBaseAccessPolicySchema
+    .merge(z.strictObject({
+      statements: z.array(GitHubAccessStatementSchema).default([]),
+      allowedSubjects: z.array(GitHubSubjectClaimSchema).default([]),
+      allowedRepositoryPermissions: GitHubAppPermissionsSchema.default({}), // TODO only repository permissions
+    }))
+
+export const GitHubRepositoryAccessPolicySchema = GitHubBaseAccessPolicySchema
+    .merge(z.strictObject({
+      statements: z.array(GitHubAccessStatementSchema).default([]), // TODO only repository permissions
+    }))
 
 export const AccessTokenRequestBodySchema = z.strictObject({
   owner: GitHubOwnerSchema.optional(),
   scope: z.enum(['repos', 'owner']).default('repos'),
   permissions: GitHubAppPermissionsSchema,
-  repositories: z.array(GitHubRepositoryNameSchema).optional().default([]),
+  repositories: z.array(GitHubRepositoryNameSchema).default([]),
 })
 
 // ---------------------------------------------------------------------------------------------------------------------

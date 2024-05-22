@@ -5,20 +5,20 @@ import {Octokit} from '@octokit/rest'
 import {createAppAuth} from '@octokit/auth-app'
 import {components} from '@octokit/openapi-types'
 import {
-  GitHubAccessPolicy,
   GitHubAccessStatement,
   GitHubActionsJwtPayload,
   GitHubAppInstallation,
   GitHubAppInstallationAccessToken,
-  GitHubAppPermissions,
+  GitHubAppPermissions, GitHubAppRepositoryPermissions, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy,
   PolicyError,
 } from './lib/types.js'
 import {
   AccessTokenRequestBodySchema,
-  GitHubAccessPolicySchema,
+  GitHubOwnerAccessPolicySchema,
+  GitHubRepositoryAccessPolicySchema,
   GitHubAccessStatementSchema,
   GitHubAppPermissionsSchema,
-  GitHubSubjectClaimSchema,
+  GitHubSubjectClaimSchema, GitHubAppRepositoryPermissionsSchema,
 } from './lib/schemas.js'
 import {formatZodIssue, YamlTransformer} from './lib/zod-utils.js'
 import {
@@ -37,7 +37,6 @@ import {logLevelOf} from './lib/log-utils.js'
 import {buildJwksKeyFetcher} from './lib/jwt-utils.js'
 import {
   aggregatePermissions,
-  GitHubAppRepositoryPermissions,
   parseRepository,
   parseSubject,
   verifyPermissions,
@@ -95,58 +94,64 @@ app.post('/access_tokens',
       const callerIdentity = context.get('token')
       log.info(`${requestId} - Caller Identity: ${callerIdentity.workflow_ref}`,
           JSON.stringify({callerIdentity}))
+      const callerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity)
 
       const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
           .then((it) => {
             // use caller repository owner as default target owner
             it.owner = it.owner || callerIdentity.repository_owner
 
-            // use caller repository as default repository
-            if (it.scope === 'repos' &&
-                it.owner === callerIdentity.repository_owner &&
-                !hasEntries(it.repositories)) {
-              it.repositories = [parseRepository(callerIdentity.repository).repo]
+            if (Object.entries(it.permissions).length === 0) {
+              throw new HTTPException(Status.BAD_REQUEST, {
+                message: 'Token permissions must not be empty.',
+              })
+            }
+
+            if (it.scope === 'repos') {
+              if (!hasEntries(it.repositories)) {
+                if (it.owner !== callerIdentity.repository_owner) {
+                  throw new HTTPException(Status.BAD_REQUEST, {
+                    message: 'Token repositories must not be empty for remote \'owner\' and  scope \'repos\'.',
+                  })
+                }
+
+                // use caller repository as default repository
+                it.repositories = [parseRepository(callerIdentity.repository).repo]
+              }
+
+              // ensure only repository permissions are requested
+              const invalidRepositoryPermissions: string[] = []
+              Object.keys(it.permissions).forEach((scope) => {
+                const parseResult = GitHubAppRepositoryPermissionsSchema.keyof()
+                    .safeParse(scope)
+                if (parseResult.error) {
+                  invalidRepositoryPermissions.push(scope)
+                }
+              })
+
+              if (hasEntries(invalidRepositoryPermissions)) {
+                throw new HTTPException(Status.BAD_REQUEST, {
+                  message: 'Invalid permissions scopes for token scope \'repos\'.\n' +
+                      invalidRepositoryPermissions.map((scope) => `- ${scope}`).join('\n'),
+                })
+              }
+
+              return it as typeof it & {
+                scope: 'repos',
+                owner: string,
+                permissions: GitHubAppRepositoryPermissions,
+              }
             }
 
             return it as typeof it & {
+              scope: 'owner',
               owner: string,
-              permissions: Record<string, string>
+              permissions: GitHubAppPermissions
             }
           })
-
       log.info(`${requestId} - Token Request:`,
           JSON.stringify({tokenRequest}))
 
-      if (Object.entries(tokenRequest.permissions).length === 0) {
-        throw new HTTPException(Status.BAD_REQUEST, {
-          message: 'Token permissions must not be empty.',
-        })
-      }
-
-      if (tokenRequest.scope === 'repos') {
-        // ensure only repository permissions are requested
-        const nonRepositoryPermissions = verifyPermissions({
-          requested: tokenRequest.permissions,
-          granted: GitHubAppRepositoryPermissions,
-        }).denied
-
-        if (hasEntries(nonRepositoryPermissions)) {
-          throw new HTTPException(Status.BAD_REQUEST, {
-            message: 'Invalid permissions scopes for token scope \'repos\'.\n' +
-                nonRepositoryPermissions.map(({scope}) => `- ${scope}`).join('\n'),
-          })
-        }
-      }
-
-      // --- verify requested token permissions --------------------------------------------------------------------------
-      // eslint-disable-next-line max-len
-      const pendingTokenPermissions: Record<string, string> = Object.fromEntries(Object.entries(tokenRequest.permissions))
-      const rejectedTokenPermissions: {
-        reason: string,
-        scope: string, permission: string,
-      }[] = []
-      // granted token permission object will be used as safeguard to prevent unintentional permission granting
-      const grantedTokenPermissions: Record<string, string> = {}
 
       // --- handle app installation ---------------------------------------------------------------------------------
       const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
@@ -161,20 +166,17 @@ app.post('/access_tokens',
       log.debug(`${requestId} - App installation`,
           JSON.stringify({appInstallation}))
 
-      const verifiedTargetInstallationPermissions = verifyPermissions({
+      const rejectedAppInstallationPermissions = verifyPermissions({
         requested: tokenRequest.permissions,
         granted: appInstallation.permissions,
-      })
-      verifiedTargetInstallationPermissions.denied.forEach(({scope, permission}) => {
-        rejectedTokenPermissions.push({
-          scope, permission,
-          // eslint-disable-next-line max-len
-          reason: `Permission has not been granted to ${GITHUB_APP_INFOS.name} installation for ${tokenRequest.owner}.`,
-        })
-      })
+      }).denied.map(({scope, permission}) => ({
+        scope, permission,
+        // eslint-disable-next-line max-len
+        reason: `Permission has not been granted to ${GITHUB_APP_INFOS.name} installation for ${tokenRequest.owner}.`,
+      }))
 
-      if (hasEntries(rejectedTokenPermissions)) {
-        throw createPermissionRejectedHttpException(rejectedTokenPermissions)
+      if (hasEntries(rejectedAppInstallationPermissions)) {
+        throw createPermissionRejectedHttpException(rejectedAppInstallationPermissions)
       }
 
       const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
@@ -183,55 +185,92 @@ app.post('/access_tokens',
         },
       })
 
+      // --- verify requested token permissions --------------------------------------------------------------------------
+      // eslint-disable-next-line max-len
+      const pendingTokenPermissions: Record<string, string> = Object.fromEntries(Object.entries(tokenRequest.permissions))
+      const rejectedTokenPermissions: {
+        reason: string,
+        scope: string, permission: string,
+      }[] = []
+      // granted token permission object will be used as safeguard to prevent unintentional permission granting
+      const grantedTokenPermissions: Record<string, string> = {}
+
       // --- handle owner access policy ------------------------------------------------------------------------------
-      {
-        const ownerAccessPolicy = await getAccessPolicy(appInstallationClient, {
-          owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
-          path: config.accessPolicyLocation.owner.path,
-          strict: false, // ignore invalid access policy entries
-        })
-        log.debug(`${requestId} - ${tokenRequest.owner} access policy:`,
-            JSON.stringify({ownerAccessPolicy}))
+      const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
+        owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
+        path: config.accessPolicyLocation.owner.path,
+        strict: false, // ignore invalid access policy entries
+      })
+      log.debug(`${requestId} - ${tokenRequest.owner} access policy:`,
+          JSON.stringify({ownerAccessPolicy}))
 
-        const ownerGrantedPermissions = evaluateGrantedPermissions({
-          statements: ownerAccessPolicy.statements,
-          callerIdentity,
-        })
-
-        // verify requested token permissions by owner permissions
-        verifyPermissions({
-          granted: ownerGrantedPermissions,
-          requested: tokenRequest.permissions,
-        }).granted.forEach(({scope, permission}) => {
-          // permission granted
-          grantedTokenPermissions[scope] = permission
-          delete pendingTokenPermissions[scope]
-        })
-
-        // TODO ownerAccessPolicy.allowedSubjects
-        // TODO ownerAccessPolicy.allowedRepositoryPermissions
-        // TODO ownerAccessPolicy.statements[].targets
-
-        if (tokenRequest.scope === 'owner') {
-          // reject all pending permissions
-          Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
-            rejectedTokenPermissions.push({
-              reason: `Permission has not been granted by ${tokenRequest.owner}.`,
-              scope, permission,
-            })
+      if (ownerAccessPolicy.allowedSubjects.length > 0) {
+        if (!ownerAccessPolicy.allowedSubjects.some((it) => callerIdentitySubjects
+            .some((subject) => matchSubjectPattern(it, subject, false)))) {
+          throw new HTTPException(Status.FORBIDDEN, {
+            message: `OIDC token subject is not allowed by ${tokenRequest.owner} owner access policy.\n` +
+                'Effective token subjects:\n' +
+                callerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n'),
           })
-        }
-
-        if (hasEntries(rejectedTokenPermissions)) {
-          throw createPermissionRejectedHttpException(rejectedTokenPermissions)
         }
       }
 
+      const ownerGrantedPermissions = evaluateGrantedPermissions({
+        statements: ownerAccessPolicy.statements,
+        callerIdentitySubjects,
+      })
+
+      // verify requested token permissions by owner permissions
+      verifyPermissions({
+        granted: ownerGrantedPermissions,
+        requested: tokenRequest.permissions,
+      }).granted.forEach(({scope, permission}) => {
+        // permission granted
+        grantedTokenPermissions[scope] = permission
+        delete pendingTokenPermissions[scope]
+      })
+
+      if (tokenRequest.scope === 'owner') {
+        // reject all pending permissions
+        Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
+          rejectedTokenPermissions.push({
+            reason: `Permission has not been granted by ${tokenRequest.owner}.`,
+            scope, permission,
+          })
+        })
+      }
+
       // --- handle repository access policies -----------------------------------------------------------------------
-      if (tokenRequest.scope === 'repos' &&
+      if (!hasEntries(rejectedTokenPermissions) &&
+          tokenRequest.scope === 'repos' &&
           hasEntries(pendingTokenPermissions) && // BE AWARE to ensure only repository permissions are pending
           hasEntries(tokenRequest.repositories)
       ) {
+        // TODO ensure again that only repository permissions are pending
+
+        if (hasEntries(ownerAccessPolicy.allowedRepositoryPermissions)) {
+          verifyPermissions({
+            granted: ownerAccessPolicy.allowedRepositoryPermissions,
+            requested: tokenRequest.permissions,
+          }).denied.forEach(({scope, permission}) => {
+            // reject permission
+            rejectedTokenPermissions.push({
+              reason: `Permission is not allowed by ${tokenRequest.owner} owner policy.`,
+              scope, permission,
+            })
+          })
+        } else {
+          // administration: write is blocked by default,
+          // because it can not be limited to a repository completely
+          // e.g. create repositories is still possible although token permission is restricted to a repositories
+          if (tokenRequest.permissions.administration === 'write') {
+            rejectedTokenPermissions.push({
+              reason: `Permission is not allowed by ${tokenRequest.owner} owner policy.`,
+              scope: 'administration', permission: 'write',
+            })
+          }
+        }
+
         const pendingRepositoryTokenPermissions: Record<string, Set<string>> =
             Object.fromEntries(Object.keys(pendingTokenPermissions)
                 .map((scope) => [scope, new Set(tokenRequest.repositories)]))
@@ -239,7 +278,7 @@ app.post('/access_tokens',
         const limitRepoPermissionRequests = limit(8)
         await Promise.all(
             tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
-              const repoAccessPolicy = await getAccessPolicy(appInstallationClient, {
+              const repoAccessPolicy = await getRepositoryAccessPolicy(appInstallationClient, {
                 owner: tokenRequest.owner, repo,
                 path: config.accessPolicyLocation.repository.path,
                 strict: false, // ignore invalid access policy entries
@@ -249,7 +288,7 @@ app.post('/access_tokens',
 
               const repoGrantedPermissions = evaluateGrantedPermissions({
                 statements: repoAccessPolicy.statements,
-                callerIdentity,
+                callerIdentitySubjects,
               })
 
               // verify requested token permissions by repository permissions
@@ -277,10 +316,10 @@ app.post('/access_tokens',
             delete pendingTokenPermissions[scope]
           }
         })
+      }
 
-        if (hasEntries(rejectedTokenPermissions)) {
-          throw createPermissionRejectedHttpException(rejectedTokenPermissions)
-        }
+      if (hasEntries(rejectedTokenPermissions)) {
+        throw createPermissionRejectedHttpException(rejectedTokenPermissions, callerIdentitySubjects)
       }
 
       // --- create requested access token ---------------------------------------------------------------------------
@@ -293,7 +332,9 @@ app.post('/access_tokens',
             // BE AWARE that an empty object will result in a token with all app installation permissions
             permissions: ensureHasEntries(grantedTokenPermissions),
             // BE AWARE that an empty array will result in a token with access to all app installation repositories
-            repositories: tokenRequest.repositories,
+            repositories: tokenRequest.scope === 'repos' ?
+                ensureHasEntries(tokenRequest.repositories) :
+                undefined,
           })
 
       // --- response with requested access token --------------------------------------------------------------------
@@ -313,19 +354,25 @@ app.post('/access_tokens',
 /**
  * Create permission rejected http exception
  * @param rejectedTokenPermissions - rejected token permissions
+ * @param callerIdentitySubjects - caller identity subjects
  * @returns http exception
  */
 function createPermissionRejectedHttpException(rejectedTokenPermissions: {
   reason: string,
   scope: string, permission: string,
-}[]) {
-  return new HTTPException(Status.FORBIDDEN, {
-    message: 'Some requested permissions got rejected.\n' +
-        rejectedTokenPermissions.map(({scope, permission, reason}) => '' +
-            '- ' + `${scope}: ${permission}\n` +
-            indent(reason),
-        ).join('\n'),
-  })
+}[], callerIdentitySubjects?: string[]): HTTPException {
+  let message = 'Some requested permissions got rejected.\n' +
+      rejectedTokenPermissions.map(({scope, permission, reason}) => '' +
+          '- ' + `${scope}: ${permission}\n` +
+          indent(reason),
+      ).join('\n')
+
+  if (callerIdentitySubjects?.length) {
+    message += '\n' +
+        'Effective token subjects:\n' +
+        callerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n')
+  }
+  return new HTTPException(Status.FORBIDDEN, {message})
 }
 
 // --- Server Functions ------------------------------------------------------------------------------------------------
@@ -424,6 +471,75 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
 }
 
 /**
+ * Get owner access policy
+ * @param client - github client for target repository
+ * @param owner - repository owner
+ * @param repo - repository name
+ * @param path - file path
+ * @param strict - throw error on invalid access policy
+ * @returns access policy
+ */
+async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
+  owner: string,
+  repo: string,
+  path: string,
+  strict: boolean,
+}): Promise<Omit<GitHubOwnerAccessPolicy, 'origin'>> {
+  const emptyPolicy: Omit<GitHubOwnerAccessPolicy, 'origin'> = {
+    statements: [],
+    allowedSubjects: [],
+    allowedRepositoryPermissions: {},
+  }
+  const policyValue = await getRepositoryFileContent(client, {
+    owner, repo, path,
+  })
+  if (!policyValue) {
+    return emptyPolicy
+  }
+
+  const policyParseResult = YamlTransformer
+      .transform((policyObject) => {
+        if (strict) return policyObject
+        // ignore invalid subjects and permissions or hole statements
+        if (isRecord(policyObject) && Array.isArray(policyObject.statements)) {
+          policyObject.statements = filterInvalidStatements(policyObject.statements)
+        }
+        return policyObject
+      })
+      .pipe(GitHubOwnerAccessPolicySchema)
+      .safeParse(policyValue)
+
+  if (policyParseResult.error) {
+    const issues = policyParseResult.error.issues.map(formatZodIssue)
+    if (strict) {
+      throw new PolicyError(`${owner} access policy is invalid.`, issues)
+    }
+    log.debug(`${requestId} - ${owner} access policy is invalid:`,
+        JSON.stringify({issues}))
+    return emptyPolicy
+  }
+
+  const policy = policyParseResult.data
+
+  const expectedPolicyOrigin = `${owner}/${repo}`
+  if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
+    const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
+    if (strict) {
+      throw new PolicyError(`${owner} owner access policy is invalid.`, issues)
+    }
+    log.debug(`${requestId} - ${owner} owner access policy is invalid:`,
+        JSON.stringify({issues}))
+    return emptyPolicy
+  }
+
+  policy.statements.forEach((statement) => {
+    normaliseAccessPolicyStatement(statement, {owner, repo})
+  })
+
+  return policy
+}
+
+/**
  * Get repository access policy
  * @param client - github client for target repository
  * @param owner - repository owner
@@ -432,59 +548,42 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
  * @param strict - throw error on invalid access policy
  * @returns access policy
  */
-async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
+async function getRepositoryAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
   owner: string,
   repo: string,
   path: string,
   strict: boolean,
-}): Promise<Omit<GitHubAccessPolicy, 'origin'>> {
+}): Promise<Omit<GitHubRepositoryAccessPolicy, 'origin'>> {
+  const emptyPolicy: Omit<GitHubRepositoryAccessPolicy, 'origin'> = {
+    statements: [],
+  }
   const policyValue = await getRepositoryFileContent(client, {
     owner, repo, path,
   })
   if (!policyValue) {
-    return {statements: []}
+    return emptyPolicy
   }
 
   const policyParseResult = YamlTransformer
       .transform((policyObject) => {
         if (strict) return policyObject
         // ignore invalid subjects and permissions or hole statements
-        if (typeof policyObject === 'object' && !Array.isArray(policyObject)) {
-          if (Array.isArray(policyObject.statements)) {
-            policyObject.statements = policyObject.statements
-                .map((statementObject: unknown) => {
-                  if (isRecord(statementObject)) {
-                    // ---- subjects
-                    if ('subjects' in statementObject && Array.isArray(statementObject.subjects)) {
-                      // ignore invalid subjects
-                      statementObject.subjects = statementObject.subjects.filter(
-                          (it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
-                    }
-                    // ---- permissions
-                    if ('permissions' in statementObject && isRecord(statementObject.permissions)) {
-                      // ignore invalid permissions
-                      statementObject.permissions = filterObject(statementObject.permissions,
-                          ([key, value]) => GitHubAppPermissionsSchema.safeParse({[key]: value}).success)
-                    }
-                  }
-                  return statementObject
-                })
-                .filter((statementObject: unknown) => GitHubAccessStatementSchema.safeParse(statementObject).success)
-          }
-          return policyObject
+        if (isRecord(policyObject) && Array.isArray(policyObject.statements)) {
+          policyObject.statements = filterInvalidStatements(policyObject.statements)
         }
+        return policyObject
       })
-      .pipe(GitHubAccessPolicySchema)
+      .pipe(GitHubRepositoryAccessPolicySchema)
       .safeParse(policyValue)
 
-  if (!policyParseResult.success) {
+  if (policyParseResult.error) {
     const issues = policyParseResult.error.issues.map(formatZodIssue)
     if (strict) {
-      throw new PolicyError(`${owner} access policy is invalid.`, issues)
+      throw new PolicyError(`${owner}/${repo} repository access policy is invalid.`, issues)
     }
-    log.debug(`${requestId} - ${owner} access policy is invalid:`,
+    log.debug(`${requestId} - ${owner}/${repo} repository access policy is invalid:`,
         JSON.stringify({issues}))
-    return {statements: []}
+    return emptyPolicy
   }
 
   const policy = policyParseResult.data
@@ -497,7 +596,7 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
     }
     log.debug(`${requestId} - ${owner} access policy is invalid:`,
         JSON.stringify({issues}))
-    return {statements: []}
+    return emptyPolicy
   }
 
   policy.statements.forEach((statement) => {
@@ -505,62 +604,89 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
   })
 
   return policy
+}
 
-  /**
-   * Get repository file content
-   * @param client - github client for target repository
-   * @param owner - repository owner
-   * @param repo - repository name
-   * @param path - file path
-   * @returns file content or null if file does not exist
-   */
-  async function getRepositoryFileContent(client: Octokit, {owner, repo, path}: {
-    owner: string,
-    repo: string,
-    path: string,
-  }): Promise<string | null> {
-    return await client.repos.getContent({owner, repo, path})
-        .then((res) => Buffer.from(
-            // @ts-expect-error - content will not be null, because we request a file
-            res.data.content ?? '',
-            'base64').toString(),
-        )
-        .catch((error) => {
-          if (error.status === Status.NOT_FOUND) return null
-          throw error
-        })
-  }
+/**
+ * Filter invalid access policy statements
+ * @param statements - access policy statements
+ * @returns valid statements
+ */
+function filterInvalidStatements(statements: unknown[]): unknown | GitHubAccessStatement[] {
+  return statements
+      .map((statementObject: unknown) => {
+        if (isRecord(statementObject)) {
+          // ---- subjects
+          if ('subjects' in statementObject && Array.isArray(statementObject.subjects)) {
+            // ignore invalid subjects
+            statementObject.subjects = statementObject.subjects.filter(
+                (it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
+          }
+          // ---- permissions
+          if ('permissions' in statementObject && isRecord(statementObject.permissions)) {
+            // ignore invalid permissions
+            statementObject.permissions = filterObject(statementObject.permissions,
+                ([key, value]) => GitHubAppPermissionsSchema.safeParse({[key]: value}).success)
+          }
+        }
+        return statementObject
+      })
+      .filter((statementObject: unknown) => GitHubAccessStatementSchema.safeParse(statementObject).success)
+}
 
-  /**
-   * Normalise access policy statement
-   * @param statement - access policy statement
-   * @param owner - policy owner
-   * @param repo - policy repository
-   * @returns void
-   */
-  async function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {
-    owner, repo,
-  }: {
-    owner: string,
-    repo: string,
-  }) {
-    statement.subjects = statement.subjects
-        .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}))
-  }
+/**
+ * Get repository file content
+ * @param client - github client for target repository
+ * @param owner - repository owner
+ * @param repo - repository name
+ * @param path - file path
+ * @returns file content or null if file does not exist
+ */
+async function getRepositoryFileContent(client: Octokit, {owner, repo, path}: {
+  owner: string,
+  repo: string,
+  path: string,
+}): Promise<string | null> {
+  return await client.repos.getContent({owner, repo, path})
+      .then((res) => Buffer.from(
+          // @ts-expect-error - content will not be null, because we request a file
+          res.data.content ?? '',
+          'base64').toString(),
+      )
+      .catch((error) => {
+        if (error.status === Status.NOT_FOUND) return null
+        throw error
+      })
+}
 
-  /**
-   * Normalise access policy statement subject
-   * @param subject - access policy statement subject
-   * @param owner - policy owner
-   * @param repo - policy repository
-   * @returns normalised subject
-   */
-  function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
-    owner: string,
-    repo: string
-  }): string {
-    return subject.replaceAll('${origin}', `${owner}/${repo}`)
-  }
+/**
+ * Normalise access policy statement
+ * @param statement - access policy statement
+ * @param owner - policy owner
+ * @param repo - policy repository
+ * @returns void
+ */
+async function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {
+  owner, repo,
+}: {
+  owner: string,
+  repo: string,
+}) {
+  statement.subjects = statement.subjects
+      .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}))
+}
+
+/**
+ * Normalise access policy statement subject
+ * @param subject - access policy statement subject
+ * @param owner - policy owner
+ * @param repo - policy repository
+ * @returns normalised subject
+ */
+function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
+  owner: string,
+  repo: string
+}): string {
+  return subject.replaceAll('${origin}', `${owner}/${repo}`)
 }
 
 /**
@@ -569,11 +695,35 @@ async function getAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
  * @param callerIdentity - caller identity
  * @returns granted permissions
  */
-function evaluateGrantedPermissions({statements, callerIdentity}: {
+function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
   statements: GitHubAccessStatement[],
-  callerIdentity: GitHubActionsJwtPayload,
+  callerIdentitySubjects: string[],
 }): Record<string, string> {
-  const effectiveCallerIdentitySubjects = unique([
+  const permissions = statements
+      .filter(statementSubjectPredicate(callerIdentitySubjects))
+      .map((it) => it.permissions)
+
+  return aggregatePermissions(permissions)
+
+  /**
+   * Create statement subject predicate
+   * @param subjects - caller identity subjects
+   * @returns true if statement subjects match any of the given subject patterns
+   */
+  function statementSubjectPredicate(subjects: string[]) {
+    return (statement: GitHubAccessStatement) => subjects
+        .some((subject) => statement.subjects
+            .some((subjectPattern) => matchSubjectPattern(subjectPattern, subject)))
+  }
+}
+
+/**
+ * Get effective caller identity subjects
+ * @param callerIdentity - caller identity
+ * @returns effective caller identity subjects
+ */
+function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
+  return unique([
     callerIdentity.sub,
     // --- add artificial subjects
     // repo : ref
@@ -589,51 +739,41 @@ function evaluateGrantedPermissions({statements, callerIdentity}: {
     // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
     `repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`,
   ])
+}
 
-  const permissions = statements
-      .filter(statementSubjectPredicate(effectiveCallerIdentitySubjects))
-      .map((it) => it.permissions)
-
-  return aggregatePermissions(permissions)
-
-  /**
-   * Create statement subject predicate
-   * @param subjects - caller identity subjects
-   * @returns true if statement subjects match any of the given subject patterns
-   */
-  function statementSubjectPredicate(subjects: string[]) {
-    return (statement: GitHubAccessStatement) => subjects
-        .some((subject) => statement.subjects
-            .some((subjectPattern) => matchSubjectPattern(subjectPattern, subject)))
+/**
+ * Verify if subject is granted by grantedSubjectPatterns
+ * @param subjectPattern - subject pattern
+ * @param subject - subject e.g. 'repo:spongebob/sandbox:ref:refs/heads/main'
+ * @param strict - strict mode does not allow ** wildcards
+ * @returns true if subject matches any granted subject pattern
+ */
+function matchSubjectPattern(subjectPattern: string, subject: string, strict: boolean = true): boolean {
+  if (strict && subjectPattern.includes('**')) {
+    return false
   }
 
-  /**
-   * Verify if subject is granted by grantedSubjectPatterns
-   * @param subjectPattern - subject pattern
-   * @param subject - subject e.g. 'repo:spongebob/sandbox:ref:refs/heads/main'
-   * @returns true if subject matches any granted subject pattern
-   */
-  function matchSubjectPattern(subjectPattern: string, subject: string): boolean {
-    // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
-    // e.g. repo:foo/bar:* is not allowed
-    if (Object.keys(parseSubject(subjectPattern)).some((claim) => claim.includes('*'))) {
-      return false
-    }
-
-    // grantedSubjectPattern example: repo:qoomon/sandbox:ref:refs/heads/*
-    // identity.sub example:     repo:qoomon/sandbox:ref:refs/heads/main
-    return regexpOfSubjectPattern(subjectPattern).test(subject)
+  // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
+  // e.g. repo:foo/bar:* is not allowed
+  if (Object.keys(parseSubject(subjectPattern))
+      .some((claim) => claim !== '**' && claim.includes('*'))) {
+    return false
   }
 
-  /**
-   * Create regexp of wildcard subject pattern
-   * @param subjectPattern - wildcard subject pattern
-   * @returns regexp
-   */
-  function regexpOfSubjectPattern(subjectPattern: string): RegExp {
-    const regexp = escapeRegexp(subjectPattern)
-        .replace(/\\\*/g, '[^:]+') // replace * with match one or more characters except ':' char
-        .replace(/\\\?/g, '[^:]') // replace ? with match one characters except ':' char
-    return RegExp(`^${regexp}$`, 'i')
-  }
+  // grantedSubjectPattern example: repo:qoomon/sandbox:ref:refs/heads/*
+  // identity.sub example:     repo:qoomon/sandbox:ref:refs/heads/main
+  return regexpOfSubjectPattern(subjectPattern).test(subject)
+}
+
+/**
+ * Create regexp of wildcard subject pattern
+ * @param subjectPattern - wildcard subject pattern
+ * @returns regexp
+ */
+function regexpOfSubjectPattern(subjectPattern: string): RegExp {
+  const regexp = escapeRegexp(subjectPattern)
+      .replace(/\\\*\\\*/g, '.*')
+      .replace(/\\\*/g, '[^:]*') // replace * with match one or more characters except ':' char
+      .replace(/\\\?/g, '[^:]') // replace ? with match one characters except ':' char
+  return RegExp(`^${regexp}$`, 'i')
 }

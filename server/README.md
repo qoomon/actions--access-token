@@ -167,8 +167,6 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     - add artificial subjects to error messages
 
 - ownerAccessPolicy
-  - allowedRepositoryPermissions
-  - allowedSubjects
   - statements[].repositories
     - variable ${subject.repository} e.g. `repositories: [ "${subject.repo}" ]`
 
