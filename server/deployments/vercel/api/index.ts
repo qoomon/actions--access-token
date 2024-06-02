@@ -8,6 +8,7 @@ if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
       .replace(/-[^-]+(?=\.vercel\.app$)/, '')
 }
 
+process.env['LOG_PRETTY'] = process.env['LOG_PRETTY'] || 'true'
 const {app} = await import('../../../app.js')
 
 export const GET = handle(app)

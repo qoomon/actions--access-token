@@ -69,7 +69,7 @@ const log = pino({
   formatters: {
     level: (label) => ({level: label.toUpperCase()}),
   },
-  transport: process.env.PINO_PRETTY === 'true' ? {target: 'pino-pretty', options: {sync: true}} : undefined,
+  transport: process.env.LOG_PRETTY === 'true' ? {target: 'pino-pretty', options: {sync: true}} : undefined,
 
 })
 
