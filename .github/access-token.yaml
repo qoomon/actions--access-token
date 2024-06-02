@@ -1,7 +1,7 @@
 origin: qoomon/actions--access-token
 statements:
   - subjects:
-      - "ref:refs/heads/main"
+      - repo:${origin}:ref:refs/heads/main
     permissions:
       secrets: write
       contents: write
