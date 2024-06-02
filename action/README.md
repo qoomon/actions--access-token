@@ -47,172 +47,22 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
  </details>
 
 ### Grant Repository Permissions
-> [!WARNING]
-> Every statement will always implicitly grant `metadata: read` permission.
-
 > [!Note]
-> You can also grant repository permissions by owner access token policy see [Setup Owner Permission Access](#setup-owner-permission-access)
+> You can also grant repository permissions by owner access token policy see [Setup Owner Permission Access](#grant-owner-permissions)
 
 <details><summary>Click me</summary>
 
-To grant repository permission create an `access-token.yaml` file within the `.github` directory of the target repository.
+To grant repository permission create an `access-token.yaml` file within the `.github/` directory of the target repository with [this template content](/actions/docs/access-token.repo-template.yaml)
+
 
 #### Repository Access Policy Example
-
-```yaml
-origin: octocat/sandbox # needs to equals to the repository name the policy file belongs to
-statements:
-  - subjects:
-     # grant access to jobs running on any branches or tags
-     - ref:refs/* 
-      # Fully qualified subject
-      # - repo:octocat/sandbox:ref:refs/heads/main 
-      
-      # --- Variables ---
-      # - ${origin} - the origin repository name
-      #     e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
-
-      # --- Job Identities or Subjects ---
-      # A GitHub Actions job always has the following identities or subjects 
-      # - The original OIDC token 'sub' claim 
-      #     e.g. repo:${origin}:ref:refs/heads/main or repo:${origin}:environment:production
-      # - repo:${origin}:ref:<ref> 
-      #     e.g. repo:${origin}:ref:refs/heads/main
-      # - repo:${origin}:environment:<environment> 
-      #     e.g. repo:${origin}:environment:production
-      # - repo:${origin}:workflow_ref:<workflow_ref> 
-      #     e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
-      # - repo:${origin}:job_workflow_ref:<job_workflow_ref> 
-      #     e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
-
-      # --- Subject examples ---
-      # grant access to jobs running on the main branch
-      # - repo:${origin}:ref:refs/heads/main
-      # grant access jobs running on any tag starting with a v
-      # - repo:${origin}:ref:refs/tags/v*
-      # grant access to jobs using production environment
-      # - repo:${origin}:environment:production
-      # grant access to jobs of a specific workflow file
-      # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main 
-    
-    permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
-        contents: read
-        # --- Repository permissions ---
-        # actions: read | write
-        # actions_variables: read | write
-        # checks: read | write
-        # codespaces: read | write
-        # codespaces_lifecycle_admin: read | write
-        # codespaces_metadata: read | write
-        # codespaces_secrets: read | write
-        # contents: read | write
-        # dependabot_secrets: read | write
-        # deployments: read | write
-        # discussions: read | write
-        # environments: read | write
-        # issues: read | write
-        # merge_queues: read | write
-        # metadata: read | write
-        # packages: read | write
-        # pull_requests: read | write
-        # repository_advisories: read | write
-        # repository_hooks: read | write
-        # repository_projects: read | write | admin
-        # secret_scanning_alerts: read | write
-        # secrets: read | write
-        # security_events: read | write
-        # statuses: read | write
-        # team_discussions: read | write
-        # vulnerability_alerts: read | write
-        # workflows: read | write
-        # pages: read | write
-```
 
 </details>
 
 ### Grant Owner Permissions
-> [!WARNING]
-> Every statement will always implicitly grant `metadata: read` permission.
-
 <details><summary>Click me</summary>
 
-To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file within.
-`statements` are alike to the repository access policy file, but you can grant any permission including organization permissions and/or user permissions
-
-#### Owner Access Policy Example
-
-```yaml
-origin: OWNER/.github-access-token # needs to equals to the repository name the policy file belongs to
-statements:
-  - subjects:
-      # --- This repository subject examples ---
-      - ref:refs/heads/main # grant access to jobs running on the main branch
-      # - ref:refs/tags/v* # grant access jobs running on any tag starting with a v
-      # - ref:refs/* # grant access to jobs running on any branches and tags
-      # - environment:production # grant access to jobs using production environment
-      # - workflow_ref:/.github/workflows/build.yml@refs/heads/main # grant access to jobs of a specific workflow file
-      
-      # --- Remote repository subject examples ---
-      # - repo:remote_owner/sandbox:ref:refs/heads/main grant access to jobs running on the main branch
-      # - repo:remote_owner/sandbox:ref:refs/* # grant access to jobs running on any branches and tags
-      # - repo:remote_owner/sandbox:environment:production # grant access to jobs using production environment
-      # - repo:remote_owner/sandbox:workflow_ref:/.github/workflows/build.yml@refs/heads/main # grant access to a remote job, if it uses a reusable workflow from this repository
-    permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
-        members: read
-        # --- Organization permissions ---
-        # members: read | write
-        # organization_actions_variables: read | write
-        # organization_administration: read | write
-        # organization_announcement_banners: read | write
-        # organization_codespaces: read | write
-        # organization_codespaces_secrets: read | write
-        # organization_codespaces_settings: read | write
-        # organization_copilot_seat_management: read | write
-        # organization_custom_org_roles: read | write
-        # organization_custom_properties: read | write | admin
-        # organization_custom_roles: read | write
-        # organization_dependabot_secrets: read | write
-        # organization_events: read 
-        # organization_hooks: read | write
-        # organization_personal_access_token_requests: read | write
-        # organization_personal_access_tokens: read | write
-        # organization_plan: read
-        # organization_projects: read | write | admin
-        # organization_secrets: read | write
-        # organization_self_hosted_runners: read | write
-        # organization_user_blocking: read | write
-    
-        # --- Repository permissions ---
-        # actions: read | write
-        # actions_variables: read | write
-        # checks: read | write
-        # codespaces: read | write
-        # codespaces_lifecycle_admin: read | write
-        # codespaces_metadata: read | write
-        # codespaces_secrets: read | write
-        # contents: read | write
-        # custom_properties: read | write
-        # dependabot_secrets: read | write
-        # deployments: read | write
-        # discussions: read | write
-        # environments: read | write
-        # issues: read | write
-        # merge_queues: read | write
-        # metadata: read | write
-        # packages: read | write
-        # pull_requests: read | write
-        # repository_advisories: read | write
-        # repository_hooks: read | write
-        # repository_projects: read | write | admin
-        # secret_scanning_alerts: read | write
-        # secrets: read | write
-        # security_events: read | write
-        # statuses: read | write
-        # team_discussions: read | write
-        # vulnerability_alerts: read | write
-        # workflows: read | write
-        # pages: read | write
-```
+To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/actions/docs/access-token.owner-template.yaml)
 
 </details>
 

@@ -1,9 +1,14 @@
 # top-most EditorConfig file
 root = true
 
+[*]
+ij_javascript_use_double_quotes = false
+ij_typescript_use_double_quotes = false
+ij_javascript_continuation_indent_size = 4
+ij_typescript_continuation_indent_size = 4
+
 # 4 space indentation
-[{*.ts,*.cjs}]
+[*.ts]
 indent_style = space
 indent_size = 2
-ij_continuation_indent_size = 4
-ij_javascript_continuation_indent_size = 2
+

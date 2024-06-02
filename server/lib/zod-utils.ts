@@ -1,5 +1,5 @@
 import {z} from 'zod'
-import YAML from "yaml";
+import YAML from 'yaml'
 
 /**
  * This function will format a zod issue

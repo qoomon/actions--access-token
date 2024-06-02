@@ -10,9 +10,9 @@ type GitHubPermissions = NonEmptyArray<GitHubAppPermission>
 
 export const GitHubAppPermissionsSchema = z.strictObject({
   // ---- Repository Permissions ----
-  'administration': z.enum(['read', 'write'] satisfies GitHubPermissions),
   'actions': z.enum(['read', 'write'] satisfies GitHubPermissions),
   'actions-variables': z.enum(['read', 'write'] satisfies GitHubPermissions),
+  'administration': z.enum(['read', 'write'] satisfies GitHubPermissions),
   'checks': z.enum(['read', 'write'] satisfies GitHubPermissions),
   'codespaces': z.enum(['read', 'write'] satisfies GitHubPermissions),
   'codespaces-lifecycle-admin': z.enum(['read', 'write'] satisfies GitHubPermissions),
@@ -112,10 +112,19 @@ export const GitHubAppRepositoryPermissionsSchema = GitHubAppPermissionsSchema.p
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
 export const GitHubSubjectClaimSchema = z.string().trim()
 
-export const GitHubAccessStatementSchema = z.strictObject({
+
+const GitHubBaseStatementSchema = z.strictObject({
   subjects: z.array(GitHubSubjectClaimSchema),
-  permissions: GitHubAppPermissionsSchema,
 })
+
+export const GitHubAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
+  permissions: GitHubAppPermissionsSchema,
+}))
+
+export const GitHubRepositoryAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
+  permissions: GitHubAppRepositoryPermissionsSchema,
+}))
+
 
 export const GitHubBaseAccessPolicySchema = z.strictObject({
   origin: GitHubRepositorySchema,
@@ -123,14 +132,14 @@ export const GitHubBaseAccessPolicySchema = z.strictObject({
 
 export const GitHubOwnerAccessPolicySchema = GitHubBaseAccessPolicySchema
     .merge(z.strictObject({
-      statements: z.array(GitHubAccessStatementSchema).default([]),
-      allowedSubjects: z.array(GitHubSubjectClaimSchema).default([]),
-      allowedRepositoryPermissions: GitHubAppPermissionsSchema.default({}), // TODO only repository permissions
+      'statements': z.array(GitHubAccessStatementSchema).default([]),
+      'allowed-subjects': z.array(GitHubSubjectClaimSchema).default([]),
+      'allowed-repository-permissions': GitHubAppRepositoryPermissionsSchema.default({}),
     }))
 
 export const GitHubRepositoryAccessPolicySchema = GitHubBaseAccessPolicySchema
     .merge(z.strictObject({
-      statements: z.array(GitHubAccessStatementSchema).default([]), // TODO only repository permissions
+      'statements': z.array(GitHubRepositoryAccessStatementSchema).default([]),
     }))
 
 export const AccessTokenRequestBodySchema = z.strictObject({

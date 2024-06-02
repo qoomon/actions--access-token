@@ -1,6 +1,5 @@
 import {createVerifier} from 'fast-jwt'
 import process from 'process'
-import log from 'loglevel'
 import {Octokit} from '@octokit/rest'
 import {createAppAuth} from '@octokit/auth-app'
 import {components} from '@octokit/openapi-types'
@@ -25,43 +24,63 @@ import {
   _throw,
   ensureHasEntries,
   escapeRegexp,
-  filterObject,
+  filterObjectEntries,
   hasEntries,
   indent,
   isRecord,
-  mapObject,
+  mapObjectEntries,
   retry,
   unique,
 } from './lib/common-utils.js'
-import {logLevelOf} from './lib/log-utils.js'
 import {buildJwksKeyFetcher} from './lib/jwt-utils.js'
 import {
   aggregatePermissions,
   parseRepository,
   parseSubject,
-  verifyPermissions,
+  verifyPermissions, verifyRepositoryPermissions,
 } from './lib/github-utils.js'
 import limit from 'p-limit'
 import {Hono} from 'hono'
 import {prettyJSON} from 'hono/pretty-json'
-import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, requestId, tokenVerifier} from './lib/hono-utils.js'
+import {
+  debugLogger,
+  errorHandler,
+  notFoundHandler,
+  parseJsonBody,
+  setRequestId,
+  setRequestLogger,
+  tokenVerifier,
+} from './lib/hono-utils.js'
 import {Status} from './lib/http-utils.js'
 import {HTTPException} from 'hono/http-exception'
 import {bodyLimit} from 'hono/body-limit'
 import {sha256} from 'hono/utils/crypto'
+import {ZodSchema} from 'zod'
+import pino, {Logger} from 'pino'
 
 /**
  * This function will initialize the application
  * @returns application
  */
+
 // --- Configuration -------------------------------------------------------------------------------------------------
-log.setDefaultLevel(logLevelOf(process.env['LOG_LEVEL']) || (process.env['NODE_ENV'] === 'test' ? 'warn' : 'info'))
+const log = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  formatters: {
+    level: (label) => ({level: label.toUpperCase()}),
+  },
+  transport: process.env.PINO_PRETTY === 'true' ? {target: 'pino-pretty', options: {sync: true}} : undefined,
+
+})
 
 const {config} = await import('./config.js')
-log.debug('Config', {
-  ...config,
-  githubAppAuth: {...config.githubAppAuth, privateKey: '***'},
-})
+log.debug({
+  config: {
+    ...config, githubAppAuth: {
+      ...config.githubAppAuth, privateKey: '***',
+    },
+  },
+}, 'Config')
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 
@@ -75,25 +94,41 @@ const GITHUB_OIDC_TOKEN_VERIFIER = createVerifier({
 const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: config.githubAppAuth})
 const GITHUB_APP_INFOS = await GITHUB_APP_CLIENT.apps.getAuthenticated()
     .then((res) => res.data)
-log.debug('GitHub app infos:', GITHUB_APP_INFOS)
+log.debug({githubApp: GITHUB_APP_INFOS}, 'GitHub app')
 
 // --- Server Setup --------------------------------------------------------------------------------------------------
 
-export const app = new Hono<{ Variables: { id: string, token: GitHubActionsJwtPayload } }>()
-app.use(requestId())
-app.use(debugLogger(log))
-app.onError(errorHandler(log))
+export const app = new Hono<{
+  Variables: {
+    log: Logger
+    id: string
+  }
+}>()
+app.use(setRequestId())
+app.use(setRequestLogger(log))
+app.use(debugLogger())
+app.onError(errorHandler())
 app.notFound(notFoundHandler())
+
 app.use(bodyLimit({maxSize: 100 * 1024})) // 100kb
 app.use(prettyJSON())
 
 app.post('/access_tokens',
     tokenVerifier<GitHubActionsJwtPayload>(GITHUB_OIDC_TOKEN_VERIFIER),
     async (context) => {
-      const requestId = context.get('id')
+      const requestLog = context.get('log')
       const callerIdentity = context.get('token')
-      log.info(`${requestId} - Caller Identity: ${callerIdentity.workflow_ref}`,
-          JSON.stringify({callerIdentity}))
+      requestLog.info({
+        callerIdentity: {
+          workflow_ref: callerIdentity.workflow_ref,
+          run_id: callerIdentity.run_id,
+          attempts: callerIdentity.attempts,
+        },
+        // workflowRunUrl example: https://github.com/qoomon/actions--access-token/actions/runs/9192965843/attempts/2
+        workflowRunUrl: `https://github.com/${callerIdentity.repository}/actions` +
+            `/runs/${callerIdentity.run_id}/attempts/${callerIdentity.attempts}`,
+      }, `Caller Identity: ${callerIdentity.workflow_ref}`)
+
       const callerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity)
 
       const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
@@ -107,53 +142,42 @@ app.post('/access_tokens',
               })
             }
 
-            if (it.scope === 'repos') {
-              if (!hasEntries(it.repositories)) {
-                if (it.owner !== callerIdentity.repository_owner) {
+            switch (it.scope) {
+              case 'owner': {
+                return it as typeof it & { scope: 'owner', owner: string, permissions: GitHubAppPermissions }
+              }
+              case 'repos': {
+                if (!hasEntries(it.repositories)) {
+                  if (it.owner !== callerIdentity.repository_owner) {
+                    throw new HTTPException(Status.BAD_REQUEST, {
+                      message: 'Token repositories must not be empty for remote \'owner\' and  scope \'repos\'.',
+                    })
+                  }
+
+                  // use caller repository as default repository
+                  it.repositories = [parseRepository(callerIdentity.repository).repo]
+                }
+
+                // ensure only repository permissions are requested
+                const invalidRepositoryPermissionScopes = verifyRepositoryPermissions(it.permissions).invalid
+                if (hasEntries(invalidRepositoryPermissionScopes)) {
                   throw new HTTPException(Status.BAD_REQUEST, {
-                    message: 'Token repositories must not be empty for remote \'owner\' and  scope \'repos\'.',
+                    message: 'Invalid permissions scopes for token scope \'repos\'.\n' +
+                        Object.keys(invalidRepositoryPermissionScopes).map((scope) => `- ${scope}`).join('\n'),
                   })
                 }
 
-                // use caller repository as default repository
-                it.repositories = [parseRepository(callerIdentity.repository).repo]
+                return it as typeof it & { scope: 'repos', owner: string, permissions: GitHubAppRepositoryPermissions }
               }
-
-              // ensure only repository permissions are requested
-              const invalidRepositoryPermissions: string[] = []
-              Object.keys(it.permissions).forEach((scope) => {
-                const parseResult = GitHubAppRepositoryPermissionsSchema.keyof()
-                    .safeParse(scope)
-                if (parseResult.error) {
-                  invalidRepositoryPermissions.push(scope)
-                }
-              })
-
-              if (hasEntries(invalidRepositoryPermissions)) {
-                throw new HTTPException(Status.BAD_REQUEST, {
-                  message: 'Invalid permissions scopes for token scope \'repos\'.\n' +
-                      invalidRepositoryPermissions.map((scope) => `- ${scope}`).join('\n'),
-                })
-              }
-
-              return it as typeof it & {
-                scope: 'repos',
-                owner: string,
-                permissions: GitHubAppRepositoryPermissions,
-              }
-            }
-
-            return it as typeof it & {
-              scope: 'owner',
-              owner: string,
-              permissions: GitHubAppPermissions
+              default:
+                throw new HTTPException(Status.BAD_REQUEST, {message: 'Invalid token scope.'})
             }
           })
-      log.info(`${requestId} - Token Request:`,
-          JSON.stringify({tokenRequest}))
+      requestLog.info({tokenRequest},
+          'Token Request')
 
+      // --- verify app installation ---------------------------------------------------------------------------------
 
-      // --- handle app installation ---------------------------------------------------------------------------------
       const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
         owner: tokenRequest.owner,
       })
@@ -163,8 +187,8 @@ app.post('/access_tokens',
               `Install from ${GITHUB_APP_INFOS.html_url}`,
         })
       }
-      log.debug(`${requestId} - App installation`,
-          JSON.stringify({appInstallation}))
+      requestLog.debug({appInstallation},
+          'App installation')
 
       const rejectedAppInstallationPermissions = verifyPermissions({
         requested: tokenRequest.permissions,
@@ -180,14 +204,13 @@ app.post('/access_tokens',
       }
 
       const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
-        permissions: {
-          single_file: 'read', // to read access policy files
-        },
+        // single_file to read access policy files
+        permissions: {single_file: 'read'},
       })
 
       // --- verify requested token permissions --------------------------------------------------------------------------
-      // eslint-disable-next-line max-len
-      const pendingTokenPermissions: Record<string, string> = Object.fromEntries(Object.entries(tokenRequest.permissions))
+
+      const pendingTokenPermissions: Record<string, string> = {...tokenRequest.permissions}
       const rejectedTokenPermissions: {
         reason: string,
         scope: string, permission: string,
@@ -196,16 +219,17 @@ app.post('/access_tokens',
       const grantedTokenPermissions: Record<string, string> = {}
 
       // --- handle owner access policy ------------------------------------------------------------------------------
+
       const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
         owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
         path: config.accessPolicyLocation.owner.path,
         strict: false, // ignore invalid access policy entries
       })
-      log.debug(`${requestId} - ${tokenRequest.owner} access policy:`,
-          JSON.stringify({ownerAccessPolicy}))
+      requestLog.debug({ownerAccessPolicy},
+          `${tokenRequest.owner} access policy:`)
 
-      if (ownerAccessPolicy.allowedSubjects.length > 0) {
-        if (!ownerAccessPolicy.allowedSubjects.some((it) => callerIdentitySubjects
+      if (ownerAccessPolicy['allowed-subjects'].length > 0) {
+        if (!ownerAccessPolicy['allowed-subjects'].some((it) => callerIdentitySubjects
             .some((subject) => matchSubjectPattern(it, subject, false)))) {
           throw new HTTPException(Status.FORBIDDEN, {
             message: `OIDC token subject is not allowed by ${tokenRequest.owner} owner access policy.\n` +
@@ -220,38 +244,40 @@ app.post('/access_tokens',
         callerIdentitySubjects,
       })
 
-      // verify requested token permissions by owner permissions
-      verifyPermissions({
-        granted: ownerGrantedPermissions,
-        requested: tokenRequest.permissions,
-      }).granted.forEach(({scope, permission}) => {
-        // permission granted
-        grantedTokenPermissions[scope] = permission
-        delete pendingTokenPermissions[scope]
-      })
-
-      if (tokenRequest.scope === 'owner') {
-        // reject all pending permissions
-        Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
-          rejectedTokenPermissions.push({
-            reason: `Permission has not been granted by ${tokenRequest.owner}.`,
-            scope, permission,
-          })
-        })
-      }
-
-      // --- handle repository access policies -----------------------------------------------------------------------
-      if (!hasEntries(rejectedTokenPermissions) &&
-          tokenRequest.scope === 'repos' &&
-          hasEntries(pendingTokenPermissions) && // BE AWARE to ensure only repository permissions are pending
-          hasEntries(tokenRequest.repositories)
-      ) {
-        // TODO ensure again that only repository permissions are pending
-
-        if (hasEntries(ownerAccessPolicy.allowedRepositoryPermissions)) {
+      switch (tokenRequest.scope) {
+        case 'owner': {
           verifyPermissions({
-            granted: ownerAccessPolicy.allowedRepositoryPermissions,
+            granted: ownerGrantedPermissions,
             requested: tokenRequest.permissions,
+          }).granted.forEach(({scope, permission}) => {
+            // permission granted
+            grantedTokenPermissions[scope] = permission
+            delete pendingTokenPermissions[scope]
+          })
+
+          // reject all pending permissions
+          Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
+            rejectedTokenPermissions.push({
+              reason: `Permission has not been granted by ${tokenRequest.owner}.`,
+              scope, permission,
+            })
+          })
+          break
+        }
+        case 'repos': {
+          verifyPermissions({
+            granted: verifyRepositoryPermissions(ownerGrantedPermissions).valid,
+            requested: tokenRequest.permissions,
+          }).granted.forEach(({scope, permission}) => {
+            // permission granted
+            grantedTokenPermissions[scope] = permission
+            delete pendingTokenPermissions[scope]
+          })
+
+          // verify if pending requested repository permissions are allowed by owner access policy
+          verifyPermissions({
+            granted: ownerAccessPolicy['allowed-repository-permissions'],
+            requested: pendingTokenPermissions,
           }).denied.forEach(({scope, permission}) => {
             // reject permission
             rejectedTokenPermissions.push({
@@ -259,74 +285,77 @@ app.post('/access_tokens',
               scope, permission,
             })
           })
-        } else {
-          // administration: write is blocked by default,
-          // because it can not be limited to a repository completely
-          // e.g. create repositories is still possible although token permission is restricted to a repositories
-          if (tokenRequest.permissions.administration === 'write') {
-            rejectedTokenPermissions.push({
-              reason: `Permission is not allowed by ${tokenRequest.owner} owner policy.`,
-              scope: 'administration', permission: 'write',
-            })
+
+          // --- handle repository access policies -----------------------------------------------------------------------
+          if (!hasEntries(rejectedTokenPermissions)) {
+            const pendingRepositoryTokenPermissions = verifyRepositoryPermissions(pendingTokenPermissions).valid
+            if (hasEntries(pendingRepositoryTokenPermissions)) {
+              const pendingRepositoryTokenScopesByRepository: Record<string, Set<string>> =
+                  Object.fromEntries(Object.keys(pendingRepositoryTokenPermissions)
+                      .map((scope) => [scope, new Set(tokenRequest.repositories)]))
+
+              const limitRepoPermissionRequests = limit(8)
+              await Promise.all(
+                  tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
+                    const repoAccessPolicy = await getRepoAccessPolicy(appInstallationClient, {
+                      owner: tokenRequest.owner, repo,
+                      path: config.accessPolicyLocation.repo.path,
+                      strict: false, // ignore invalid access policy entries
+                    })
+                    requestLog.debug({repoAccessPolicy},
+                        `${tokenRequest.owner}/${repo} access policy`)
+
+                    const repoGrantedPermissions = evaluateGrantedPermissions({
+                      statements: repoAccessPolicy.statements,
+                      callerIdentitySubjects,
+                    })
+
+                    // verify requested token permissions by repository permissions
+                    const verifiedRepoPermissions = verifyPermissions({
+                      granted: repoGrantedPermissions,
+                      requested: pendingTokenPermissions,
+                    })
+                    verifiedRepoPermissions.granted.forEach(({scope}) => {
+                      // permission granted
+                      pendingRepositoryTokenScopesByRepository[scope].delete(repo)
+                    })
+                    verifiedRepoPermissions.denied.forEach(({scope, permission}) => {
+                      // permission rejected
+                      rejectedTokenPermissions.push({
+                        reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
+                        scope, permission,
+                      })
+                    })
+                  })),
+              )
+
+              // grant repository permission only if all repositories have granted the specific permission
+              Object.entries(pendingRepositoryTokenScopesByRepository).forEach(([scope, repositories]) => {
+                if (repositories.size == 0) {
+                  grantedTokenPermissions[scope] = pendingTokenPermissions[scope]
+                  delete pendingTokenPermissions[scope]
+                }
+              })
+            }
           }
+          break
         }
-
-        const pendingRepositoryTokenPermissions: Record<string, Set<string>> =
-            Object.fromEntries(Object.keys(pendingTokenPermissions)
-                .map((scope) => [scope, new Set(tokenRequest.repositories)]))
-
-        const limitRepoPermissionRequests = limit(8)
-        await Promise.all(
-            tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
-              const repoAccessPolicy = await getRepositoryAccessPolicy(appInstallationClient, {
-                owner: tokenRequest.owner, repo,
-                path: config.accessPolicyLocation.repository.path,
-                strict: false, // ignore invalid access policy entries
-              })
-              log.debug(`${requestId} - ${tokenRequest.owner}/${repo} access policy:`,
-                  JSON.stringify({repoAccessPolicy}))
-
-              const repoGrantedPermissions = evaluateGrantedPermissions({
-                statements: repoAccessPolicy.statements,
-                callerIdentitySubjects,
-              })
-
-              // verify requested token permissions by repository permissions
-              const verifiedRepoPermissions = verifyPermissions({
-                granted: repoGrantedPermissions,
-                requested: pendingTokenPermissions,
-              })
-              verifiedRepoPermissions.granted.forEach(({scope}) => {
-                // permission granted
-                pendingRepositoryTokenPermissions[scope].delete(repo)
-              })
-              verifiedRepoPermissions.denied.forEach(({scope, permission}) => {
-                // permission rejected
-                rejectedTokenPermissions.push({
-                  reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
-                  scope, permission,
-                })
-              })
-            })),
-        )
-
-        Object.entries(pendingRepositoryTokenPermissions).forEach(([scope, repositories]) => {
-          if (repositories.size == 0) {
-            grantedTokenPermissions[scope] = pendingTokenPermissions[scope]
-            delete pendingTokenPermissions[scope]
-          }
-        })
+        default:
+          throw new Error('Invalid token scope.')
       }
+
 
       if (hasEntries(rejectedTokenPermissions)) {
         throw createPermissionRejectedHttpException(rejectedTokenPermissions, callerIdentitySubjects)
       }
 
       // --- create requested access token ---------------------------------------------------------------------------
-      // SAFEGUARD, pending permissions should only occur due to rejected permissions (see above check)
+
+      // SAFEGUARD, should never happen
       if (hasEntries(pendingTokenPermissions)) {
         throw new Error('Unexpected pending permissions.')
       }
+
       const appInstallationAccessToken = await createInstallationAccessToken(
           GITHUB_APP_CLIENT, appInstallation, {
             // BE AWARE that an empty object will result in a token with all app installation permissions
@@ -338,17 +367,21 @@ app.post('/access_tokens',
           })
 
       // --- response with requested access token --------------------------------------------------------------------
-      const accessTokenHash = await sha256(appInstallationAccessToken.token)
-          .then((it) => Buffer.from(it!).toString('base64'))
-      log.info(`${requestId} - Action access token hash: ${accessTokenHash}`)
-
-      return context.json({
+      const tokenResponseBody = {
         token: appInstallationAccessToken.token,
         expires_at: appInstallationAccessToken.expires_at,
         permissions: appInstallationAccessToken.permissions,
         repositories: appInstallationAccessToken.repositories?.map((it) => it.name),
         owner: appInstallation.account?.name ?? tokenRequest.owner,
-      })
+      }
+      requestLog.info({
+        ...tokenResponseBody,
+        token: '***',
+        token_hash: await sha256(appInstallationAccessToken.token)
+            .then((it) => Buffer.from(it!).toString('base64')),
+      }, `Action access token`)
+
+      return context.json(tokenResponseBody)
     })
 
 /**
@@ -383,7 +416,7 @@ function createPermissionRejectedHttpException(rejectedTokenPermissions: {
  * @returns normalised permission object
  */
 function normalizePermissionScopes(permissions: Record<string, string>): Record<string, string> {
-  return mapObject(permissions, ([scope, permission]) => [
+  return mapObjectEntries(permissions, ([scope, permission]) => [
     scope.replaceAll('_', '-'), permission,
   ])
 }
@@ -436,7 +469,7 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
   return await client.apps.createInstallationAccessToken({
     installation_id: installation.id,
     // BE AWARE that an empty object will result in a token with all app installation permissions
-    permissions: ensureHasEntries(mapObject(permissions, ([scope, permission]) => [
+    permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
       scope.replaceAll('-', '_'), permission,
     ])),
     repositories,
@@ -486,13 +519,14 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
   strict: boolean,
 }): Promise<Omit<GitHubOwnerAccessPolicy, 'origin'>> {
   const emptyPolicy: Omit<GitHubOwnerAccessPolicy, 'origin'> = {
-    statements: [],
-    allowedSubjects: [],
-    allowedRepositoryPermissions: {},
+    'statements': [],
+    'allowed-subjects': [],
+    'allowed-repository-permissions': {},
   }
   const policyValue = await getRepositoryFileContent(client, {
     owner, repo, path,
   })
+
   if (!policyValue) {
     return emptyPolicy
   }
@@ -500,10 +534,23 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
   const policyParseResult = YamlTransformer
       .transform((policyObject) => {
         if (strict) return policyObject
-        // ignore invalid subjects and permissions or hole statements
-        if (isRecord(policyObject) && Array.isArray(policyObject.statements)) {
-          policyObject.statements = filterInvalidStatements(policyObject.statements)
+
+        // ignore invalid entries
+        if (isRecord(policyObject)) {
+          if (Array.isArray(policyObject['allowed-subjects'])) {
+            policyObject['allowed-subjects'] = filterValidSubjects(
+                policyObject['allowed-subjects'])
+          }
+          if (isRecord(policyObject['allowed-repository-permissions'])) {
+            policyObject['allowed-repository-permissions'] = filterValidPermissions(
+                policyObject['allowed-repository-permissions'], 'owner')
+          }
+          if (Array.isArray(policyObject.statements)) {
+            policyObject.statements = filterValidStatements(
+                policyObject.statements, 'owner')
+          }
         }
+
         return policyObject
       })
       .pipe(GitHubOwnerAccessPolicySchema)
@@ -514,8 +561,7 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
     if (strict) {
       throw new PolicyError(`${owner} access policy is invalid.`, issues)
     }
-    log.debug(`${requestId} - ${owner} access policy is invalid:`,
-        JSON.stringify({issues}))
+    log.debug({issues}, `${owner} access policy is invalid.`)
     return emptyPolicy
   }
 
@@ -527,8 +573,7 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
     if (strict) {
       throw new PolicyError(`${owner} owner access policy is invalid.`, issues)
     }
-    log.debug(`${requestId} - ${owner} owner access policy is invalid:`,
-        JSON.stringify({issues}))
+    log.debug({issues}, `${owner} owner access policy is invalid.`)
     return emptyPolicy
   }
 
@@ -548,7 +593,7 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
  * @param strict - throw error on invalid access policy
  * @returns access policy
  */
-async function getRepositoryAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
+async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
   owner: string,
   repo: string,
   path: string,
@@ -567,9 +612,10 @@ async function getRepositoryAccessPolicy(client: Octokit, {owner, repo, path, st
   const policyParseResult = YamlTransformer
       .transform((policyObject) => {
         if (strict) return policyObject
-        // ignore invalid subjects and permissions or hole statements
+        // ignore invalid entries
         if (isRecord(policyObject) && Array.isArray(policyObject.statements)) {
-          policyObject.statements = filterInvalidStatements(policyObject.statements)
+          policyObject.statements = filterValidStatements(
+              policyObject.statements, 'repo')
         }
         return policyObject
       })
@@ -581,8 +627,7 @@ async function getRepositoryAccessPolicy(client: Octokit, {owner, repo, path, st
     if (strict) {
       throw new PolicyError(`${owner}/${repo} repository access policy is invalid.`, issues)
     }
-    log.debug(`${requestId} - ${owner}/${repo} repository access policy is invalid:`,
-        JSON.stringify({issues}))
+    log.debug({issues}, `${owner}/${repo} repository access policy is invalid.`)
     return emptyPolicy
   }
 
@@ -594,8 +639,7 @@ async function getRepositoryAccessPolicy(client: Octokit, {owner, repo, path, st
     if (strict) {
       throw new PolicyError(`${owner} access policy is invalid.`, issues)
     }
-    log.debug(`${requestId} - ${owner} access policy is invalid:`,
-        JSON.stringify({issues}))
+    log.debug({issues}, `${owner} access policy is invalid.`)
     return emptyPolicy
   }
 
@@ -609,28 +653,64 @@ async function getRepositoryAccessPolicy(client: Octokit, {owner, repo, path, st
 /**
  * Filter invalid access policy statements
  * @param statements - access policy statements
+ * @param permissionsType - permission type
  * @returns valid statements
  */
-function filterInvalidStatements(statements: unknown[]): unknown | GitHubAccessStatement[] {
+function filterValidStatements(
+    statements: unknown[],
+    permissionsType: 'owner' | 'repo'
+): unknown | GitHubAccessStatement[] {
   return statements
       .map((statementObject: unknown) => {
         if (isRecord(statementObject)) {
           // ---- subjects
           if ('subjects' in statementObject && Array.isArray(statementObject.subjects)) {
             // ignore invalid subjects
-            statementObject.subjects = statementObject.subjects.filter(
-                (it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
+            statementObject.subjects = filterValidSubjects(statementObject.subjects)
           }
           // ---- permissions
           if ('permissions' in statementObject && isRecord(statementObject.permissions)) {
             // ignore invalid permissions
-            statementObject.permissions = filterObject(statementObject.permissions,
-                ([key, value]) => GitHubAppPermissionsSchema.safeParse({[key]: value}).success)
+            statementObject.permissions = filterValidPermissions(statementObject.permissions, permissionsType)
           }
         }
         return statementObject
       })
       .filter((statementObject: unknown) => GitHubAccessStatementSchema.safeParse(statementObject).success)
+}
+
+/**
+ * Filter invalid subjects
+ * @param subjects - access policy subjects
+ * @returns valid subjects
+ */
+function filterValidSubjects(subjects: unknown[]): unknown[] {
+  return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
+}
+
+/**
+ * Filter invalid permissions
+ * @param permissions - access policy permissions
+ * @param type - permission type
+ * @returns valid permissions
+ */
+function filterValidPermissions(
+    permissions: Record<string, unknown>,
+    type: 'owner' | 'repo'
+): Record<string, unknown> {
+  let permissionSchema: ZodSchema
+  switch (type) {
+    case 'owner':
+      permissionSchema = GitHubAppPermissionsSchema
+      break
+    case 'repo':
+      permissionSchema = GitHubAppRepositoryPermissionsSchema
+      break
+    default:
+      throw new Error('Invalid permission type.')
+  }
+
+  return filterObjectEntries(permissions, ([key, value]) => permissionSchema.safeParse({[key]: value}).success)
 }
 
 /**
@@ -650,7 +730,8 @@ async function getRepositoryFileContent(client: Octokit, {owner, repo, path}: {
       .then((res) => Buffer.from(
           // @ts-expect-error - content will not be null, because we request a file
           res.data.content ?? '',
-          'base64').toString(),
+          'base64')
+          .toString(),
       )
       .catch((error) => {
         if (error.status === Status.NOT_FOUND) return null
@@ -723,22 +804,29 @@ function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
  * @returns effective caller identity subjects
  */
 function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
-  return unique([
-    callerIdentity.sub,
-    // --- add artificial subjects
-    // repo : ref
-    // => repo:qoomon/sandbox:ref:refs/heads/main
-    `repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`,
+  const subjects = [callerIdentity.sub]
+
+  // --- add artificial subjects
+
+  // repo : ref
+  // => repo:qoomon/sandbox:ref:refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`)
+
+  // repo : workflow_ref
+  // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`)
+
+  // repo : job_workflow_ref
+  // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`)
+
+  if (callerIdentity.environment) {
     // repo : environment
     // => repo:qoomon/sandbox:environment:production
-    `repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`,
-    // repo : workflow_ref
-    // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    `repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`,
-    // repo : job_workflow_ref
-    // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    `repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`,
-  ])
+    subjects.push(`repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`)
+  }
+
+  return unique(subjects)
 }
 
 /**

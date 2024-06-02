@@ -23,7 +23,7 @@ export const config: Config = {
       path: 'access-token.yaml',
       repo: '.github-access-token',
     },
-    repository: {
+    repo: {
       path: '.github/access-token.yaml',
     },
   },
@@ -43,7 +43,7 @@ type Config = {
       repo: string
       path: string
     },
-    repository: {
+    repo: {
       path: string
     }
   }

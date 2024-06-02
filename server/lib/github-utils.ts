@@ -2,9 +2,10 @@ import type {
   GitHubAppPermission,
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
-  GitHubRepository
+  GitHubRepository,
 } from './types.js'
 import {objectOfTuples, tuplesOf} from './common-utils.js'
+import {GitHubAppRepositoryPermissionsSchema} from './schemas.js'
 
 /**
  * Parse repository string to owner and repo
@@ -101,4 +102,24 @@ export function verifyPermissions({requested, granted}: {
   })
 
   return result
+}
+
+/**
+ * Verify repository permissions
+ * @param permissions - permissions
+ * @returns invalid repository permissions
+ */
+export function verifyRepositoryPermissions(permissions: GitHubAppRepositoryPermissions) {
+  const valid: GitHubAppRepositoryPermissions = {}
+  const invalid: GitHubAppPermissions = {}
+
+  Object.entries(permissions).forEach(([scope, permission]) => {
+    if (GitHubAppRepositoryPermissionsSchema.keyof()
+        .safeParse(scope).success) {
+      (valid as Record<string, string>)[scope] = permission
+    } else {
+      (invalid as Record<string, string>)[scope] = permission
+    }
+  })
+  return {valid, invalid}
 }

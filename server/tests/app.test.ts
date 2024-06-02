@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 import * as Fixtures from './fixtures.js'
 import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from './fixtures.js'
 import process from 'process'
@@ -9,18 +11,6 @@ import {RequestError} from '@octokit/request-error'
 import {joinRegExp, sleep} from '../lib/common-utils.js'
 import {withHint} from './lib/jest-utils.js'
 import {Status} from '../lib/http-utils.js'
-
-// --- WORKAROUND for https://github.com/honojs/hono/issues/2627 ---
-const GlobalRequest = globalThis.Request
-globalThis.Request = class Request extends GlobalRequest {
-  // eslint-disable-next-line require-jsdoc
-  constructor(input: Request | string, init: RequestInit) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (init) (init as any).duplex ??= 'half'
-    super(input, init)
-  }
-} as typeof GlobalRequest
-// --- END OF WORKAROUND ---
 
 process.env['LOG_LEVEL'] = process.env['LOG_LEVEL'] || 'warn'
 process.env['GITHUB_APP_ID'] = Fixtures.GITHUB_APP_AUTH.appId
@@ -418,9 +408,9 @@ describe('App path /access_tokens', () => {
         githubMockEnvironment.addRepository({
           name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
           ownerAccessPolicy: {
-            statements: [],
-            allowedSubjects: [`repo:xxx/yyy:**`],
-            allowedRepositoryPermissions: {},
+            'statements': [],
+            'allowed-subjects': [`repo:xxx/yyy:**`],
+            'allowed-repository-permissions': {},
           },
         })
 
@@ -449,7 +439,16 @@ describe('App path /access_tokens', () => {
       describe('repos scope', () => {
         beforeEach(() => {
           githubMockEnvironment.addAppInstallation({
-            permissions: {'single_file': 'read', 'contents': 'write', 'organization-secrets': 'write'},
+            permissions: {'single_file': 'read', 'contents': 'write'},
+          })
+
+          githubMockEnvironment.addRepository({
+            name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
+            ownerAccessPolicy: {
+              'statements': [],
+              'allowed-subjects': [],
+              'allowed-repository-permissions': {'contents': 'write'},
+            },
           })
         })
 
@@ -475,20 +474,21 @@ describe('App path /access_tokens', () => {
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp(
                 /Some requested permissions got rejected\.\n/,
-                /- secrets: write/,
+                /- secrets: write\n/,
+                / {2}Permission has not been granted to .* installation for .*\./,
             )),
           })
         })
 
-        it('if repository permission is not allowed by owner policy', async () => {
+        it('if requested repo permission is not allowed by owner policy', async () => {
           // --- Given ---
           const githubToken = Fixtures.createGitHubActionsToken({})
           githubMockEnvironment.addRepository({
             name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
             ownerAccessPolicy: {
-              statements: [],
-              allowedSubjects: [],
-              allowedRepositoryPermissions: {'contents': 'read'},
+              'statements': [],
+              'allowed-subjects': [],
+              'allowed-repository-permissions': {'contents': 'read'},
             },
           })
 
@@ -526,7 +526,7 @@ describe('App path /access_tokens', () => {
             method: 'POST',
             headers: {Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
-              permissions: {'secrets': 'read'},
+              permissions: {'contents': 'read'},
             }),
           })
 
@@ -539,8 +539,8 @@ describe('App path /access_tokens', () => {
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp(
                 /^Some requested permissions got rejected\.\n/,
-                /- secrets: read\n/,
-                / {2}Permission has not been granted to .* installation/,
+                /- contents: read\n/,
+                / {2}Permission has not been granted by .*\./,
             )),
           })
         })
@@ -740,37 +740,6 @@ describe('App path /access_tokens', () => {
             )),
           })
         })
-
-        it('if requested repo permissions are not granted by repo', async () => {
-          // --- Given ---
-          const actionRepo = githubMockEnvironment.addRepository({})
-          const githubToken = Fixtures.createGitHubActionsToken({
-            claims: {repository: actionRepo.name},
-          })
-
-          // --- When ---
-          const response = await app.request(path, {
-            method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
-            body: JSON.stringify({
-              scope: 'owner',
-              permissions: {'contents': 'read'},
-            }),
-          })
-
-          // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN)
-          }, async () => ({'response.json()': await response.json()}))
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp(
-                /^Some requested permissions got rejected\.\n/,
-                /- contents: read\n {2}Permission has not been granted by.*/,
-            )),
-          })
-        })
       })
     })
 
@@ -782,6 +751,17 @@ describe('App path /access_tokens', () => {
       })
 
       describe('repository scope', () => {
+        beforeEach(() => {
+          githubMockEnvironment.addRepository({
+            name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
+            ownerAccessPolicy: {
+              'statements': [],
+              'allowed-subjects': [],
+              'allowed-repository-permissions': {'secrets': 'write'},
+            },
+          })
+        })
+
         it('if requested repo permissions are granted by repo', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
@@ -806,7 +786,9 @@ describe('App path /access_tokens', () => {
           })
 
           // --- Then ---
-          expect(response.status).toEqual(Status.OK)
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK)
+          }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -816,7 +798,7 @@ describe('App path /access_tokens', () => {
           })
         })
 
-        it('if requested repo permissions are granted by org', async () => {
+        it('if requested repo permissions are granted by owner', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({})
           const githubToken = Fixtures.createGitHubActionsToken({
@@ -825,28 +807,28 @@ describe('App path /access_tokens', () => {
           githubMockEnvironment.addRepository({
             name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
             ownerAccessPolicy: {
-              statements: [{
+              'statements': [{
                 subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
                 permissions: {'secrets': 'write'},
               }],
-              allowedSubjects: [],
-              allowedRepositoryPermissions: {},
+              'allowed-subjects': [],
+              'allowed-repository-permissions': {},
             },
           })
 
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${githubToken}`,
-            },
+            headers: {Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {'secrets': 'write'},
             }),
           })
 
           // --- Then ---
-          expect(response.status).toEqual(Status.OK)
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK)
+          }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -880,7 +862,9 @@ describe('App path /access_tokens', () => {
           })
 
           // --- Then ---
-          expect(response.status).toEqual(Status.OK)
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK)
+          }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -916,7 +900,9 @@ describe('App path /access_tokens', () => {
           })
 
           // --- Then ---
-          expect(response.status).toEqual(Status.OK)
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK)
+          }, async () => ({'response.json()': await response.json()}))
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'secrets': 'write'},
@@ -934,15 +920,16 @@ describe('App path /access_tokens', () => {
           const githubToken = Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           })
+
           githubMockEnvironment.addRepository({
             name: `${DEFAULT_OWNER}/${config.accessPolicyLocation.owner.repo}`,
             ownerAccessPolicy: {
-              statements: [{
+              'statements': [{
                 subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
                 permissions: {'organization-secrets': 'write'},
               }],
-              allowedSubjects: [],
-              allowedRepositoryPermissions: {},
+              'allowed-subjects': [],
+              'allowed-repository-permissions': {},
             },
           })
 
@@ -960,7 +947,6 @@ describe('App path /access_tokens', () => {
           await withHint(() => {
             expect(response.status).toEqual(Status.OK)
           }, async () => ({'response.json()': await response.json()}))
-
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'organization-secrets': 'write'},
@@ -1000,21 +986,21 @@ function mockJwks() {
 }
 
 /**
- * Mock github
- * @returns github environment
+ * Mock GitHub
+ * @returns GitHub environment
  */
 function mockGithub() {
   const mock: {
-    repositories: Repository[],
-    appInstallations: AppInstallation[],
+    repositories: Record<string, Repository>,
+    appInstallations: Record<string, AppInstallation>,
   } = {
-    repositories: [],
-    appInstallations: [],
+    repositories: {},
+    appInstallations: {},
   }
 
   jest.unstable_mockModule('@octokit/rest', () => ({
     Octokit: jest.fn().mockImplementation((Octokit_params: any) => {
-      // github app
+      // GitHub app
       if (Octokit_params.auth.appId) {
         return {
           apps: {
@@ -1025,16 +1011,15 @@ function mockGithub() {
               },
             })),
             getUserInstallation: jest.fn().mockImplementation(async (params: any) => {
-              const installation = mock.appInstallations
-                  .find((it) => it.owner === params.username)
+              const installation = mock.appInstallations[params.username]
               if (installation) return {data: installation}
               throw new RequestError('Not Found', Status.NOT_FOUND, {
                 request: {headers: {}, url: 'http://localhost/tests'} as any,
               })
             }),
             createInstallationAccessToken: jest.fn().mockImplementation(async (params: any) => {
-              const installation = mock.appInstallations
-                  .find((it) => it.id === params.installation_id)
+              const installation = Object.values(mock.appInstallations)
+                  .find((installation) => installation.id === params.installation_id)
               if (installation) {
                 Object.entries(params.permissions).forEach(([scope, permission]) => {
                   if (!verifyPermission({
@@ -1067,10 +1052,10 @@ function mockGithub() {
         }
       }
 
-      // github app installation
+      // GitHub app installation
       if (typeof Octokit_params.auth === 'string') {
-        const installation = mock.appInstallations
-            .find((it) => it.id === parseInt(Octokit_params.auth.split('@')[1]))
+        const installation = Object.values(mock.appInstallations)
+            .find((installation) => installation.id === parseInt(Octokit_params.auth.split('@')[1]))
         if (installation) {
           return {
             repos: {
@@ -1079,20 +1064,15 @@ function mockGithub() {
                   throw new Error('Access Denied')
                 }
 
-                const repository = mock.repositories
-                    .find((it) => it.name === `${params.owner}/${params.repo}`)
-                if (!repository) {
-                  throw new RequestError('Not Found', Status.NOT_FOUND, {
-                    request: {headers: {}, url: 'http://localhost/tests'} as any,
-                  })
-                }
+                const repository = mock.repositories[`${params.owner}/${params.repo}`]
 
-                if (params.path === config.accessPolicyLocation.repository.path && repository?.accessPolicy) {
+                if (repository?.accessPolicy && params.path === config.accessPolicyLocation.repo.path) {
                   const contentString = YAML.stringify(repository.accessPolicy)
                   return {data: {content: Buffer.from(contentString).toString('base64')}}
                 }
 
-                if (params.path === config.accessPolicyLocation.owner.path && repository?.ownerAccessPolicy) {
+                if (repository?.ownerAccessPolicy && params.path === config.accessPolicyLocation.owner.path) {
+
                   const contentString = YAML.stringify(repository.ownerAccessPolicy)
                   return {data: {content: Buffer.from(contentString).toString('base64')}}
                 }
@@ -1112,22 +1092,22 @@ function mockGithub() {
 
   return {
     reset() {
-      mock.repositories = []
-      mock.appInstallations = []
+      mock.repositories = {}
+      mock.appInstallations = {}
     },
     addRepository({name, accessPolicy, ownerAccessPolicy}: {
       name?: string,
       accessPolicy?: Omit<GitHubRepositoryAccessPolicy, 'origin'> & { origin?: string },
       ownerAccessPolicy?: Omit<GitHubOwnerAccessPolicy, 'origin'> & { origin?: string },
     }): Repository {
-      name = name || `${DEFAULT_OWNER}/${DEFAULT_REPO}-${mock.appInstallations.length}`
+      name = name || `${DEFAULT_OWNER}/${DEFAULT_REPO}-${Object.keys(mock.appInstallations).length}`
       accessPolicy = accessPolicy || {
-        statements: [],
+        'statements': [],
       }
       ownerAccessPolicy = ownerAccessPolicy || {
-        statements: [],
-        allowedSubjects: [],
-        allowedRepositoryPermissions: {},
+        'statements': [],
+        'allowed-subjects': [],
+        'allowed-repository-permissions': {},
       }
 
       const repository = {
@@ -1142,7 +1122,8 @@ function mockGithub() {
           ...ownerAccessPolicy,
         },
       }
-      mock.repositories.push(repository)
+
+      mock.repositories[repository.name] = repository
 
       return repository
     },
@@ -1155,14 +1136,14 @@ function mockGithub() {
       target_type = target_type || 'User'
       owner = owner || DEFAULT_OWNER
       permissions = permissions || {}
-      const id = 1000 + mock.appInstallations.length
+      const id = 1000 + Object.keys(mock.appInstallations).length
 
       const installation = {
         id,
         target_type, owner,
         permissions,
       }
-      mock.appInstallations.push(installation)
+      mock.appInstallations[installation.owner] = installation
       return installation
     },
   }

@@ -3,19 +3,6 @@
 This readme describes how to deploy a GitHub Actions Access Token Server.
 
 ## Prerequisites
-> [!WARNING]
-> Be aware by installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
-
-> [!TIP]
-> **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
-> - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
-> - Set `Ruleset Name` to `Protect access token policy`
-> - Set `Enforcement status` to `Active`
-> - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
-> - Set `Target repositories` to `All repositories`
-> - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
-> - Hit `Create` button
-
 > [!IMPORTANT]
 > Be aware that this server is a security sensitive application.
 > It is important to secure the access token server properly and update dependencies regularly.
@@ -36,10 +23,36 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
         - Take a note of `App ID`
         - Scroll down to `Private keys` section and click `Generate a private key` button
             - private key (`.pem` file) will be downloaded to your machine automatically
-    
+
     </details>
 
-2. **Install GitHub App for Granting Repository**
+2. **Create an Owner Access Token Policy Repository**
+    > [!IMPORTANT]
+    > Ensure that this repository is present before installing the GitHub App
+    > Otherwise someone else could create this repo and effectively take over the owner access token policy configuration.
+    
+    <details><summary>Click me</summary>
+    - Create a new private repository named `.github-access-token`
+    - Ensure only owner admins have access to this repository
+        - Create owner `access-token.yaml` file at root of the repository with [this template content](/actions/docs/access-token.owner-template.yaml)
+        - And adjust the access policy to your liking
+
+    </details>
+
+3. **Install GitHub App for Target Repository**
+    > [!IMPORTANT]
+    > By installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
+    
+    > [!TIP]
+    > **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
+    > - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
+    > - Set `Ruleset Name` to `Protect access token policy`
+    > - Set `Enforcement status` to `Active`
+    > - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
+    > - Set `Target repositories` to `All repositories`
+    > - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+    > - Hit `Create` button
+
     <details><summary>Click me</summary>
     - Go to GitHub Apps ([User Scope](https://github.com/settings/apps)
       or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps))
@@ -50,6 +63,9 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     - Hit `Install` button
 
     </details>
+
+4. **Create a GitHub Actions Workflow**
+    go to [Action README](/action/README.md)
 
 ## Deploy Server
 
@@ -159,7 +175,6 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
   ```
 
 ## TODOs
-- refactor startup debug logging and request response logging
 
 - extract policy and permission evaluation to separate lib file
 

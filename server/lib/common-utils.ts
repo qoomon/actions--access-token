@@ -94,7 +94,7 @@ export function escapeRegexp(string: string) {
  * @param fn - mapping function
  * @returns new mapped object
  */
-export function mapObject<V, U>(
+export function mapObjectEntries<V, U>(
     object: Record<string, V>,
     fn: (entry: [string, V]) => [string, U],
 ): Record<string, U> {
@@ -107,7 +107,7 @@ export function mapObject<V, U>(
  * @param fn - filter function
  * @returns new filtered object
  */
-export function filterObject<V>(
+export function filterObjectEntries<V>(
     object: Record<string, V>,
     fn: (entry: [string, V]) => boolean,
 ): Record<string, V> {

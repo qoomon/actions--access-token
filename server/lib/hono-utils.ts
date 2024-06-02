@@ -1,4 +1,5 @@
 import {ErrorHandler, Handler, HonoRequest, NotFoundHandler} from 'hono'
+import pino, {Logger} from 'pino'
 import {HTTPException} from 'hono/http-exception'
 import {Status, StatusPhrases} from './http-utils.js'
 import type {StatusCode, UnOfficalStatusCode} from 'hono/utils/http-status'
@@ -31,32 +32,32 @@ export function notFoundHandler(): NotFoundHandler {
 
 /**
  * Creates an ErrorHandler that response with json
- * @param logger - logger
  * @returns ErrorHandler
  */
-export function errorHandler(logger: {
-  warn: (log: string) => void,
-  error: (log: string) => void,
-} = console): ErrorHandler {
+export function errorHandler<ENV extends { Variables: { log: Logger, id?: string} }>(): ErrorHandler<ENV> {
   return (err, context) => {
     const requestId = context.get('id')
+    let requestLogger = context.get('log')
+
+    if (!requestLogger.bindings().requestId) {
+      requestLogger = requestLogger.child({requestId})
+    }
 
     if (err instanceof HTTPException && err.status < Status.INTERNAL_SERVER_ERROR) {
+      requestLogger.debug({err}, 'Http Request Client Error')
       context.status(err.status)
       return context.json({
-        requestId, status: err.status,
+        requestId,
+        status: err.status,
         error: StatusPhrases[err.status as Exclude<StatusCode, UnOfficalStatusCode>],
         message: err.message,
       })
     } else {
-      logger.error(requestId + ' -' +
-          ' Internal Server Error: ' + err.message + '\n' +
-          err.stack
-      )
-
+      requestLogger.error({err}, 'Http Request Internal Server Error')
       context.status(Status.INTERNAL_SERVER_ERROR)
       return context.json({
-        requestId, status: Status.INTERNAL_SERVER_ERROR,
+        requestId,
+        status: Status.INTERNAL_SERVER_ERROR,
         error: StatusPhrases[Status.INTERNAL_SERVER_ERROR],
       })
     }
@@ -68,7 +69,7 @@ export function errorHandler(logger: {
  * @param header - header name
  * @returns middleware
  */
-export function requestId(header: string = 'x-request-id') {
+export function setRequestId(header: string = 'x-request-id') {
   return createMiddleware<{ Variables: { id: string } }>(async (context, next) => {
     const id = context.req.header()[header] || crypto.randomUUID()
     context.set('id', id)
@@ -77,32 +78,37 @@ export function requestId(header: string = 'x-request-id') {
 }
 
 /**
- * Creates a middleware to log http requests and responses
+ * Creates a middleware that generates and sets a request logger
  * @param logger - logger
  * @returns middleware
  */
-export function debugLogger(logger: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  debug: (...log: any[]) => void,
-} = console) {
-  return createMiddleware(async (context, next) => {
+export function setRequestLogger(logger: Logger = pino()) {
+  return createMiddleware<{ Variables: { log: Logger, id?: string } }>(async (context, next) => {
     const requestId = context.get('id')
+    const requestLogger = logger.child({requestId})
+    context.set('log', requestLogger)
+    await next()
+  })
+}
 
-    const prefix = requestId ? `${requestId} - ` : ''
-
-    logger.debug(prefix + 'Http Request ',
-        JSON.stringify({
-          path: context.req.path,
-          method: context.req.method,
-          query: context.req.query,
-        }))
+/**
+ * Creates a middleware to log http requests and responses
+ * @returns middleware
+ */
+export function debugLogger() {
+  return createMiddleware<{ Variables: { log: Logger, id?: string } }>(async (context, next) => {
+    const debugLogger = context.get('log')
+    debugLogger.debug({
+      path: context.req.path,
+      method: context.req.method,
+      query: context.req.query,
+    }, 'Http Request')
 
     await next()
 
-    logger.debug(prefix + 'Http Response ',
-        JSON.stringify({
-          status: context.res.status,
-        }))
+    debugLogger.debug({
+      status: context.res.status,
+    }, 'Http Response')
   })
 }
 
