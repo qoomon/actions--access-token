@@ -4,6 +4,7 @@ import {Octokit} from '@octokit/rest'
 import {createAppAuth} from '@octokit/auth-app'
 import {components} from '@octokit/openapi-types'
 import {
+  ConditionalUndefined,
   GitHubAccessStatement,
   GitHubActionsJwtPayload,
   GitHubAppInstallation,
@@ -114,9 +115,13 @@ app.use(bodyLimit({maxSize: 100 * 1024})) // 100kb
 app.use(prettyJSON())
 
 app.post('/access_tokens',
+    // --- verify caller identity --------------------------------------------------------------------------------------
     tokenVerifier<GitHubActionsJwtPayload>(GITHUB_OIDC_TOKEN_VERIFIER),
+
+    // --- handle access token request ---------------------------------------------------------------------------------
     async (context) => {
       const requestLog = context.get('log')
+
       const callerIdentity = context.get('token')
       requestLog.info({
         callerIdentity: {
@@ -129,7 +134,7 @@ app.post('/access_tokens',
             `/runs/${callerIdentity.run_id}/attempts/${callerIdentity.attempts}`,
       }, `Caller Identity: ${callerIdentity.workflow_ref}`)
 
-      const callerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity)
+      const effectiveCallerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity)
 
       const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
           .then((it) => {
@@ -192,7 +197,7 @@ app.post('/access_tokens',
 
       const rejectedAppInstallationPermissions = verifyPermissions({
         requested: tokenRequest.permissions,
-        granted: appInstallation.permissions,
+        granted: normalizePermissionScopes(appInstallation.permissions),
       }).denied.map(({scope, permission}) => ({
         scope, permission,
         // eslint-disable-next-line max-len
@@ -228,19 +233,19 @@ app.post('/access_tokens',
 
       // --- verify allowed caller identities --------------------------------------------------------------------------
       if (ownerAccessPolicy['allowed-subjects'].length > 0) {
-        if (!ownerAccessPolicy['allowed-subjects'].some((it) => callerIdentitySubjects
+        if (!ownerAccessPolicy['allowed-subjects'].some((it) => effectiveCallerIdentitySubjects
             .some((subject) => matchSubjectPattern(it, subject, false)))) {
           throw new HTTPException(Status.FORBIDDEN, {
             message: `OIDC token subject is not allowed by ${tokenRequest.owner} owner access policy.\n` +
                 'Effective token subjects:\n' +
-                callerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n'),
+                effectiveCallerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n'),
           })
         }
       }
 
       const ownerGrantedPermissions = evaluateGrantedPermissions({
         statements: ownerAccessPolicy.statements,
-        callerIdentitySubjects,
+        callerIdentitySubjects: effectiveCallerIdentitySubjects,
       })
 
       switch (tokenRequest.scope) {
@@ -314,7 +319,7 @@ app.post('/access_tokens',
 
                     const repoGrantedPermissions = evaluateGrantedPermissions({
                       statements: repoAccessPolicy.statements,
-                      callerIdentitySubjects,
+                      callerIdentitySubjects: effectiveCallerIdentitySubjects,
                     })
 
                     // verify requested token permissions by repository permissions
@@ -354,7 +359,7 @@ app.post('/access_tokens',
 
 
       if (hasEntries(rejectedTokenPermissions)) {
-        throw createPermissionRejectedHttpException(rejectedTokenPermissions, callerIdentitySubjects)
+        throw createPermissionRejectedHttpException(rejectedTokenPermissions, effectiveCallerIdentitySubjects)
       }
 
       // --- create requested access token ---------------------------------------------------------------------------
@@ -378,7 +383,7 @@ app.post('/access_tokens',
       const tokenResponseBody = {
         token: appInstallationAccessToken.token,
         expires_at: appInstallationAccessToken.expires_at,
-        permissions: appInstallationAccessToken.permissions,
+        permissions: normalizePermissionScopes(appInstallationAccessToken.permissions),
         repositories: appInstallationAccessToken.repositories?.map((it) => it.name),
         owner: appInstallation.account?.name ?? tokenRequest.owner,
       }
@@ -391,6 +396,21 @@ app.post('/access_tokens',
 
       return context.json(tokenResponseBody)
     })
+
+/**
+ * Normalise permission scopes to dash case
+ * @param permissions - permission object
+ * @returns normalised permission object
+ */
+function normalizePermissionScopes<
+    PERMISSIONS extends components['schemas']['app-permissions']
+>(permissions?: PERMISSIONS): ConditionalUndefined<GitHubAppPermissions, PERMISSIONS> {
+  if (!permissions) return undefined as ConditionalUndefined<GitHubAppPermissions, PERMISSIONS>
+
+  return mapObjectEntries(permissions, ([scope, permission]) => [
+    scope.replaceAll('_', '-'), permission,
+  ]) as GitHubAppPermissions
+}
 
 // --- Access Policy Functions ------------------------------------------------------------------------------------------------
 /**
@@ -770,14 +790,7 @@ async function getAppInstallation(client: Octokit, {owner}: {
   return await retry(
       async () => client.apps.getUserInstallation({username: owner})
           .then((res) => res.data)
-          .catch(async (error) => error.status === Status.NOT_FOUND ? null : _throw(error))
-          .then((data) => {
-            if (!data) return data
-            return {
-              ...data,
-              permissions: normalizePermissionScopes(data.permissions),
-            }
-          }),
+          .catch(async (error) => error.status === Status.NOT_FOUND ? null : _throw(error)),
       {
         delay: 1000,
         retries: 3,
@@ -808,24 +821,6 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
     repositories,
   })
       .then((res) => res.data)
-      .then((data) => {
-        if (!data) return data
-        return {
-          ...data,
-          permissions: data.permissions ? normalizePermissionScopes(data.permissions) : data.permissions,
-        }
-      })
-}
-
-/**
- * Normalise permission scopes to dash case
- * @param permissions - permission object
- * @returns normalised permission object
- */
-function normalizePermissionScopes(permissions: Record<string, string>): Record<string, string> {
-  return mapObjectEntries(permissions, ([scope, permission]) => [
-    scope.replaceAll('_', '-'), permission,
-  ])
 }
 
 /**

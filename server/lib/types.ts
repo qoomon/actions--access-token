@@ -10,6 +10,9 @@ import type {
   RestEndpointMethodTypes,
 } from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types'
 
+export type Subset<T extends _U, _U> = T
+export type ConditionalUndefined<T, C > = C extends undefined ? T | undefined : T
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 export type GitHubAppInstallation = RestEndpointMethodTypes['apps']['getUserInstallation']['response']['data']
@@ -20,11 +23,6 @@ export type GitHubRepository = {
   owner: string,
   repo: string,
 }
-
-/**
- * Ensures type T is a subset of _U
- */
-export type Subset<T extends _U, _U> = T;
 
 export type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>
 export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>
