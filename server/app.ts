@@ -208,7 +208,7 @@ app.post('/access_tokens',
         permissions: {single_file: 'read'},
       })
 
-      // --- verify requested token permissions --------------------------------------------------------------------------
+      // --- verify requested token permissions ------------------------------------------------------------------------
 
       const pendingTokenPermissions: Record<string, string> = {...tokenRequest.permissions}
       const rejectedTokenPermissions: {
@@ -218,8 +218,6 @@ app.post('/access_tokens',
       // granted token permission object will be used as safeguard to prevent unintentional permission granting
       const grantedTokenPermissions: Record<string, string> = {}
 
-      // --- handle owner access policy ------------------------------------------------------------------------------
-
       const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
         owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
         path: config.accessPolicyLocation.owner.path,
@@ -228,6 +226,7 @@ app.post('/access_tokens',
       requestLog.debug({ownerAccessPolicy},
           `${tokenRequest.owner} access policy:`)
 
+      // --- verify allowed caller identities --------------------------------------------------------------------------
       if (ownerAccessPolicy['allowed-subjects'].length > 0) {
         if (!ownerAccessPolicy['allowed-subjects'].some((it) => callerIdentitySubjects
             .some((subject) => matchSubjectPattern(it, subject, false)))) {
@@ -246,9 +245,11 @@ app.post('/access_tokens',
 
       switch (tokenRequest.scope) {
         case 'owner': {
+          // === owner scope permission verification ===================================================================
+
           verifyPermissions({
             granted: ownerGrantedPermissions,
-            requested: tokenRequest.permissions,
+            requested: pendingTokenPermissions,
           }).granted.forEach(({scope, permission}) => {
             // permission granted
             grantedTokenPermissions[scope] = permission
@@ -265,10 +266,13 @@ app.post('/access_tokens',
           break
         }
         case 'repos': {
+          // === repo scope permission verification ====================================================================
+
           // --- handle owner granted permissions
           verifyPermissions({
+            // BE AWARE to grant repository permissions only
             granted: verifyRepositoryPermissions(ownerGrantedPermissions).valid,
-            requested: tokenRequest.permissions,
+            requested: pendingTokenPermissions,
           }).granted.forEach(({scope, permission}) => {
             // permission granted
             grantedTokenPermissions[scope] = permission
@@ -276,9 +280,9 @@ app.post('/access_tokens',
           })
 
           // --- handle repository granted permissions
-
-          // restrict repository permissions to allowed by owner access policy
           verifyPermissions({
+            // restrict repository permissions to allowed repository permissions by owner access policy
+            // BE AWARE to grant repository permissions only
             granted: verifyRepositoryPermissions(ownerAccessPolicy['allowed-repository-permissions']).valid,
             requested: pendingTokenPermissions,
           }).denied.forEach(({scope, permission}) => {
@@ -343,6 +347,7 @@ app.post('/access_tokens',
           }
           break
         }
+
         default:
           throw new Error('Invalid token scope.')
       }
@@ -387,6 +392,7 @@ app.post('/access_tokens',
       return context.json(tokenResponseBody)
     })
 
+// --- Access Policy Functions ------------------------------------------------------------------------------------------------
 /**
  * Create permission rejected http exception
  * @param rejectedTokenPermissions - rejected token permissions
@@ -409,101 +415,6 @@ function createPermissionRejectedHttpException(rejectedTokenPermissions: {
         callerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n')
   }
   return new HTTPException(Status.FORBIDDEN, {message})
-}
-
-// --- Server Functions ------------------------------------------------------------------------------------------------
-
-/**
- * Normalise permission scopes to dash case
- * @param permissions - permission object
- * @returns normalised permission object
- */
-function normalizePermissionScopes(permissions: Record<string, string>): Record<string, string> {
-  return mapObjectEntries(permissions, ([scope, permission]) => [
-    scope.replaceAll('_', '-'), permission,
-  ])
-}
-
-// --- GitHub Functions ------------------------------------------------------------------------------------------------
-
-/**
- * Get GitHub app installation for a repository or owner
- * @param client - GitHub client
- * @param owner - app installation owner
- * @returns installation or null if app is not installed for target
- */
-async function getAppInstallation(client: Octokit, {owner}: {
-  owner: string
-}): Promise<GitHubAppInstallation | null> {
-  // WORKAROUND: for some reason sometimes the request connection get closed unexpectedly (line closed),
-  // therefore we retry on any error
-  return await retry(
-      async () => client.apps.getUserInstallation({username: owner})
-          .then((res) => res.data)
-          .catch(async (error) => error.status === Status.NOT_FOUND ? null : _throw(error))
-          .then((data) => {
-            if (!data) return data
-            return {
-              ...data,
-              permissions: normalizePermissionScopes(data.permissions),
-            }
-          }),
-      {
-        delay: 1000,
-        retries: 3,
-      })
-}
-
-/**
- * Create installation access token
- * @param client - GitHub client
- * @param installation - target installation id
- * @param repositories - target repositories
- * @param permissions - requested permissions
- * @returns access token
- */
-async function createInstallationAccessToken(client: Octokit, installation: GitHubAppInstallation, {
-  repositories, permissions,
-}: {
-  repositories?: string[],
-  permissions: GitHubAppPermissions
-}): Promise<GitHubAppInstallationAccessToken> {
-  // noinspection TypeScriptValidateJSTypes
-  return await client.apps.createInstallationAccessToken({
-    installation_id: installation.id,
-    // BE AWARE that an empty object will result in a token with all app installation permissions
-    permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
-      scope.replaceAll('-', '_'), permission,
-    ])),
-    repositories,
-  })
-      .then((res) => res.data)
-      .then((data) => {
-        if (!data) return data
-        return {
-          ...data,
-          permissions: data.permissions ? normalizePermissionScopes(data.permissions) : data.permissions,
-        }
-      })
-}
-
-/**
- * Create octokit instance for app installation
- * @param client - GitHub client
- * @param installation - app installation
- * @param permissions - requested permissions
- * @param repositories - requested repositories
- * @returns octokit instance
- */
-async function createOctokit(client: Octokit, installation: GitHubAppInstallation, {permissions, repositories}: {
-  permissions: components['schemas']['app-permissions'],
-  repositories?: string[]
-}): Promise<Octokit> {
-  const installationAccessToken = await createInstallationAccessToken(client, installation, {
-    permissions,
-    repositories,
-  })
-  return new Octokit({auth: installationAccessToken.token})
 }
 
 /**
@@ -719,51 +630,13 @@ function filterValidPermissions(
 }
 
 /**
- * Get repository file content
- * @param client - GitHub client for target repository
- * @param owner - repository owner
- * @param repo - repository name
- * @param path - file path
- * @param maxSize - max file size
- * @returns file content or null if file does not exist
- */
-async function getRepositoryFileContent(client: Octokit, {owner, repo, path, maxSize}: {
-  owner: string,
-  repo: string,
-  path: string,
-  maxSize?: number
-}): Promise<string | null> {
-  return await client.repos.getContent({owner, repo, path})
-      .then((res) => {
-        if ('type' in res.data && res.data.type !== 'file') {
-          if (maxSize !== undefined && res.data.size > maxSize) {
-            throw new Error(`Expect file size to be less than ${maxSize}b, but was ${res.data.size}b` +
-                `${owner}/${repo}/${path}`)
-          }
-          return Buffer.from(
-              // @ts-expect-error - content will not be null, because we request a file
-              res.data.content ?? '',
-              'base64').toString()
-        }
-
-        throw new Error('unexpected response')
-      })
-      .catch((error) => {
-        if (error.status === Status.NOT_FOUND) return null
-        throw error
-      })
-}
-
-/**
  * Normalise access policy statement
  * @param statement - access policy statement
  * @param owner - policy owner
  * @param repo - policy repository
  * @returns void
  */
-async function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {
-  owner, repo,
-}: {
+function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owner, repo}: {
   owner: string,
   repo: string,
 }) {
@@ -788,7 +661,7 @@ function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
 /**
  * Evaluate granted permissions for caller identity
  * @param accessPolicy - access policy
- * @param callerIdentity - caller identity
+ * @param callerIdentitySubjects - caller identity subjects
  * @returns granted permissions
  */
 function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
@@ -879,4 +752,132 @@ function regexpOfSubjectPattern(subjectPattern: string): RegExp {
       .replace(/\\\*/g, '[^:]*') // replace * with match one or more characters except ':' char
       .replace(/\\\?/g, '[^:]') // replace ? with match one characters except ':' char
   return RegExp(`^${regexp}$`, 'i')
+}
+
+// --- GitHub Functions ------------------------------------------------------------------------------------------------
+
+/**
+ * Get GitHub app installation for a repository or owner
+ * @param client - GitHub client
+ * @param owner - app installation owner
+ * @returns installation or null if app is not installed for target
+ */
+async function getAppInstallation(client: Octokit, {owner}: {
+  owner: string
+}): Promise<GitHubAppInstallation | null> {
+  // WORKAROUND: for some reason sometimes the request connection get closed unexpectedly (line closed),
+  // therefore we retry on any error
+  return await retry(
+      async () => client.apps.getUserInstallation({username: owner})
+          .then((res) => res.data)
+          .catch(async (error) => error.status === Status.NOT_FOUND ? null : _throw(error))
+          .then((data) => {
+            if (!data) return data
+            return {
+              ...data,
+              permissions: normalizePermissionScopes(data.permissions),
+            }
+          }),
+      {
+        delay: 1000,
+        retries: 3,
+      })
+}
+
+/**
+ * Create installation access token
+ * @param client - GitHub client
+ * @param installation - target installation id
+ * @param repositories - target repositories
+ * @param permissions - requested permissions
+ * @returns access token
+ */
+async function createInstallationAccessToken(client: Octokit, installation: GitHubAppInstallation, {
+  repositories, permissions,
+}: {
+  repositories?: string[],
+  permissions: GitHubAppPermissions
+}): Promise<GitHubAppInstallationAccessToken> {
+  // noinspection TypeScriptValidateJSTypes
+  return await client.apps.createInstallationAccessToken({
+    installation_id: installation.id,
+    // BE AWARE that an empty object will result in a token with all app installation permissions
+    permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
+      scope.replaceAll('-', '_'), permission,
+    ])),
+    repositories,
+  })
+      .then((res) => res.data)
+      .then((data) => {
+        if (!data) return data
+        return {
+          ...data,
+          permissions: data.permissions ? normalizePermissionScopes(data.permissions) : data.permissions,
+        }
+      })
+}
+
+/**
+ * Normalise permission scopes to dash case
+ * @param permissions - permission object
+ * @returns normalised permission object
+ */
+function normalizePermissionScopes(permissions: Record<string, string>): Record<string, string> {
+  return mapObjectEntries(permissions, ([scope, permission]) => [
+    scope.replaceAll('_', '-'), permission,
+  ])
+}
+
+/**
+ * Create octokit instance for app installation
+ * @param client - GitHub client
+ * @param installation - app installation
+ * @param permissions - requested permissions
+ * @param repositories - requested repositories
+ * @returns octokit instance
+ */
+async function createOctokit(client: Octokit, installation: GitHubAppInstallation, {permissions, repositories}: {
+  permissions: components['schemas']['app-permissions'],
+  repositories?: string[]
+}): Promise<Octokit> {
+  const installationAccessToken = await createInstallationAccessToken(client, installation, {
+    permissions,
+    repositories,
+  })
+  return new Octokit({auth: installationAccessToken.token})
+}
+
+/**
+ * Get repository file content
+ * @param client - GitHub client for target repository
+ * @param owner - repository owner
+ * @param repo - repository name
+ * @param path - file path
+ * @param maxSize - max file size
+ * @returns file content or null if file does not exist
+ */
+async function getRepositoryFileContent(client: Octokit, {owner, repo, path, maxSize}: {
+  owner: string,
+  repo: string,
+  path: string,
+  maxSize?: number
+}): Promise<string | null> {
+  return await client.repos.getContent({owner, repo, path})
+      .then((res) => {
+        if ('type' in res.data && res.data.type === 'file') {
+          if (maxSize !== undefined && res.data.size > maxSize) {
+            throw new Error(`Expect file size to be less than ${maxSize}b, but was ${res.data.size}b` +
+                `${owner}/${repo}/${path}`)
+          }
+          return Buffer.from(
+              res.data.content,
+              'base64').toString()
+        }
+
+        throw new Error('Unexpected file content')
+      })
+      .catch((error) => {
+        if (error.status === Status.NOT_FOUND) return null
+        throw error
+      })
 }

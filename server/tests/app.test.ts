@@ -1068,13 +1068,12 @@ function mockGithub() {
 
                 if (repository?.accessPolicy && params.path === config.accessPolicyLocation.repo.path) {
                   const contentString = YAML.stringify(repository.accessPolicy)
-                  return {data: {content: Buffer.from(contentString).toString('base64')}}
+                  return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}}
                 }
 
                 if (repository?.ownerAccessPolicy && params.path === config.accessPolicyLocation.owner.path) {
-
                   const contentString = YAML.stringify(repository.ownerAccessPolicy)
-                  return {data: {content: Buffer.from(contentString).toString('base64')}}
+                  return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}}
                 }
 
                 throw new RequestError('Not Found', Status.NOT_FOUND, {
