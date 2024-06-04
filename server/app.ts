@@ -265,6 +265,7 @@ app.post('/access_tokens',
           break
         }
         case 'repos': {
+          // --- handle owner granted permissions
           verifyPermissions({
             granted: verifyRepositoryPermissions(ownerGrantedPermissions).valid,
             requested: tokenRequest.permissions,
@@ -274,9 +275,11 @@ app.post('/access_tokens',
             delete pendingTokenPermissions[scope]
           })
 
-          // verify if pending requested repository permissions are allowed by owner access policy
+          // --- handle repository granted permissions
+
+          // restrict repository permissions to allowed by owner access policy
           verifyPermissions({
-            granted: ownerAccessPolicy['allowed-repository-permissions'],
+            granted: verifyRepositoryPermissions(ownerAccessPolicy['allowed-repository-permissions']).valid,
             requested: pendingTokenPermissions,
           }).denied.forEach(({scope, permission}) => {
             // reject permission
@@ -525,6 +528,7 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
   }
   const policyValue = await getRepositoryFileContent(client, {
     owner, repo, path,
+    maxSize: 100 * 1024, // 100kb
   })
 
   if (!policyValue) {
@@ -604,6 +608,7 @@ async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}:
   }
   const policyValue = await getRepositoryFileContent(client, {
     owner, repo, path,
+    maxSize: 100 * 1024, // 100kb
   })
   if (!policyValue) {
     return emptyPolicy
@@ -715,24 +720,34 @@ function filterValidPermissions(
 
 /**
  * Get repository file content
- * @param client - github client for target repository
+ * @param client - GitHub client for target repository
  * @param owner - repository owner
  * @param repo - repository name
  * @param path - file path
+ * @param maxSize - max file size
  * @returns file content or null if file does not exist
  */
-async function getRepositoryFileContent(client: Octokit, {owner, repo, path}: {
+async function getRepositoryFileContent(client: Octokit, {owner, repo, path, maxSize}: {
   owner: string,
   repo: string,
   path: string,
+  maxSize?: number
 }): Promise<string | null> {
   return await client.repos.getContent({owner, repo, path})
-      .then((res) => Buffer.from(
-          // @ts-expect-error - content will not be null, because we request a file
-          res.data.content ?? '',
-          'base64')
-          .toString(),
-      )
+      .then((res) => {
+        if ('type' in res.data && res.data.type !== 'file') {
+          if (maxSize !== undefined && res.data.size > maxSize) {
+            throw new Error(`Expect file size to be less than ${maxSize}b, but was ${res.data.size}b` +
+                `${owner}/${repo}/${path}`)
+          }
+          return Buffer.from(
+              // @ts-expect-error - content will not be null, because we request a file
+              res.data.content ?? '',
+              'base64').toString()
+        }
+
+        throw new Error('unexpected response')
+      })
       .catch((error) => {
         if (error.status === Status.NOT_FOUND) return null
         throw error
