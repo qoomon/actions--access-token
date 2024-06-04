@@ -71,7 +71,6 @@ const log = pino({
     level: (label) => ({level: label.toUpperCase()}),
   },
   transport: process.env.LOG_PRETTY === 'true' ? {target: 'pino-pretty', options: {sync: true}} : undefined,
-
 })
 
 const {config} = await import('./config.js')
@@ -94,7 +93,7 @@ const GITHUB_OIDC_TOKEN_VERIFIER = createVerifier({
 
 const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: config.githubAppAuth})
 const GITHUB_APP_INFOS = await GITHUB_APP_CLIENT.apps.getAuthenticated()
-    .then((res) => res.data)
+    .then((res) => res.data!)
 log.debug({githubApp: GITHUB_APP_INFOS}, 'GitHub app')
 
 // --- Server Setup --------------------------------------------------------------------------------------------------
