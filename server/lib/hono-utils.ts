@@ -2,11 +2,12 @@ import {ErrorHandler, Handler, HonoRequest, NotFoundHandler} from 'hono'
 import pino, {Logger} from 'pino'
 import {HTTPException} from 'hono/http-exception'
 import {Status, StatusPhrases} from './http-utils.js'
-import type {StatusCode, UnOfficalStatusCode} from 'hono/utils/http-status'
+import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status'
 import {createMiddleware} from 'hono/factory'
 import {ZodType} from 'zod'
 import {formatZodIssue, JsonTransformer} from './zod-utils.js'
-import {TokenError} from 'fast-jwt'
+import {createVerifier, KeyFetcher, TokenError, VerifierOptions} from 'fast-jwt'
+import {buildJwksKeyFetcher} from './jwt-utils.js'
 
 /**
  * Creates a MethodNotAllowedHandler
@@ -34,7 +35,7 @@ export function notFoundHandler(): NotFoundHandler {
  * Creates an ErrorHandler that response with json
  * @returns ErrorHandler
  */
-export function errorHandler<ENV extends { Variables: { log: Logger, id?: string} }>(): ErrorHandler<ENV> {
+export function errorHandler<ENV extends { Variables: { log: Logger, id?: string } }>(): ErrorHandler<ENV> {
   return (err, context) => {
     const requestId = context.get('id')
     let requestLogger = context.get('log')
@@ -49,7 +50,7 @@ export function errorHandler<ENV extends { Variables: { log: Logger, id?: string
       return context.json({
         requestId,
         status: err.status,
-        error: StatusPhrases[err.status as Exclude<StatusCode, UnOfficalStatusCode>],
+        error: StatusPhrases[err.status as Exclude<StatusCode, UnofficialStatusCode>],
         message: err.message,
       })
     } else {
@@ -133,13 +134,16 @@ export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema:
 }
 
 /**
- * Creates a middleware that verifies a token
- * @param verifier - fast-jwt verifier function
+ * Creates a middleware that verifies a token and sets the token payload as 'token' context variable
+ * @param options - fast-jwt createVerifier options
  * @returns middleware
  */
-export function tokenVerifier<T extends object>(
-    verifier: (token: string) => Promise<T>,
+export function tokenAuthenticator<T extends object>(
+    options: Partial<VerifierOptions & { key?: KeyFetcher }>,
 ) {
+  options.key = options.key ?? buildJwksKeyFetcher({providerDiscovery: true})
+  const verifier = createVerifier(options)
+
   return createMiddleware<{ Variables: { token: T } }>(async (context, next) => {
     // In addition to Authorization header the X-Authorization header can be used for situations,
     // where the Authorization header cannot be used
@@ -168,7 +172,7 @@ export function tokenVerifier<T extends object>(
           throw error
         })
 
-    context.set('token', tokenPayload)
+    context.set('token', tokenPayload as T)
 
     await next()
   })

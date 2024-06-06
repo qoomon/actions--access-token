@@ -9,7 +9,7 @@ inputs:
   scope:
     default: repos
     description: |
-      Token scope eighter 'repos' or 'owner'
+      Token scope either 'repos' or 'owner'
       If you want to request owner wide permissions, you need to set the scope to 'owner'
   permissions:
     description: |

@@ -1,10 +1,12 @@
 import {z} from 'zod'
 import {
   AccessTokenRequestBodySchema,
-  GitHubOwnerAccessPolicySchema,
   GitHubAccessStatementSchema,
   GitHubAppPermissionSchema,
-  GitHubAppPermissionsSchema, GitHubRepositoryAccessPolicySchema, GitHubAppRepositoryPermissionsSchema,
+  GitHubAppPermissionsSchema,
+  GitHubAppRepositoryPermissionsSchema,
+  GitHubOwnerAccessPolicySchema,
+  GitHubRepositoryAccessPolicySchema,
 } from './schemas.js'
 import type {
   RestEndpointMethodTypes,

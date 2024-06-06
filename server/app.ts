@@ -1,4 +1,3 @@
-import {createVerifier} from 'fast-jwt'
 import process from 'process'
 import {Octokit} from '@octokit/rest'
 import {createAppAuth} from '@octokit/auth-app'
@@ -9,16 +8,20 @@ import {
   GitHubActionsJwtPayload,
   GitHubAppInstallation,
   GitHubAppInstallationAccessToken,
-  GitHubAppPermissions, GitHubAppRepositoryPermissions, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy,
+  GitHubAppPermissions,
+  GitHubAppRepositoryPermissions,
+  GitHubOwnerAccessPolicy,
+  GitHubRepositoryAccessPolicy,
   PolicyError,
 } from './lib/types.js'
 import {
   AccessTokenRequestBodySchema,
-  GitHubOwnerAccessPolicySchema,
-  GitHubRepositoryAccessPolicySchema,
   GitHubAccessStatementSchema,
   GitHubAppPermissionsSchema,
-  GitHubSubjectClaimSchema, GitHubAppRepositoryPermissionsSchema,
+  GitHubAppRepositoryPermissionsSchema,
+  GitHubOwnerAccessPolicySchema,
+  GitHubRepositoryAccessPolicySchema,
+  GitHubSubjectClaimSchema,
 } from './lib/schemas.js'
 import {formatZodIssue, YamlTransformer} from './lib/zod-utils.js'
 import {
@@ -38,7 +41,8 @@ import {
   aggregatePermissions,
   parseRepository,
   parseSubject,
-  verifyPermissions, verifyRepositoryPermissions,
+  verifyPermissions,
+  verifyRepositoryPermissions,
 } from './lib/github-utils.js'
 import limit from 'p-limit'
 import {Hono} from 'hono'
@@ -50,7 +54,7 @@ import {
   parseJsonBody,
   setRequestId,
   setRequestLogger,
-  tokenVerifier,
+  tokenAuthenticator,
 } from './lib/hono-utils.js'
 import {Status} from './lib/http-utils.js'
 import {HTTPException} from 'hono/http-exception'
@@ -59,45 +63,26 @@ import {sha256} from 'hono/utils/crypto'
 import {ZodSchema} from 'zod'
 import pino, {Logger} from 'pino'
 
-/**
- * This function will initialize the application
- * @returns application
- */
+const {config} = await import('./config.js')
 
-// --- Configuration -------------------------------------------------------------------------------------------------
 const log = pino({
   level: process.env.LOG_LEVEL || 'info',
   formatters: {
     level: (label) => ({level: label.toUpperCase()}),
   },
-  transport: process.env.LOG_PRETTY === 'true' ? {target: 'pino-pretty', options: {sync: true}} : undefined,
-})
-
-const {config} = await import('./config.js')
-log.debug({
-  config: {
-    ...config, githubAppAuth: {
-      ...config.githubAppAuth, privateKey: '***',
-    },
+  transport: process.env.LOG_PRETTY !== 'true' ? undefined : {
+    target: 'pino-pretty', options: {sync: true},
   },
-}, 'Config')
+})
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 
-const GITHUB_OIDC_TOKEN_VERIFIER = createVerifier({
-  key: buildJwksKeyFetcher({providerDiscovery: true}),
-  allowedIss: 'https://token.actions.githubusercontent.com',
-  allowedAud: config.githubActionsTokenVerifier.allowedAud,
-  allowedSub: config.githubActionsTokenVerifier.allowedSub,
-})
-
+log.debug({appId: config.githubAppAuth.appId}, 'GitHub app')
 const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: config.githubAppAuth})
-const GITHUB_APP_INFOS = await GITHUB_APP_CLIENT.apps.getAuthenticated()
+const GITHUB_APP = await GITHUB_APP_CLIENT.apps.getAuthenticated()
     .then((res) => res.data!)
-log.debug({githubApp: GITHUB_APP_INFOS}, 'GitHub app')
 
 // --- Server Setup --------------------------------------------------------------------------------------------------
-
 export const app = new Hono<{
   Variables: {
     log: Logger
@@ -113,11 +98,15 @@ app.notFound(notFoundHandler())
 app.use(bodyLimit({maxSize: 100 * 1024})) // 100kb
 app.use(prettyJSON())
 
-app.post('/access_tokens',
-    // --- verify caller identity --------------------------------------------------------------------------------------
-    tokenVerifier<GitHubActionsJwtPayload>(GITHUB_OIDC_TOKEN_VERIFIER),
+const githubOidcAuthenticator = tokenAuthenticator<GitHubActionsJwtPayload>({
+  allowedIss: 'https://token.actions.githubusercontent.com',
+  allowedAud: config.githubActionsTokenVerifier.allowedAud,
+  allowedSub: config.githubActionsTokenVerifier.allowedSub,
+  key: buildJwksKeyFetcher({providerDiscovery: true}),
+})
 
-    // --- handle access token request ---------------------------------------------------------------------------------
+// --- handle access token request ---------------------------------------------------------------------------------
+app.post('/access_tokens', githubOidcAuthenticator,
     async (context) => {
       const requestLog = context.get('log')
 
@@ -187,8 +176,8 @@ app.post('/access_tokens',
       })
       if (!appInstallation) {
         throw new HTTPException(Status.FORBIDDEN, {
-          message: `${GITHUB_APP_INFOS.name} has not been installed for ${tokenRequest.owner}.\n` +
-              `Install from ${GITHUB_APP_INFOS.html_url}`,
+          message: `${GITHUB_APP.name} has not been installed for ${tokenRequest.owner}.\n` +
+              `Install from ${GITHUB_APP.html_url}`,
         })
       }
       requestLog.debug({appInstallation},
@@ -200,7 +189,7 @@ app.post('/access_tokens',
       }).denied.map(({scope, permission}) => ({
         scope, permission,
         // eslint-disable-next-line max-len
-        reason: `Permission has not been granted to ${GITHUB_APP_INFOS.name} installation for ${tokenRequest.owner}.`,
+        reason: `Permission has not been granted to ${GITHUB_APP.name} installation for ${tokenRequest.owner}.`,
       }))
 
       if (hasEntries(rejectedAppInstallationPermissions)) {
@@ -388,7 +377,6 @@ app.post('/access_tokens',
       }
       requestLog.info({
         ...tokenResponseBody,
-        token: '***',
         token_hash: await sha256(appInstallationAccessToken.token)
             .then((it) => Buffer.from(it!).toString('base64')),
       }, `Action access token`)
@@ -438,7 +426,7 @@ function createPermissionRejectedHttpException(rejectedTokenPermissions: {
 
 /**
  * Get owner access policy
- * @param client - github client for target repository
+ * @param client - GitHub client for target repository
  * @param owner - repository owner
  * @param repo - repository name
  * @param path - file path
@@ -520,7 +508,7 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
 
 /**
  * Get repository access policy
- * @param client - github client for target repository
+ * @param client - GitHub client for target repository
  * @param owner - repository owner
  * @param repo - repository name
  * @param path - file path

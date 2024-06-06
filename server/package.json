@@ -20,6 +20,7 @@
     "get-jwks": "^9.0.1",
     "hono": "^4.4.2",
     "pino": "^9.1.0",
+    "pino-noir": "^2.2.1",
     "pino-pretty": "^11.1.0",
     "yaml": "^2.3.4",
     "zod": "^3.22.4"
@@ -30,8 +31,8 @@
     "@types/aws-lambda": "^8.10.131",
     "@types/content-type": "^1.1.8",
     "@types/jest": "^29.5.11",
-    "@typescript-eslint/eslint-plugin": "^6.19.1",
-    "@typescript-eslint/parser": "^6.19.1",
+    "@typescript-eslint/eslint-plugin": "^7.12.0",
+    "@typescript-eslint/parser": "^7.12.0",
     "@vercel/ncc": "^0.38.1",
     "eslint": "^8.56.0",
     "eslint-config-google": "^0.14.0",

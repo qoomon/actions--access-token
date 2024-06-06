@@ -2,7 +2,7 @@ import process from 'process'
 import {_throw, regexpOfWildcardPattern} from './lib/common-utils.js'
 import {formatPEMKey} from './lib/ras-key-utils.js'
 
-export const config: Config = {
+export const config: Readonly<Config> = {
   githubAppAuth: {
     appId: process.env['GITHUB_APP_ID'] ??
         _throw(new Error('Environment variable GITHUB_APP_ID is required')),
