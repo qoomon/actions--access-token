@@ -1,3 +1,3 @@
-const {app} = await import('../../app.js')
+const {app} = await import('../../src/app')
 
 export default app

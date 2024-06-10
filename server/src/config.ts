@@ -1,6 +1,6 @@
 import process from 'process'
-import {_throw, regexpOfWildcardPattern} from './lib/common-utils.js'
-import {formatPEMKey} from './lib/ras-key-utils.js'
+import {_throw, regexpOfWildcardPattern} from './common/common-utils'
+import {formatPEMKey} from './common/ras-key-utils'
 
 export const config: Readonly<Config> = {
   githubAppAuth: {

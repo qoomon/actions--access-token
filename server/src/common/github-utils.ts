@@ -5,7 +5,7 @@ import type {
   GitHubAppRepositoryPermissions,
   GitHubRepository,
 } from '../types'
-import {mapObjectEntries, objectOfTuples, tuplesOf} from './common-utils.js'
+import {mapObjectEntries, objectOfTuples, tuplesOf} from './common-utils'
 import {GitHubAppRepositoryPermissionsSchema} from '../schemas'
 import {components} from '@octokit/openapi-types';
 

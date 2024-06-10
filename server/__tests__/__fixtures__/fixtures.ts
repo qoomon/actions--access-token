@@ -1,7 +1,7 @@
 /* eslint-disable require-jsdoc */
 import jwt, {PrivateKey, SignerOptions} from 'fast-jwt'
-import {GitHubActionsJwtPayload, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../types'
-import {parseRepository} from '../lib/github-utils.js'
+import {GitHubActionsJwtPayload, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../../src/types'
+import {parseRepository} from '../../src/common/github-utils'
 import {components} from '@octokit/openapi-types'
 
 export const DEFAULT_OWNER = 'octocat'

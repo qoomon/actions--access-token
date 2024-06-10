@@ -4,8 +4,8 @@ FROM node:20-alpine as build
 COPY . /app
 WORKDIR /app
 
-RUN --mount=type=bind,source=package.json,target=package.json \
-    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+RUN --mount=type=bind,src=package.json,target=package.json \
+    --mount=type=bind,src=package-lock.json,target=package-lock.json \
     --mount=type=cache,target=/root/.npm \
     npm ci
 

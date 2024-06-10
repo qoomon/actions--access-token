@@ -1,16 +1,16 @@
 // noinspection DuplicatedCode
 
-import * as Fixtures from './fixtures.js'
-import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from './fixtures.js'
+import * as Fixtures from '../__tests__/__fixtures__/fixtures'
+import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from '../__tests__/__fixtures__/fixtures'
 import process from 'process'
 import YAML from 'yaml'
-import {GitHubAppPermissions, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../types'
-import {parseRepository, verifyPermission} from '../lib/github-utils.js'
+import {GitHubAppPermissions, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from './types'
+import {parseRepository, verifyPermission} from './common/github-utils'
 import {describe, expect, it, jest} from '@jest/globals'
 import {RequestError} from '@octokit/request-error'
-import {joinRegExp, sleep} from '../lib/common-utils.js'
-import {withHint} from './lib/jest-utils.js'
-import {Status} from '../lib/http-utils.js'
+import {joinRegExp, sleep} from './common/common-utils'
+import {withHint} from '../__tests__/__utils__/jest-utils'
+import {Status} from './common/http-utils'
 
 process.env['LOG_LEVEL'] = process.env['LOG_LEVEL'] || 'warn'
 process.env['GITHUB_APP_ID'] = Fixtures.GITHUB_APP_AUTH.appId
@@ -20,8 +20,8 @@ process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] = Fixtures.GITHUB_ACTIONS_T
 mockJwks()
 const githubMockEnvironment = mockGithub()
 
-const {config} = await import('../config')
-const {app} = await import('../app')
+const {config} = await import('./config')
+const {app} = await import('./app')
 
 beforeEach(() => githubMockEnvironment.reset())
 

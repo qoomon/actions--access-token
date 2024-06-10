@@ -1,8 +1,8 @@
 import {GitHubActionsJwtPayload, GitHubAppPermissions, GitHubAppRepositoryPermissions} from './types'
 import {AccessTokenRequestBodySchema} from './schemas'
-import {hasEntries} from './lib/common-utils.js'
-import {buildJwksKeyFetcher} from './lib/jwt-utils.js'
-import {normalizePermissionScopes, parseRepository, verifyRepositoryPermissions} from './lib/github-utils.js'
+import {hasEntries} from './common/common-utils'
+import {buildJwksKeyFetcher} from './common/jwt-utils'
+import {normalizePermissionScopes, parseRepository, verifyRepositoryPermissions} from './common/github-utils'
 import {Hono} from 'hono'
 import {prettyJSON} from 'hono/pretty-json'
 import {
@@ -13,8 +13,8 @@ import {
   setRequestId,
   setRequestLogger,
   tokenAuthenticator,
-} from './lib/hono-utils.js'
-import {Status} from './lib/http-utils.js'
+} from './common/hono-utils'
+import {Status} from './common/http-utils'
 import {HTTPException} from 'hono/http-exception'
 import {bodyLimit} from 'hono/body-limit'
 import {sha256} from 'hono/utils/crypto'
@@ -22,7 +22,7 @@ import {accessTokenManager, GithubAccessTokenError} from './github-actions-acces
 import log from './logger'
 import {Logger} from 'pino'
 
-const {config} = await import('./config.js')
+const {config} = await import('./config')
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 

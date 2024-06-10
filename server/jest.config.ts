@@ -4,6 +4,8 @@ export default <JestConfigWithTsJest>{
   preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   testPathIgnorePatterns: [
+    '<rootDir>/.*/__fixtures__/',
+    '<rootDir>/.*/__utils__/',
     '<rootDir>/dist/',
     '<rootDir>/node_modules/',
     '<rootDir>/deployments/.+/infrastructure/',

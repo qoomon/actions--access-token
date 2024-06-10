@@ -20,6 +20,6 @@ const githubAppSecret = await secretsManager.send(new GetSecretValueCommand({
 process.env['GITHUB_ACTIONS_APP_ID'] = githubAppSecret.appId
 process.env['GITHUB_ACTIONS_APP_PRIVATE_KEY'] = githubAppSecret.privateKey
 
-const {app} = await import('../../app.js')
+const {app} = await import('../../src/app')
 export const handler = handle(app)
 

@@ -10,7 +10,7 @@ import {
   GitHubRepositoryAccessPolicy,
   PolicyError,
 } from './types'
-import {formatZodIssue, YamlTransformer} from './lib/zod-utils'
+import {formatZodIssue, YamlTransformer} from './common/zod-utils'
 import {
   _throw,
   ensureHasEntries,
@@ -22,7 +22,7 @@ import {
   mapObjectEntries,
   retry,
   unique,
-} from './lib/common-utils'
+} from './common/common-utils'
 import {
   GitHubAccessStatementSchema,
   GitHubAppPermissionsSchema,
@@ -38,8 +38,8 @@ import {
   parseSubject,
   verifyPermissions,
   verifyRepositoryPermissions,
-} from './lib/github-utils'
-import {Status} from './lib/http-utils'
+} from './common/github-utils'
+import {Status} from './common/http-utils'
 import {components} from '@octokit/openapi-types'
 import {createAppAuth} from '@octokit/auth-app'
 import limit from 'p-limit'

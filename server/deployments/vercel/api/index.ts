@@ -9,7 +9,7 @@ if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
 }
 
 process.env['LOG_PRETTY'] = process.env['LOG_PRETTY'] || 'true'
-const {app} = await import('../../../app.js')
+const {app} = await import('../../../src/app')
 
 export const GET = handle(app)
 export const POST = handle(app)

@@ -11853,13 +11853,13 @@ module.exports = __toCommonJS(src_exports);
 // src/aws.ts
 
 
-// src/lib/aws/isVirtualHostableS3Bucket.ts
+// src/common/aws/isVirtualHostableS3Bucket.ts
 
 
-// src/lib/isIpAddress.ts
+// src/common/isIpAddress.ts
 var import_util_endpoints = __nccwpck_require__(5473);
 
-// src/lib/aws/isVirtualHostableS3Bucket.ts
+// src/common/aws/isVirtualHostableS3Bucket.ts
 var isVirtualHostableS3Bucket = /* @__PURE__ */ __name((value, allowSubDomains = false) => {
   if (allowSubDomains) {
     for (const label of value.split(".")) {
@@ -11884,7 +11884,7 @@ var isVirtualHostableS3Bucket = /* @__PURE__ */ __name((value, allowSubDomains =
   return true;
 }, "isVirtualHostableS3Bucket");
 
-// src/lib/aws/parseArn.ts
+// src/common/aws/parseArn.ts
 var parseArn = /* @__PURE__ */ __name((value) => {
   const segments = value.split(":");
   if (segments.length < 6)
@@ -11901,7 +11901,7 @@ var parseArn = /* @__PURE__ */ __name((value) => {
   };
 }, "parseArn");
 
-// src/lib/aws/partitions.json
+// src/common/aws/partitions.json
 var partitions_default = {
   partitions: [{
     id: "aws",
@@ -12119,7 +12119,7 @@ var partitions_default = {
   version: "1.1"
 };
 
-// src/lib/aws/partition.ts
+// src/common/aws/partition.ts
 var selectedPartitionsInfo = partitions_default;
 var selectedUserAgentPrefix = "";
 var partition = /* @__PURE__ */ __name((value) => {
@@ -19149,13 +19149,13 @@ __export(src_exports, {
 });
 module.exports = __toCommonJS(src_exports);
 
-// src/lib/isIpAddress.ts
+// src/common/isIpAddress.ts
 var IP_V4_REGEX = new RegExp(
   `^(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)(?:\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)){3}$`
 );
 var isIpAddress = /* @__PURE__ */ __name((value) => IP_V4_REGEX.test(value) || value.startsWith("[") && value.endsWith("]"), "isIpAddress");
 
-// src/lib/isValidHostLabel.ts
+// src/common/isValidHostLabel.ts
 var VALID_HOST_LABEL_REGEX = new RegExp(`^(?!.*-$)(?!-)[a-zA-Z0-9-]{1,63}$`);
 var isValidHostLabel = /* @__PURE__ */ __name((value, allowSubDomains = false) => {
   if (!allowSubDomains) {
@@ -19201,10 +19201,10 @@ var _EndpointError = class _EndpointError extends Error {
 __name(_EndpointError, "EndpointError");
 var EndpointError = _EndpointError;
 
-// src/lib/booleanEquals.ts
+// src/common/booleanEquals.ts
 var booleanEquals = /* @__PURE__ */ __name((value1, value2) => value1 === value2, "booleanEquals");
 
-// src/lib/getAttrPathList.ts
+// src/common/getAttrPathList.ts
 var getAttrPathList = /* @__PURE__ */ __name((path) => {
   const parts = path.split(".");
   const pathList = [];
@@ -19229,7 +19229,7 @@ var getAttrPathList = /* @__PURE__ */ __name((path) => {
   return pathList;
 }, "getAttrPathList");
 
-// src/lib/getAttr.ts
+// src/common/getAttr.ts
 var getAttr = /* @__PURE__ */ __name((value, path) => getAttrPathList(path).reduce((acc, index) => {
   if (typeof acc !== "object") {
     throw new EndpointError(`Index '${index}' in '${path}' not found in '${JSON.stringify(value)}'`);
@@ -19239,13 +19239,13 @@ var getAttr = /* @__PURE__ */ __name((value, path) => getAttrPathList(path).redu
   return acc[index];
 }, value), "getAttr");
 
-// src/lib/isSet.ts
+// src/common/isSet.ts
 var isSet = /* @__PURE__ */ __name((value) => value != null, "isSet");
 
-// src/lib/not.ts
+// src/common/not.ts
 var not = /* @__PURE__ */ __name((value) => !value, "not");
 
-// src/lib/parseURL.ts
+// src/common/parseURL.ts
 var import_types3 = __nccwpck_require__(5756);
 var DEFAULT_PORTS = {
   [import_types3.EndpointURLScheme.HTTP]: 80,
@@ -19293,10 +19293,10 @@ var parseURL = /* @__PURE__ */ __name((value) => {
   };
 }, "parseURL");
 
-// src/lib/stringEquals.ts
+// src/common/stringEquals.ts
 var stringEquals = /* @__PURE__ */ __name((value1, value2) => value1 === value2, "stringEquals");
 
-// src/lib/substring.ts
+// src/common/substring.ts
 var substring = /* @__PURE__ */ __name((input, start, stop, reverse) => {
   if (start >= stop || input.length < stop) {
     return null;
@@ -19307,7 +19307,7 @@ var substring = /* @__PURE__ */ __name((input, start, stop, reverse) => {
   return input.substring(input.length - stop, input.length - start);
 }, "substring");
 
-// src/lib/uriEncode.ts
+// src/common/uriEncode.ts
 var uriEncode = /* @__PURE__ */ __name((value) => encodeURIComponent(value).replace(/[!*'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`), "uriEncode");
 
 // src/utils/endpointFunctions.ts
@@ -31218,7 +31218,7 @@ function extractBody (object, keepalive = false) {
   // 6. Let action be null.
   let action = null
 
-  // 7. Let source be null.
+  // 7. Let src be null.
   let source = null
 
   // 8. Let length be null.
@@ -31229,8 +31229,8 @@ function extractBody (object, keepalive = false) {
 
   // 10. Switch on object:
   if (typeof object === 'string') {
-    // Set source to the UTF-8 encoding of object.
-    // Note: setting source to a Uint8Array here breaks some mocking assumptions.
+    // Set src to the UTF-8 encoding of object.
+    // Note: setting src to a Uint8Array here breaks some mocking assumptions.
     source = object
 
     // Set type to `text/plain;charset=UTF-8`.
@@ -31243,7 +31243,7 @@ function extractBody (object, keepalive = false) {
     // See: https://github.com/nodejs/node/blob/e46c680bf2b211bbd52cf959ca17ee98c7f657f5/lib/internal/url.js#L490
     // and https://github.com/nodejs/node/blob/e46c680bf2b211bbd52cf959ca17ee98c7f657f5/lib/internal/url.js#L1100
 
-    // Set source to the result of running the application/x-www-form-urlencoded serializer with object’s list.
+    // Set src to the result of running the application/x-www-form-urlencoded serializer with object’s list.
     source = object.toString()
 
     // Set type to `application/x-www-form-urlencoded;charset=UTF-8`.
@@ -31251,12 +31251,12 @@ function extractBody (object, keepalive = false) {
   } else if (isArrayBuffer(object)) {
     // BufferSource/ArrayBuffer
 
-    // Set source to a copy of the bytes held by object.
+    // Set src to a copy of the bytes held by object.
     source = new Uint8Array(object.slice())
   } else if (ArrayBuffer.isView(object)) {
     // BufferSource/ArrayBufferView
 
-    // Set source to a copy of the bytes held by object.
+    // Set src to a copy of the bytes held by object.
     source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (util.isFormDataLike(object)) {
     const boundary = `----formdata-undici-0${`${Math.floor(Math.random() * 1e11)}`.padStart(11, '0')}`
@@ -31307,7 +31307,7 @@ function extractBody (object, keepalive = false) {
       length = null
     }
 
-    // Set source to object.
+    // Set src to object.
     source = object
 
     action = async function * () {
@@ -31327,7 +31327,7 @@ function extractBody (object, keepalive = false) {
   } else if (isBlobLike(object)) {
     // Blob
 
-    // Set source to object.
+    // Set src to object.
     source = object
 
     // Set length to object’s size.
@@ -31355,8 +31355,8 @@ function extractBody (object, keepalive = false) {
       object instanceof ReadableStream ? object : ReadableStreamFrom(object)
   }
 
-  // 11. If source is a byte sequence, then set action to a
-  // step that returns source and length to source’s length.
+  // 11. If src is a byte sequence, then set action to a
+  // step that returns src and length to src’s length.
   if (typeof source === 'string' || util.isBuffer(source)) {
     length = Buffer.byteLength(source)
   }
@@ -31393,7 +31393,7 @@ function extractBody (object, keepalive = false) {
     })
   }
 
-  // 13. Let body be a body whose stream is stream, source is source,
+  // 13. Let body be a body whose stream is stream, src is src,
   // and length is length.
   const body = { stream, source, length }
 
@@ -32843,7 +32843,7 @@ function processBlobParts (parts, options) {
       types.isTypedArray(element)
     ) {
       // 2. If element is a BufferSource, get a copy of the
-      //    bytes held by the buffer source, and append those
+      //    bytes held by the buffer src, and append those
       //    bytes to bytes.
       if (!element.buffer) { // ArrayBuffer
         bytes.push(new Uint8Array(element))
@@ -34989,7 +34989,7 @@ function httpRedirectFetch (fetchParams, response) {
   }
 
   // 11. If actualResponse’s status is not 303, request’s body is non-null,
-  // and request’s body’s source is null, then return a network error.
+  // and request’s body’s src is null, then return a network error.
   if (
     actualResponse.status !== 303 &&
     request.body != null &&
@@ -35034,7 +35034,7 @@ function httpRedirectFetch (fetchParams, response) {
   }
 
   // 14. If request’s body is non-null, then set request’s body to the first return
-  // value of safely extracting request’s body’s source.
+  // value of safely extracting request’s body’s src.
   if (request.body != null) {
     assert(request.body.source != null)
     request.body = safelyExtractBody(request.body.source)[0]
@@ -35362,7 +35362,7 @@ async function httpNetworkOrCacheFetch (
     response.status === 421 &&
     // isNewConnectionFetch is false
     !isNewConnectionFetch &&
-    // request’s body is null, or request’s body is non-null and request’s body’s source is non-null
+    // request’s body is null, or request’s body is non-null and request’s body’s src is non-null
     (request.body == null || request.body.source != null)
   ) {
     // then:
@@ -35464,7 +35464,7 @@ async function httpNetworkFetch (
   //    cross-origin isolated capability.
 
   //    3. If connection is not an HTTP/2 connection, request’s body is non-null,
-  //    and request’s body’s source is null, then append (`Transfer-Encoding`,
+  //    and request’s body’s src is null, then append (`Transfer-Encoding`,
   //    `chunked`) to request’s header list.
 
   //    4. Set timingInfo’s final network-request start time to the coarsened
@@ -35477,7 +35477,7 @@ async function httpNetworkFetch (
   //        - Follow the relevant requirements from HTTP. [HTTP] [HTTP-SEMANTICS]
   //        [HTTP-COND] [HTTP-CACHING] [HTTP-AUTH]
 
-  //        - If request’s body is non-null, and request’s body’s source is null,
+  //        - If request’s body is non-null, and request’s body’s src is null,
   //        then the user agent may have a buffer of up to 64 kibibytes and store
   //        a part of request’s body in that buffer. If the user agent reads from
   //        request’s body beyond that buffer’s size and the user agent needs to
@@ -36459,7 +36459,7 @@ class Request {
     // inputBody.
     const inputOrInitBody = initBody ?? inputBody
 
-    // 38. If inputOrInitBody is non-null and inputOrInitBody’s source is
+    // 38. If inputOrInitBody is non-null and inputOrInitBody’s src is
     // null, then:
     if (inputOrInitBody != null && inputOrInitBody.source == null) {
       // 1. If initBody is non-null and init["duplex"] does not exist,
@@ -39747,7 +39747,7 @@ class FileReader extends EventTarget {
     }
 
     // 3. If there are any tasks from this on the file reading
-    //    task source in an affiliated task queue, then remove
+    //    task src in an affiliated task queue, then remove
     //    those tasks from that task queue.
     this[kAborted] = true
 
@@ -42499,7 +42499,7 @@ module.exports = class Pluralizer {
 
 
 
-// Extracted from node/lib/internal/fixed_queue.js
+// Extracted from node/common/internal/fixed_queue.js
 
 // Currently optimal queue size, tested on V8 6.0 - 6.6. Must be power of two.
 const kSize = 2048;
@@ -43856,7 +43856,7 @@ webidl.converters.MessageEventInit = webidl.dictionaryConverter([
   {
     key: 'source',
     // Node doesn't implement WindowProxy or ServiceWorker, so the only
-    // valid value for source is a MessagePort.
+    // valid value for src is a MessagePort.
     converter: webidl.nullableConverter(webidl.converters.MessagePort),
     defaultValue: null
   },
@@ -49049,7 +49049,7 @@ function doubleQuotedValue(source, onError) {
 }
 /**
  * Fold a single newline into a space, multiple newlines to N - 1 newlines.
- * Presumes `source[offset] === '\n'`
+ * Presumes `src[offset] === '\n'`
  */
 function foldNewline(source, offset) {
     let fold = '';
@@ -49771,7 +49771,7 @@ function createNodeAnchors(doc, prefix) {
             return anchor;
         },
         /**
-         * With circular references, the source node is only resolved after all
+         * With circular references, the src node is only resolved after all
          * of its child nodes are. This is why anchors are set only after all of
          * the nodes have been created.
          */
@@ -50324,7 +50324,7 @@ class Alias extends Node.NodeBase {
     }
     /**
      * Resolve the value of this alias within `doc`, finding the last
-     * instance of the `source` anchor before this node.
+     * instance of the `src` anchor before this node.
      */
     resolve(doc) {
         let found = undefined;
@@ -51861,7 +51861,7 @@ class Lexer {
         this.pos = 0;
     }
     /**
-     * Generate YAML tokens from the `source` string. If `incomplete`,
+     * Generate YAML tokens from the `src` string. If `incomplete`,
      * a part of the last line may be left as a buffer for the next call.
      *
      * @returns A generator of lexical tokens
@@ -52580,9 +52580,9 @@ function fixFlowSeqItems(fc) {
  * To use the parser with a user-provided lexer:
  *
  * ```ts
- * function* parse(source: string, lexer: Lexer) {
+ * function* parse(src: string, lexer: Lexer) {
  *   const parser = new Parser()
- *   for (const lexeme of lexer.lex(source))
+ *   for (const lexeme of lexer.lex(src))
  *     yield* parser.next(lexeme)
  *   yield* parser.end()
  * }
@@ -52612,7 +52612,7 @@ class Parser {
         this.onKeyLine = false;
         /** Top indicates the node that's currently being built */
         this.stack = [];
-        /** The source of the current token, set in parse() */
+        /** The src of the current token, set in parse() */
         this.source = '';
         /** The type of the current token, set in parse() */
         this.type = '';
@@ -52621,7 +52621,7 @@ class Parser {
         this.onNewLine = onNewLine;
     }
     /**
-     * Parse `source` as a YAML stream.
+     * Parse `src` as a YAML stream.
      * If `incomplete`, a part of the last line may be left as a buffer for the next call.
      *
      * Errors are not thrown, but yielded as `{ type: 'error', message }` tokens.
@@ -52637,7 +52637,7 @@ class Parser {
             yield* this.end();
     }
     /**
-     * Advance the parser by the `source` of one lexical token.
+     * Advance the parser by the `src` of one lexical token.
      */
     *next(source) {
         this.source = source;
@@ -52929,7 +52929,7 @@ class Parser {
                 return;
             case 'scalar':
                 scalar.source = this.source;
-                // block-scalar source includes trailing newline
+                // block-scalar src includes trailing newline
                 this.atNewLine = true;
                 this.indent = 0;
                 if (this.onNewLine) {
@@ -56101,9 +56101,9 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
 
-// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
+// EXTERNAL MODULE: ./node_modules/@actions/core/common/core.js
 var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
+// EXTERNAL MODULE: ./node_modules/@actions/http-client/common/index.js
 var lib = __nccwpck_require__(6255);
 // EXTERNAL MODULE: ./node_modules/@smithy/signature-v4/dist-cjs/index.js
 var dist_cjs = __nccwpck_require__(1528);
@@ -56113,7 +56113,7 @@ var main = __nccwpck_require__(5071);
 var credential_providers_dist_cjs = __nccwpck_require__(7464);
 // EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
 var dist = __nccwpck_require__(4083);
-;// CONCATENATED MODULE: ./lib/github-actions-utils.ts
+;// CONCATENATED MODULE: ./common/github-actions-utils.ts
 
 
 /**
@@ -56156,7 +56156,7 @@ function getInput(name, options) {
     return core.getInput(name, options) || undefined;
 }
 
-;// CONCATENATED MODULE: ./node_modules/zod/lib/index.mjs
+;// CONCATENATED MODULE: ./node_modules/zod/common/index.mjs
 var util;
 (function (util) {
     util.assertEqual = (val) => val;
@@ -60175,7 +60175,7 @@ var z = /*#__PURE__*/Object.freeze({
 
 
 
-;// CONCATENATED MODULE: ./lib/signature4.ts
+;// CONCATENATED MODULE: ./common/signature4.ts
 /**
  * Sign request to authenticate with AWS_IAM authentication
  * @param request - request to sign

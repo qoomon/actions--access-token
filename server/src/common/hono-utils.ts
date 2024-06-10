@@ -1,13 +1,13 @@
 import {ErrorHandler, Handler, HonoRequest, NotFoundHandler} from 'hono'
 import pino, {Logger} from 'pino'
 import {HTTPException} from 'hono/http-exception'
-import {Status, StatusPhrases} from './http-utils.js'
+import {Status, StatusPhrases} from './http-utils'
 import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status'
 import {createMiddleware} from 'hono/factory'
 import {ZodType} from 'zod'
-import {formatZodIssue, JsonTransformer} from './zod-utils.js'
+import {formatZodIssue, JsonTransformer} from './zod-utils'
 import {createVerifier, KeyFetcher, TokenError, VerifierOptions} from 'fast-jwt'
-import {buildJwksKeyFetcher} from './jwt-utils.js'
+import {buildJwksKeyFetcher} from './jwt-utils'
 
 /**
  * Creates a MethodNotAllowedHandler

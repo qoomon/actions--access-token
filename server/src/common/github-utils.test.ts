@@ -1,5 +1,5 @@
 import {describe, expect, it} from '@jest/globals'
-import {parseRepository} from '../../lib/github-utils.js'
+import {parseRepository} from './github-utils'
 
 describe('parseRepository', () => {
 
