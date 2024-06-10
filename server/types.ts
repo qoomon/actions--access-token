@@ -7,7 +7,7 @@ import {
   GitHubAppRepositoryPermissionsSchema,
   GitHubOwnerAccessPolicySchema,
   GitHubRepositoryAccessPolicySchema,
-} from './schemas.js'
+} from './schemas'
 import type {
   RestEndpointMethodTypes,
 } from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types'

@@ -1,11 +1,13 @@
 import type {
+  ConditionalUndefined,
   GitHubAppPermission,
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
   GitHubRepository,
-} from './types.js'
-import {objectOfTuples, tuplesOf} from './common-utils.js'
-import {GitHubAppRepositoryPermissionsSchema} from './schemas.js'
+} from '../types'
+import {mapObjectEntries, objectOfTuples, tuplesOf} from './common-utils.js'
+import {GitHubAppRepositoryPermissionsSchema} from '../schemas'
+import {components} from '@octokit/openapi-types';
 
 /**
  * Parse repository string to owner and repo
@@ -122,4 +124,19 @@ export function verifyRepositoryPermissions(permissions: GitHubAppRepositoryPerm
     }
   })
   return {valid, invalid}
+}
+
+/**
+ * Normalise permission scopes to dash case
+ * @param permissions - permission object
+ * @returns normalised permission object
+ */
+export function normalizePermissionScopes<
+    PERMISSIONS extends components['schemas']['app-permissions']
+>(permissions?: PERMISSIONS): ConditionalUndefined<GitHubAppPermissions, PERMISSIONS> {
+  if (!permissions) return undefined as ConditionalUndefined<GitHubAppPermissions, PERMISSIONS>
+
+  return mapObjectEntries(permissions, ([scope, permission]) => [
+    scope.replaceAll('_', '-'), permission,
+  ]) as GitHubAppPermissions
 }

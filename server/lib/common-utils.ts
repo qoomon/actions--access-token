@@ -17,6 +17,16 @@ export function _throw(error: unknown): never {
 }
 
 /**
+ * This function maps the given value with the given function
+ * @param value - value to map
+ * @param fn - mapping function
+ * @returns mapped value
+ */
+export function mapValue<T, R>(value:T, fn: (value:T) => R): R {
+  return fn(value)
+}
+
+/**
  * This function will ensure that the given object is not empty, otherwise it will throw an error
  * @param obj - object to check
  * @returns the given object

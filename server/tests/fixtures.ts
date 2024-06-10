@@ -1,6 +1,6 @@
 /* eslint-disable require-jsdoc */
 import jwt, {PrivateKey, SignerOptions} from 'fast-jwt'
-import {GitHubActionsJwtPayload, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../lib/types.js'
+import {GitHubActionsJwtPayload, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../types'
 import {parseRepository} from '../lib/github-utils.js'
 import {components} from '@octokit/openapi-types'
 
