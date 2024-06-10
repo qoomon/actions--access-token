@@ -19,19 +19,6 @@
     "no-trailing-spaces":["error", { "skipBlankLines": true }],
     "valid-jsdoc": ["error", {"requireParamType": false, "requireReturnType": false}],
     "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_" }],
-  },
-  "overrides": [
-    {
-      "files": "tests/**/*.[tj]s",
-      "rules": {
-        "@typescript-eslint/no-explicit-any": "off",
-
-        "no-throw-literal": "error",
-        "camelcase": "off",
-        "max-len": "off",
-        "padded-blocks": "off"
-      }
-    }
-  ]
+    "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_" }]
+  }
 }

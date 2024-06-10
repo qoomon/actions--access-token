@@ -1,6 +1,6 @@
 import {DecodedJwt, TokenError} from 'fast-jwt'
 import buildJwks, {GetJwksOptions} from 'get-jwks'
-import {retry} from './common-utils'
+import {retry} from './common-utils.js'
 
 /**
  * This function will create a function to fetch the public key for the given decoded jwt

@@ -4,10 +4,10 @@ import type {
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
   GitHubRepository,
-} from '../types'
-import {mapObjectEntries, objectOfTuples, tuplesOf} from './common-utils'
-import {GitHubAppRepositoryPermissionsSchema} from '../schemas'
-import {components} from '@octokit/openapi-types';
+} from './types.js'
+import {mapObjectEntries, objectOfTuples, tuplesOf} from './common-utils.js'
+import {GitHubAppRepositoryPermissionsSchema} from './schemas.js'
+import {components} from '@octokit/openapi-types'
 
 /**
  * Parse repository string to owner and repo

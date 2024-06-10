@@ -1,6 +1,6 @@
-import type {StatusCode, UnOfficalStatusCode} from 'hono/utils/http-status'
+import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status'
 
-export const StatusPhrases: Record<Exclude<StatusCode, UnOfficalStatusCode>, string> = {
+export const StatusPhrases: Record<Exclude<StatusCode, UnofficialStatusCode>, string> = {
   100: 'Continue',
   101: 'Switching Protocols',
   102: 'Processing',
@@ -70,7 +70,7 @@ export const StatusPhrases: Record<Exclude<StatusCode, UnOfficalStatusCode>, str
   511: 'Network Authentication Required',
 }
 
-export const Status: Record<string, Exclude<StatusCode, UnOfficalStatusCode>> = {
+export const Status: Record<string, Exclude<StatusCode, UnofficialStatusCode>> = {
   'CONTINUE': 100,
   'SWITCHING_PROTOCOLS': 101,
   'PROCESSING': 102,

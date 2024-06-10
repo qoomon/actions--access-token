@@ -9,8 +9,8 @@ import {
   GitHubOwnerAccessPolicy,
   GitHubRepositoryAccessPolicy,
   PolicyError,
-} from './types'
-import {formatZodIssue, YamlTransformer} from './common/zod-utils'
+} from './common/types.js'
+import {formatZodIssue, YamlTransformer} from './common/zod-utils.js'
 import {
   _throw,
   ensureHasEntries,
@@ -22,7 +22,7 @@ import {
   mapObjectEntries,
   retry,
   unique,
-} from './common/common-utils'
+} from './common/common-utils.js'
 import {
   GitHubAccessStatementSchema,
   GitHubAppPermissionsSchema,
@@ -30,7 +30,7 @@ import {
   GitHubOwnerAccessPolicySchema,
   GitHubRepositoryAccessPolicySchema,
   GitHubSubjectClaimSchema,
-} from './schemas'
+} from './common/schemas.js'
 import {ZodSchema} from 'zod'
 import {
   aggregatePermissions,
@@ -38,13 +38,13 @@ import {
   parseSubject,
   verifyPermissions,
   verifyRepositoryPermissions,
-} from './common/github-utils'
-import {Status} from './common/http-utils'
+} from './common/github-utils.js'
+import {Status} from './common/http-utils.js'
 import {components} from '@octokit/openapi-types'
 import {createAppAuth} from '@octokit/auth-app'
 import limit from 'p-limit'
-import {config} from './config'
-import log from './logger'
+import {config} from './config.js'
+import log from './logger.js'
 
 /**
  * GitHub Access Manager

@@ -1,16 +1,23 @@
 // noinspection DuplicatedCode
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import * as Fixtures from '../__tests__/__fixtures__/fixtures'
-import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from '../__tests__/__fixtures__/fixtures'
+import * as Fixtures from '../__tests__/__fixtures__/fixtures.js'
+import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from '../__tests__/__fixtures__/fixtures.js'
 import process from 'process'
 import YAML from 'yaml'
-import {GitHubAppPermissions, GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from './types'
-import {parseRepository, verifyPermission} from './common/github-utils'
+import {
+  GitHubAppPermissions,
+  GitHubAppRepositoryPermissions,
+  GitHubOwnerAccessPolicy,
+  GitHubRepositoryAccessPolicy,
+  GitHubRepositoryAccessStatement,
+} from './common/types.js'
+import {parseRepository, verifyPermission} from './common/github-utils.js'
 import {describe, expect, it, jest} from '@jest/globals'
 import {RequestError} from '@octokit/request-error'
-import {joinRegExp, sleep} from './common/common-utils'
-import {withHint} from '../__tests__/__utils__/jest-utils'
-import {Status} from './common/http-utils'
+import {joinRegExp, sleep} from './common/common-utils.js'
+import {withHint} from '../__tests__/__utils__/jest-utils.js'
+import {Status} from './common/http-utils.js'
 
 process.env['LOG_LEVEL'] = process.env['LOG_LEVEL'] || 'warn'
 process.env['GITHUB_APP_ID'] = Fixtures.GITHUB_APP_AUTH.appId
@@ -55,11 +62,8 @@ describe('App path /access_tokens', () => {
   })
 
   describe('POST request', () => {
-
     describe('should response with status UNAUTHORIZED', () => {
-
       it('if authorization header is missing', async () => {
-
         // --- When ---
         const response = await app.request(path, {method: 'POST'})
 
@@ -73,7 +77,6 @@ describe('App path /access_tokens', () => {
       })
 
       it('if authorization scheme is invalid', async () => {
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -90,7 +93,6 @@ describe('App path /access_tokens', () => {
       })
 
       it('if authorization token value is malformed', async () => {
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -107,7 +109,6 @@ describe('App path /access_tokens', () => {
       })
 
       it('if authorization token signature is invalid', async () => {
-
         // --- Given ---
         const githubToken = Fixtures.createGitHubActionsToken({
           signing: {
@@ -239,7 +240,7 @@ describe('App path /access_tokens', () => {
           method: 'POST',
           headers: {Authorization: `Bearer ${githubToken}`},
           body: JSON.stringify({
-            permissions: {secrets: 'invalid' as any},
+            permissions: {secrets: 'invalid'},
           }),
         })
 
@@ -370,7 +371,6 @@ describe('App path /access_tokens', () => {
     })
 
     describe('should response with status FORBIDDEN', () => {
-
       it('if GitHub app has not been installed for target repo', async () => {
         // --- Given ---
         const githubToken = Fixtures.createGitHubActionsToken({})
@@ -844,7 +844,7 @@ describe('App path /access_tokens', () => {
             accessPolicy: {
               statements: [{
                 subjects: ['repo:${origin}:ref:refs/heads/*'],
-                permissions: {'secrets': 'write', 'invalid_permission': 'write'} as any,
+                permissions: {'secrets': 'write', 'invalid_permission': 'write'} as GitHubAppRepositoryPermissions,
               }],
             },
           })
@@ -878,12 +878,14 @@ describe('App path /access_tokens', () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
-              statements: [{
-                subjects: ['repo:${origin}:ref:refs/heads/*'],
-                permissions: {'secrets': 'write'} as any,
-              }, {
-                permissions: 'invalid',
-              } as any],
+              statements: [
+                {
+                  subjects: ['repo:${origin}:ref:refs/heads/*'],
+                  permissions: {'secrets': 'write'},
+                }, {
+                  permissions: 'invalid',
+                } as unknown as GitHubRepositoryAccessStatement,
+              ],
             },
           })
           const githubToken = Fixtures.createGitHubActionsToken({
@@ -999,9 +1001,9 @@ function mockGithub() {
   }
 
   jest.unstable_mockModule('@octokit/rest', () => ({
-    Octokit: jest.fn().mockImplementation((Octokit_params: any) => {
+    Octokit: jest.fn().mockImplementation((paramsOctokit: any) => {
       // GitHub app
-      if (Octokit_params.auth.appId) {
+      if (paramsOctokit.auth.appId) {
         return {
           apps: {
             getAuthenticated: jest.fn().mockReturnValue(Promise.resolve({
@@ -1026,7 +1028,9 @@ function mockGithub() {
                     requested: permission as string,
                     granted: installation.permissions[scope as keyof GitHubAppPermissions],
                   })) {
-                    console.error(`Invalid permission: ${scope} requested=${permission} granted=${installation.permissions[scope as keyof GitHubAppPermissions]}`)
+                    console.error(`Invalid permission: ${scope}` +
+                        ` requested=${permission}` +
+                        ` granted=${installation.permissions[scope as keyof GitHubAppPermissions]}`)
                     throw new RequestError('Unprocessable Entity', Status.UNPROCESSABLE_ENTITY, {
                       request: {headers: {}, url: 'http://localhost/tests'} as any,
                     })
@@ -1053,9 +1057,9 @@ function mockGithub() {
       }
 
       // GitHub app installation
-      if (typeof Octokit_params.auth === 'string') {
+      if (typeof paramsOctokit.auth === 'string') {
         const installation = Object.values(mock.appInstallations)
-            .find((installation) => installation.id === parseInt(Octokit_params.auth.split('@')[1]))
+            .find((installation) => installation.id === parseInt(paramsOctokit.auth.split('@')[1]))
         if (installation) {
           return {
             repos: {
@@ -1127,19 +1131,19 @@ function mockGithub() {
       return repository
     },
 
-    addAppInstallation({target_type, owner, permissions}: {
-      target_type?: 'User' | 'Organization',
+    addAppInstallation({targetType, owner, permissions}: {
+      targetType?: 'User' | 'Organization',
       owner?: string,
       permissions?: Record<string, string>,
     }): AppInstallation {
-      target_type = target_type || 'User'
+      targetType = targetType || 'User'
       owner = owner || DEFAULT_OWNER
       permissions = permissions || {}
       const id = 1000 + Object.keys(mock.appInstallations).length
 
       const installation = {
         id,
-        target_type, owner,
+        target_type: targetType, owner,
         permissions,
       }
       mock.appInstallations[installation.owner] = installation

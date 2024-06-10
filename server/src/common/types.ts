@@ -6,8 +6,8 @@ import {
   GitHubAppPermissionsSchema,
   GitHubAppRepositoryPermissionsSchema,
   GitHubOwnerAccessPolicySchema,
-  GitHubRepositoryAccessPolicySchema,
-} from './schemas'
+  GitHubRepositoryAccessPolicySchema, GitHubRepositoryAccessStatementSchema,
+} from './schemas.js'
 import type {
   RestEndpointMethodTypes,
 } from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types'
@@ -29,6 +29,7 @@ export type GitHubRepository = {
 export type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>
 export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>
 export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>
+export type GitHubRepositoryAccessStatement = z.infer<typeof GitHubRepositoryAccessStatementSchema>
 export type GitHubAppPermission = z.infer<typeof GitHubAppPermissionSchema>
 export type GitHubAppPermissions = z.infer<typeof GitHubAppPermissionsSchema>
 export type GitHubAppRepositoryPermissions = z.infer<typeof GitHubAppRepositoryPermissionsSchema>
