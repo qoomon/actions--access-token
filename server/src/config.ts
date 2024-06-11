@@ -29,6 +29,8 @@ export const config: Readonly<Config> = {
   },
 }
 
+// --- Types -----------------------------------------------------------------------------------------------------------
+
 type Config = {
   githubAppAuth: {
     appId: string

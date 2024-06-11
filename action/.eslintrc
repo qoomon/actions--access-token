@@ -1,20 +1,22 @@
 {
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"],
+  "plugins": [
+    "@typescript-eslint",
+    "jest"
+  ],
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:@typescript-eslint/eslint-recommended",
-    "plugin:node/recommended",
+    "plugin:jest/recommended",
     "google"
   ],
   "root": true,
   "rules": {
-    "semi": ["error", "never"],
     "max-len": ["error", {"code": 120, "ignoreComments": true}],
+    "semi": ["error", "never"],
+    "no-trailing-spaces":["error", { "skipBlankLines": true }],
     "valid-jsdoc": ["error", {"requireParamType": false, "requireReturnType": false}],
-    "node/no-missing-import": "off",
-    "node/no-extraneous-import": "off"
-  },
-  "ignorePatterns": ["dist/**", "deployments/**/infrastructure/**"]
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_" }]
+  }
 }

@@ -1,5 +1,5 @@
 import {describe, expect, it} from '@jest/globals'
-import {parseRepository} from './github-utils.js'
+import {parseRepository} from '../../src/common/github-utils.js'
 
 describe('parseRepository', () => {
   it('should response with status FORBIDDEN', async () => {

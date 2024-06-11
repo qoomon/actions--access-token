@@ -91,7 +91,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
             - A comma separated list of allowed subject patterns e.g. `repo:octocat/*`
             - If not set or empty all subjects are allowed
 
-3. **Adjust [actions config](../action/config.ts) `api.url` to docker host**
+3. **Adjust [actions config](../action/src/config.ts) `api.url` to docker host**
     - e.g. http://YOUR-DOMAIN.com:3000
 
 </details>
@@ -119,7 +119,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     - Take a note of `Production` domain
    - Set function environment variable `GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE` to vercel project `Production` domain
 
-3. **Adjust [actions config](../action/config.ts) `api.url` to vercel project `Production` domain**
+3. **Adjust [actions config](../action/src/config.ts) `api.url` to vercel project `Production` domain**
 
 * e.g. https://github-actions-access-token.vercel.app
 
@@ -148,7 +148,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     - Edit the `GitHubAppSecret` from cdk output
     - Set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` accordingly to your GitHub App
 
-3. **Adjust [actions config](../action/config.ts) to cdk outputs as follows**
+3. **Adjust [actions config](../action/src/config.ts) to cdk outputs as follows**
    ```ts
    export const config: Config = {
        api: {

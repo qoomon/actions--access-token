@@ -6,22 +6,23 @@
   "main": "dist/index.js",
   "scripts": {
     "lint": "eslint .",
-    "build": "ncc build index.ts",
+    "build": "ncc build src/action.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
-    "start": "ncc run index.ts"
+    "start": "ncc run src/action.ts"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
-    "@actions/http-client": "^2.2.0",
+    "@actions/http-client": "^2.2.1",
     "@aws-crypto/sha256-js": "^5.2.0",
-    "@aws-sdk/credential-providers": "^3.499.0",
-    "@smithy/signature-v4": "^2.1.1",
+    "@aws-sdk/credential-providers": "^3.592.0",
+    "@smithy/signature-v4": "^3.0.0",
     "ts-node": "^10.9.2",
-    "yaml": "^2.3.4",
-    "zod": "^3.22.4"
+    "yaml": "^2.4.5",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^8.56.0",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.11.7",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
     "@typescript-eslint/parser": "^6.19.1",
@@ -29,11 +30,11 @@
     "eslint": "^8.56.0",
     "eslint-config-google": "^0.14.0",
     "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-jest": "^27.6.3",
     "eslint-plugin-node": "^11.1.0",
     "jest": "^29.7.0",
-    "supertest": "^6.3.4",
-    "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3"
+    "ts-jest": "^29.1.4",
+    "typescript": "^5.4.5"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -1,4 +1,3 @@
-import {HttpClientRequest} from './types'
 import {SignatureV4} from '@smithy/signature-v4'
 import {OutgoingHttpHeaders} from 'http'
 
@@ -8,7 +7,7 @@ import {OutgoingHttpHeaders} from 'http'
  * @param signer - aws signer
  * @returns signed request
  */
-export async function signHttpRequest(request: HttpClientRequest, signer: SignatureV4): Promise<HttpClientRequest> {
+export async function signHttpRequest(request: HttpRequest, signer: SignatureV4): Promise<HttpRequest> {
   const canonicalRequestUrl = new URL(request.requestUrl)
   const canonicalRequest = {
     protocol: canonicalRequestUrl.protocol,
@@ -16,7 +15,7 @@ export async function signHttpRequest(request: HttpClientRequest, signer: Signat
     port: canonicalRequestUrl.port ? parseInt(canonicalRequestUrl.port) : undefined,
     path: canonicalRequestUrl.pathname,
     query: Object.fromEntries(canonicalRequestUrl.searchParams.entries()),
-    method: request.verb,
+    method: request.method,
     body: request.data,
     headers: {
       ...canonicalHeadersOf(request.additionalHeaders || {}),
@@ -53,3 +52,11 @@ function canonicalHeadersOf(headers: OutgoingHttpHeaders): Record<string, string
     return result
   }, <Record<string, string>>{})
 }
+
+export type HttpRequest = {
+  method: string,
+  requestUrl: string,
+  data: string | NodeJS.ReadableStream | null,
+  additionalHeaders?: OutgoingHttpHeaders
+}
+

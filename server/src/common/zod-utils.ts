@@ -29,3 +29,14 @@ export const YamlTransformer = z.string().transform((str, ctx) => {
     return z.NEVER
   }
 })
+
+/**
+ * Shortcut for creating a zod string with regex validation
+ * @param regex - regex
+ * @returns zod string
+ */
+export function zStringRegex(regex: RegExp) {
+  // Invalid enum value. Expected 'read' | 'write', received 'invalid',
+  return z.string().regex(regex, `Invalid format. Expected format ${regex}`)
+}
+

@@ -1,6 +1,4 @@
-import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status'
-
-export const StatusPhrases: Record<Exclude<StatusCode, UnofficialStatusCode>, string> = {
+export const StatusPhrases = {
   100: 'Continue',
   101: 'Switching Protocols',
   102: 'Processing',
@@ -68,9 +66,9 @@ export const StatusPhrases: Record<Exclude<StatusCode, UnofficialStatusCode>, st
   508: 'Loop Detected',
   510: 'Not Extended',
   511: 'Network Authentication Required',
-}
+} as const
 
-export const Status: Record<string, Exclude<StatusCode, UnofficialStatusCode>> = {
+export const Status = {
   'CONTINUE': 100,
   'SWITCHING_PROTOCOLS': 101,
   'PROCESSING': 102,
@@ -136,4 +134,4 @@ export const Status: Record<string, Exclude<StatusCode, UnofficialStatusCode>> =
   'LOOP_DETECTED': 508,
   'NOT_EXTENDED': 510,
   'NETWORK_AUTHENTICATION_REQUIRED': 511,
-}
+} as const

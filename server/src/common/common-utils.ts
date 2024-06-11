@@ -205,3 +205,12 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 export function joinRegExp(...regexps: RegExp[]): RegExp {
   return new RegExp(regexps.map((r) => r.source).join(''), regexps[regexps.length-1]?.flags)
 }
+
+/**
+ * Convert string to base64
+ * @param value - string to convert
+ * @returns base64 string
+ */
+export function toBase64(value?: string | null) {
+  return Buffer.from(value ?? '').toString('base64')
+}

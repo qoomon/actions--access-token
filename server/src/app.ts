@@ -1,8 +1,13 @@
-import {GitHubActionsJwtPayload, GitHubAppPermissions, GitHubAppRepositoryPermissions} from './common/types.js'
-import {AccessTokenRequestBodySchema} from './common/schemas.js'
-import {hasEntries} from './common/common-utils.js'
+import {hasEntries, toBase64} from './common/common-utils.js'
 import {buildJwksKeyFetcher} from './common/jwt-utils.js'
-import {normalizePermissionScopes, parseRepository, verifyRepositoryPermissions} from './common/github-utils.js'
+import {
+  GitHubActionsJwtPayload, GitHubAppPermissions,
+  GitHubAppPermissionsSchema, GitHubAppRepositoryPermissions,
+  GitHubRepositoryOwnerSchema, GitHubRepositoryNameSchema,
+  normalizePermissionScopes,
+  parseRepository,
+  verifyRepositoryPermissions,
+} from './common/github-utils.js'
 import {Hono} from 'hono'
 import {prettyJSON} from 'hono/pretty-json'
 import {
@@ -22,6 +27,7 @@ import {accessTokenManager, GithubAccessTokenError} from './github-actions-acces
 import log from './logger.js'
 import {Logger} from 'pino'
 import {config} from './config.js'
+import {z} from 'zod'
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 
@@ -116,7 +122,8 @@ app.post('/access_tokens', githubOidcAuthenticator,
       const tokenResponseBody = {
         token: githubActionsAccessToken.token,
         expires_at: githubActionsAccessToken.expires_at,
-        permissions: normalizePermissionScopes(githubActionsAccessToken.permissions),
+        permissions: githubActionsAccessToken.permissions ?
+            normalizePermissionScopes(githubActionsAccessToken.permissions) : undefined,
         repositories: githubActionsAccessToken.repositories?.map((it) => it.name),
         owner: githubActionsAccessToken.owner,
       }
@@ -130,11 +137,11 @@ app.post('/access_tokens', githubOidcAuthenticator,
       return context.json(tokenResponseBody)
     })
 
-/**
- * Convert string to base64
- * @param value - string to convert
- * @returns base64 string
- */
-function toBase64(value?: string | null) {
-  return Buffer.from(value ?? '').toString('base64')
-}
+// --- Schemas & Types -----------------------------------------------------------------------------------------------------------
+
+export const AccessTokenRequestBodySchema = z.strictObject({
+  owner: GitHubRepositoryOwnerSchema.optional(),
+  scope: z.enum(['repos', 'owner']).default('repos'),
+  permissions: GitHubAppPermissionsSchema,
+  repositories: z.array(GitHubRepositoryNameSchema).default([]),
+})

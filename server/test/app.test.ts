@@ -1,23 +1,21 @@
 // noinspection DuplicatedCode
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import * as Fixtures from '../__tests__/__fixtures__/fixtures.js'
-import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from '../__tests__/__fixtures__/fixtures.js'
+import * as Fixtures from './fixtures.js'
+import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from './fixtures.js'
 import process from 'process'
 import YAML from 'yaml'
+import {GitHubAppRepositoryPermissions, parseRepository, verifyPermission} from '../src/common/github-utils.js'
+import {describe, expect, it, jest} from '@jest/globals'
+import {RequestError} from '@octokit/request-error'
+import {joinRegExp, sleep} from '../src/common/common-utils.js'
+import {withHint} from './jest-utils.js'
+import {Status} from '../src/common/http-utils.js'
 import {
-  GitHubAppPermissions,
-  GitHubAppRepositoryPermissions,
   GitHubOwnerAccessPolicy,
   GitHubRepositoryAccessPolicy,
   GitHubRepositoryAccessStatement,
-} from './common/types.js'
-import {parseRepository, verifyPermission} from './common/github-utils.js'
-import {describe, expect, it, jest} from '@jest/globals'
-import {RequestError} from '@octokit/request-error'
-import {joinRegExp, sleep} from './common/common-utils.js'
-import {withHint} from '../__tests__/__utils__/jest-utils.js'
-import {Status} from './common/http-utils.js'
+} from '../src/github-actions-access-manager.js'
 
 process.env['LOG_LEVEL'] = process.env['LOG_LEVEL'] || 'warn'
 process.env['GITHUB_APP_ID'] = Fixtures.GITHUB_APP_AUTH.appId
@@ -27,8 +25,8 @@ process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] = Fixtures.GITHUB_ACTIONS_T
 mockJwks()
 const githubMockEnvironment = mockGithub()
 
-const {config} = await import('./config')
-const {app} = await import('./app')
+const {config} = await import('../src/config')
+const {app} = await import('../src/app')
 
 beforeEach(() => githubMockEnvironment.reset())
 
@@ -1026,11 +1024,11 @@ function mockGithub() {
                 Object.entries(params.permissions).forEach(([scope, permission]) => {
                   if (!verifyPermission({
                     requested: permission as string,
-                    granted: installation.permissions[scope as keyof GitHubAppPermissions],
+                    granted: installation.permissions[scope],
                   })) {
                     console.error(`Invalid permission: ${scope}` +
                         ` requested=${permission}` +
-                        ` granted=${installation.permissions[scope as keyof GitHubAppPermissions]}`)
+                        ` granted=${installation.permissions[scope]}`)
                     throw new RequestError('Unprocessable Entity', Status.UNPROCESSABLE_ENTITY, {
                       request: {headers: {}, url: 'http://localhost/tests'} as any,
                     })

@@ -1,15 +1,4 @@
 import {Octokit} from '@octokit/rest'
-import {
-  GitHubAccessStatement,
-  GitHubActionsJwtPayload,
-  GitHubAppInstallation,
-  GitHubAppInstallationAccessToken,
-  GitHubAppPermissions,
-  GitHubAppRepositoryPermissions,
-  GitHubOwnerAccessPolicy,
-  GitHubRepositoryAccessPolicy,
-  PolicyError,
-} from './common/types.js'
 import {formatZodIssue, YamlTransformer} from './common/zod-utils.js'
 import {
   _throw,
@@ -23,19 +12,17 @@ import {
   retry,
   unique,
 } from './common/common-utils.js'
-import {
-  GitHubAccessStatementSchema,
-  GitHubAppPermissionsSchema,
-  GitHubAppRepositoryPermissionsSchema,
-  GitHubOwnerAccessPolicySchema,
-  GitHubRepositoryAccessPolicySchema,
-  GitHubSubjectClaimSchema,
-} from './common/schemas.js'
-import {ZodSchema} from 'zod'
+import {z, ZodSchema} from 'zod'
 import {
   aggregatePermissions,
+  GitHubActionsJwtPayload,
+  GitHubAppPermissions,
+  GitHubAppPermissionsSchema,
+  GitHubAppRepositoryPermissions,
+  GitHubAppRepositoryPermissionsSchema,
+  GitHubRepositorySchema,
   normalizePermissionScopes,
-  parseSubject,
+  parseOIDCSubject,
   verifyPermissions,
   verifyRepositoryPermissions,
 } from './common/github-utils.js'
@@ -45,6 +32,9 @@ import {createAppAuth} from '@octokit/auth-app'
 import limit from 'p-limit'
 import {config} from './config.js'
 import log from './logger.js'
+import type {
+  RestEndpointMethodTypes,
+} from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types'
 
 /**
  * GitHub Access Manager
@@ -75,7 +65,7 @@ export async function accessTokenManager(appAuth: {
         scope: 'repos', permissions: GitHubAppRepositoryPermissions
       },
   ) {
-    // TODO ensure tokenRequest permissions are for scope
+    // TODO ensure tokenRequest permissions are for scope. maybe use assert
 
     // --- verify app installation ---------------------------------------------------------------------------------
 
@@ -358,7 +348,7 @@ export async function accessTokenManager(appAuth: {
     if (policyParseResult.error) {
       const issues = policyParseResult.error.issues.map(formatZodIssue)
       if (strict) {
-        throw new PolicyError(`${owner} access policy is invalid.`, issues)
+        throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
       }
       log.debug({issues}, `${owner} access policy is invalid.`)
       return emptyPolicy
@@ -370,7 +360,7 @@ export async function accessTokenManager(appAuth: {
     if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
       const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
       if (strict) {
-        throw new PolicyError(`${owner} owner access policy is invalid.`, issues)
+        throw new GithubAccessPolicyError(`${owner} owner access policy is invalid.`, issues)
       }
       log.debug({issues}, `${owner} owner access policy is invalid.`)
       return emptyPolicy
@@ -425,7 +415,7 @@ export async function accessTokenManager(appAuth: {
     if (policyParseResult.error) {
       const issues = policyParseResult.error.issues.map(formatZodIssue)
       if (strict) {
-        throw new PolicyError(`${owner}/${repo} repository access policy is invalid.`, issues)
+        throw new GithubAccessPolicyError(`${owner}/${repo} repository access policy is invalid.`, issues)
       }
       log.debug({issues}, `${owner}/${repo} repository access policy is invalid.`)
       return emptyPolicy
@@ -437,7 +427,7 @@ export async function accessTokenManager(appAuth: {
     if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
       const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
       if (strict) {
-        throw new PolicyError(`${owner} access policy is invalid.`, issues)
+        throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
       }
       log.debug({issues}, `${owner} access policy is invalid.`)
       return emptyPolicy
@@ -611,7 +601,7 @@ export async function accessTokenManager(appAuth: {
 
     // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
     // e.g. repo:foo/bar:* is not allowed
-    if (Object.keys(parseSubject(subjectPattern))
+    if (Object.keys(parseOIDCSubject(subjectPattern))
         .some((claim) => claim !== '**' && claim.includes('*'))) {
       return false
     }
@@ -743,7 +733,6 @@ async function getRepositoryFileContent(client: Octokit, {owner, repo, path, max
       })
 }
 
-
 // --- Errors ------------------------------------------------------------------------------------------------------
 
 /**
@@ -760,3 +749,57 @@ export class GithubAccessTokenError extends Error {
     Object.setPrototypeOf(this, GithubAccessTokenError.prototype)
   }
 }
+
+/**
+ * Access Policy Error
+ */
+export class GithubAccessPolicyError extends Error {
+  public issues?: string[]
+
+  /**
+   * @param message - error message
+   * @param issues - list of issues
+   */
+  constructor(message: string, issues?: string[]) {
+    super(message)
+    this.issues = issues
+  }
+}
+
+// --- Schemas ---------------------------------------------------------------------------------------------------------
+
+// https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
+const GitHubSubjectClaimSchema = z.string().trim()
+
+const GitHubBaseStatementSchema = z.strictObject({
+  subjects: z.array(GitHubSubjectClaimSchema),
+})
+
+const GitHubAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
+  permissions: GitHubAppPermissionsSchema,
+}))
+type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>
+
+const GitHubRepositoryAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
+  permissions: GitHubAppRepositoryPermissionsSchema,
+}))
+export type GitHubRepositoryAccessStatement = z.infer<typeof GitHubRepositoryAccessStatementSchema>
+
+
+const GitHubOwnerAccessPolicySchema = z.strictObject({
+  'origin': GitHubRepositorySchema,
+  'statements': z.array(GitHubAccessStatementSchema).default([]),
+  'allowed-subjects': z.array(GitHubSubjectClaimSchema).default([]),
+  'allowed-repository-permissions': GitHubAppRepositoryPermissionsSchema.default({}),
+})
+export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>
+
+const GitHubRepositoryAccessPolicySchema = z.strictObject({
+  'origin': GitHubRepositorySchema,
+  'statements': z.array(GitHubRepositoryAccessStatementSchema).default([]),
+})
+export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>
+
+type GitHubAppInstallation = RestEndpointMethodTypes['apps']['getUserInstallation']['response']['data']
+// eslint-disable-next-line max-len
+type GitHubAppInstallationAccessToken = RestEndpointMethodTypes['apps']['createInstallationAccessToken']['response']['data']

@@ -3,12 +3,12 @@ import {HttpClient, HttpClientError, HttpClientResponse} from '@actions/http-cli
 import {SignatureV4} from '@smithy/signature-v4'
 import {Sha256} from '@aws-crypto/sha256-js'
 import {fromWebToken} from '@aws-sdk/credential-providers'
-import type {GitHubAccessTokenResponse, GitHubAppPermissions, HttpClientRequest} from './lib/types'
-import {getInput, getYamlInput, runAction} from './lib/github-actions-utils'
+import {getInput, getYamlInput, runAction} from './github-actions-utils'
 import {z} from 'zod'
-import {signHttpRequest} from './lib/signature4'
+import {signHttpRequest} from './signature4'
 
-import {config} from './config.js'
+import {config} from './config'
+import {OutgoingHttpHeaders} from 'http'
 
 // --- Main ------------------------------------------------------------------------------------------------------------
 
@@ -75,7 +75,7 @@ async function getAccessToken(tokenRequest: {
   }
 
   return await httpRequest({
-    verb: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
+    method: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
     data: JSON.stringify(tokenRequest),
     additionalHeaders: {
       'authorization': 'Bearer ' + idTokenForAccessManager,
@@ -94,7 +94,7 @@ async function getAccessToken(tokenRequest: {
  * @param options - options
  * @returns response - with parsed body if possible
  */
-async function httpRequest(request: HttpClientRequest, options?: {
+async function httpRequest(request: HttpRequest, options?: {
   signer?: SignatureV4
 }): Promise<HttpClientResponse> {
   const httpClient = new HttpClient()
@@ -102,7 +102,7 @@ async function httpRequest(request: HttpClientRequest, options?: {
     request = await signHttpRequest(request, options.signer)
   }
 
-  return await httpClient.request(request.verb, request.requestUrl, request.data, request.additionalHeaders)
+  return await httpClient.request(request.method, request.requestUrl, request.data, request.additionalHeaders)
       .then(async (response) => {
         if (!response.message.statusCode || response.message.statusCode < 200 || response.message.statusCode >= 300) {
           const body = await response.readBody()
@@ -121,6 +121,26 @@ async function httpRequest(request: HttpClientRequest, options?: {
         }
         return response
       })
+}
+
+// --- Types -----------------------------------------------------------------------------------------------------------
+
+type GitHubAccessTokenResponse = {
+  token: string
+  expires_at: string
+  owner: string
+  repositories: string[]
+  permissions: GitHubAppPermissions
+}
+
+type GitHubAppPermissions = Record<string, string>
+
+
+type HttpRequest = {
+  method: string,
+  requestUrl: string,
+  data: string | NodeJS.ReadableStream | null,
+  additionalHeaders?: OutgoingHttpHeaders
 }
 
 

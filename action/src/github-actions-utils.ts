@@ -1,7 +1,6 @@
 import type {InputOptions} from '@actions/core'
 import * as core from '@actions/core'
 import * as YAML from 'yaml'
-import {HttpClientError} from '@actions/http-client'
 
 /**
  * Run action and catch errors
