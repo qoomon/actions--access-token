@@ -28,6 +28,7 @@ import log from './logger.js'
 import {Logger} from 'pino'
 import {config} from './config.js'
 import {z} from 'zod'
+import process from 'process'
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 
@@ -36,7 +37,7 @@ const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config.githubAppA
 
 // --- Server Setup --------------------------------------------------------------------------------------------------
 export const app = new Hono<{ Variables: { log: Logger, id: string } }>()
-app.use(setRequestId())
+app.use(setRequestId(process.env['REQUEST_ID_HEADER']))
 app.use(setRequestLogger(log))
 app.use(debugLogger())
 app.onError(errorHandler())

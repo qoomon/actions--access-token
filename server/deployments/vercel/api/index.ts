@@ -9,6 +9,9 @@ if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
 }
 
 process.env['LOG_PRETTY'] = process.env['LOG_PRETTY'] || 'true'
+
+process.env['REQUEST_ID_HEADER'] = 'x-vercel-id'
+
 const {app} = await import('../../../src/app.js')
 
 export const GET = handle(app)

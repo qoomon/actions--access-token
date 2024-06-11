@@ -70,9 +70,9 @@ export function errorHandler<ENV extends { Variables: { log: Logger, id?: string
  * @param header - header name
  * @returns middleware
  */
-export function setRequestId(header: string = 'x-request-id') {
+export function setRequestId(header: string | undefined = 'x-request-id') {
   return createMiddleware<{ Variables: { id: string } }>(async (context, next) => {
-    const id = context.req.header()[header] || crypto.randomUUID()
+    const id = context.req.header()[header ?? ''] || crypto.randomUUID()
     context.set('id', id)
     await next()
   })
