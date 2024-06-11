@@ -8,7 +8,11 @@ const logger = pino({
     level: (label) => ({level: label.toUpperCase()}),
   },
   transport: process.env.LOG_PRETTY !== 'true' ? undefined : {
-    target: 'pino-pretty', options: {sync: true},
+    target: 'pino-pretty', options: {
+      sync: true,
+      colorize: true,
+      colorizeObjects: true,
+    },
   },
 })
 

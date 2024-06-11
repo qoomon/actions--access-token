@@ -65,9 +65,9 @@ app.post('/access_tokens', githubOidcAuthenticator,
           attempts: callerIdentity.attempts,
         },
         // workflowRunUrl example: https://github.com/qoomon/actions--access-token/actions/runs/9192965843/attempts/2
-        workflowRunUrl: `https://github.com/${callerIdentity.repository}/actions` +
-            `/runs/${callerIdentity.run_id}/attempts/${callerIdentity.attempts}`,
-      }, `Caller Identity: ${callerIdentity.workflow_ref}`)
+        workflowRunUrl: `https://github.com/${callerIdentity.repository}/actions/runs/${callerIdentity.run_id}` +
+            `${callerIdentity.attempts ? `/attempts/${callerIdentity.attempts}`: ''}`,
+      }, 'Caller Identity')
 
       const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema).then((it) => {
         if (Object.entries(it.permissions).length === 0) {
