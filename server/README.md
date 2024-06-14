@@ -8,8 +8,10 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > It is important to secure the access token server properly and update dependencies regularly.
 > Keep GitHub App credentials as secret as possible.
 
-1. **Create a GitHub App** 
+1. **Create a GitHub App**
+   
 <details><summary>Click me</summary>
+  
 - Create a new GitHub App ([User Scope](https://github.com/settings/apps/new)
   or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps/new))
     - Fill out mandatory fields
@@ -32,6 +34,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > Otherwise someone else could create this repo and effectively take over the owner access token policy configuration.
     
 <details><summary>Click me</summary>
+  
 - Create a new private repository named `.github-access-token`
 - Ensure only owner admins have access to this repository
     - Create owner `access-token.yaml` file at root of the repository with [this template content](/actions/docs/access-token.owner-template.yaml)
@@ -54,6 +57,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > - Hit `Create` button
 
 <details><summary>Click me</summary>
+  
 - Go to GitHub Apps ([User Scope](https://github.com/settings/apps)
   or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps))
 - Hit `Edit` button of your access token app
