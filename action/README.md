@@ -27,7 +27,7 @@ See [Action Metadata](/action/action.yaml) and [Example Use Cases](#example-use-
 ### Install Access Manager App to Target Repositories
 
 Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.com/marketplace/access-manager-for-github-actions)
- **or** [host and install **your own** GitHub App](../server/README.md)
+ **or** [host and install **your own** GitHub App](server/README.md)
 
 > [!WARNING]
 > **Be aware** by installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
