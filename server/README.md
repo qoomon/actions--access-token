@@ -9,63 +9,64 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > Keep GitHub App credentials as secret as possible.
 
 1. **Create a GitHub App** 
-    <details><summary>Click me</summary>
-    - Create a new GitHub App ([User Scope](https://github.com/settings/apps/new)
-      or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps/new))
-        - Fill out mandatory fields
-        - Deactivate Webhook
-        - Add Mandatory `Repository permissions`
-            - Single file: `Read-only`
-                - Add file path `.github/access-token.yaml` - for repository scoped token policy
-                - Add file path `access-token.yaml` - for owner scoped token policy
-        - Choose permissions you want to allow to request
-        - Hit `Create GitHub App` button
-        - Take a note of `App ID`
-        - Scroll down to `Private keys` section and click `Generate a private key` button
-            - private key (`.pem` file) will be downloaded to your machine automatically
+<details><summary>Click me</summary>
+- Create a new GitHub App ([User Scope](https://github.com/settings/apps/new)
+  or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps/new))
+    - Fill out mandatory fields
+    - Deactivate Webhook
+    - Add Mandatory `Repository permissions`
+        - Single file: `Read-only`
+            - Add file path `.github/access-token.yaml` - for repository scoped token policy
+            - Add file path `access-token.yaml` - for owner scoped token policy
+    - Choose permissions you want to allow to request
+    - Hit `Create GitHub App` button
+    - Take a note of `App ID`
+    - Scroll down to `Private keys` section and click `Generate a private key` button
+        - private key (`.pem` file) will be downloaded to your machine automatically
 
-    </details>
+</details>
 
 2. **Create an Owner Access Token Policy Repository**
-    > [!IMPORTANT]
-    > Ensure that this repository is present before installing the GitHub App
-    > Otherwise someone else could create this repo and effectively take over the owner access token policy configuration.
+> [!IMPORTANT]
+> Ensure that this repository is present before installing the GitHub App
+> Otherwise someone else could create this repo and effectively take over the owner access token policy configuration.
     
-    <details><summary>Click me</summary>
-    - Create a new private repository named `.github-access-token`
-    - Ensure only owner admins have access to this repository
-        - Create owner `access-token.yaml` file at root of the repository with [this template content](/actions/docs/access-token.owner-template.yaml)
-        - And adjust the access policy to your liking
+<details><summary>Click me</summary>
+- Create a new private repository named `.github-access-token`
+- Ensure only owner admins have access to this repository
+    - Create owner `access-token.yaml` file at root of the repository with [this template content](/actions/docs/access-token.owner-template.yaml)
+    - And adjust the access policy to your liking
 
-    </details>
+</details>
 
 3. **Install GitHub App for Target Repository**
-    > [!IMPORTANT]
-    > By installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
-    
-    > [!TIP]
-    > **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
-    > - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
-    > - Set `Ruleset Name` to `Protect access token policy`
-    > - Set `Enforcement status` to `Active`
-    > - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
-    > - Set `Target repositories` to `All repositories`
-    > - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
-    > - Hit `Create` button
+> [!IMPORTANT]
+> By installing the access token GitHub App **everybody** with `write` assess to `.github/access-token.yaml` can grant repository access permissions to GitHub Actions workflow runs.
 
-    <details><summary>Click me</summary>
-    - Go to GitHub Apps ([User Scope](https://github.com/settings/apps)
-      or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps))
-    - Hit `Edit` button of your access token app
-    - Navigate to `Install App`
-    - Hit `Install` button of an account to install your access token app for
-    - Choose `All repositories` or `Only select repositories`
-    - Hit `Install` button
+> [!TIP]
+> **For organizations on GitHub Enterprise plans** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
+> - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
+> - Set `Ruleset Name` to `Protect access token policy`
+> - Set `Enforcement status` to `Active`
+> - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
+> - Set `Target repositories` to `All repositories`
+> - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+> - Hit `Create` button
 
-    </details>
+<details><summary>Click me</summary>
+- Go to GitHub Apps ([User Scope](https://github.com/settings/apps)
+  or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps))
+- Hit `Edit` button of your access token app
+- Navigate to `Install App`
+- Hit `Install` button of an account to install your access token app for
+- Choose `All repositories` or `Only select repositories`
+- Hit `Install` button
+
+</details>
 
 4. **Create a GitHub Actions Workflow**
-    go to [Action README](/action/README.md)
+
+go to [Action README](/action/README.md)
 
 ## Deploy Server
 
