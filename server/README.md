@@ -70,7 +70,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 
 4. **Create a GitHub Actions Workflow**
 
-go to [Action README](/action/README.md)
+- see [Action README](/action/README.md)
 
 ## Deploy Server
 
