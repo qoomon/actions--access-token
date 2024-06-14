@@ -134,7 +134,7 @@ go to [Action README](/action/README.md)
 
 > [!NOTE]
 > This deployment will add extra layer of security by using IAM authenticator for AWS Lambda.
-> That means that all requests to the server need to be signed with AWS Signature Version 4
+> All requests to the server need to be signed with AWS Signature Version 4
 > and therefore the server is secured by AWS identity and access management.
 
 <details><summary>Click me</summary>
