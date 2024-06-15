@@ -74,11 +74,6 @@ export async function accessTokenManager(appAuth: {
     }
     log.debug({appInstallation}, 'App installation')
 
-    const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
-      // single_file to read access policy files
-      permissions: {single_file: 'read'},
-    })
-
     // --- verify requested token permissions ------------------------------------------------------------------------
     // grant requested permissions explicitly to prevent accidental permission escalation
     const grantedTokenPermissions: Record<string, string> = {}
@@ -88,6 +83,11 @@ export async function accessTokenManager(appAuth: {
         reason: string,
         scope: string, permission: string,
       }[] = []
+
+      const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
+        // single_file to read access policy files
+        permissions: {single_file: 'read'},
+      })
 
       // --- verify app installation permissions ---------------------------------------------------------------------
       verifyPermissions({
