@@ -96,13 +96,14 @@ export async function accessTokenManager(appAuth: {
 
     // --- verify requested token permissions ------------------------------------------------------------------------
 
+    // SAFEGUARD: grant permissions explicitly to prevent accidental granting of permissions
+    const grantedTokenPermissions: Record<string, string> = {}
+
     const pendingTokenPermissions: Record<string, string> = {...tokenRequest.permissions}
     const rejectedTokenPermissions: {
       reason: string,
       scope: string, permission: string,
     }[] = []
-    // granted token permission object will be used as safeguard to prevent unintentional permission granting
-    const grantedTokenPermissions: Record<string, string> = {}
 
     const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
       owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
@@ -238,32 +239,28 @@ export async function accessTokenManager(appAuth: {
 
         break
       }
-      default:
-        throw new Error('Invalid token scope.')
     }
 
     if (hasEntries(rejectedTokenPermissions)) {
       throw new GithubAccessTokenError(createErrorMessage(rejectedTokenPermissions, effectiveCallerIdentitySubjects))
     }
-
-    // --- create requested access token ---------------------------------------------------------------------------
-
-    // SAFEGUARD, should never happen
+    // SAFEGUARD: ensure that all requested permissions have been granted. This should never happen.
     if (hasEntries(pendingTokenPermissions)) {
       throw new Error('Unexpected pending permissions.')
     }
 
+    // --- create requested access token ---------------------------------------------------------------------------
+    const accessToken = await createInstallationAccessToken(
+        GITHUB_APP_CLIENT, appInstallation, {
+          // BE AWARE that an empty object will result in a token with all app installation permissions
+          permissions: ensureHasEntries(grantedTokenPermissions),
+          // BE AWARE that an empty array will result in a token with access to all app installation repositories
+          repositories: tokenRequest.scope === 'repos' ? ensureHasEntries(tokenRequest.repositories) : undefined,
+        })
+
     return {
-      ...await createInstallationAccessToken(
-          GITHUB_APP_CLIENT, appInstallation, {
-            // BE AWARE that an empty object will result in a token with all app installation permissions
-            permissions: ensureHasEntries(grantedTokenPermissions),
-            // BE AWARE that an empty array will result in a token with access to all app installation repositories
-            repositories: tokenRequest.scope === 'repos' ?
-                ensureHasEntries(tokenRequest.repositories) :
-                undefined,
-          }),
       owner: appInstallation.account?.name ?? tokenRequest.owner,
+      ...accessToken,
     }
   }
 
