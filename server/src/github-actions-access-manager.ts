@@ -55,7 +55,7 @@ export async function accessTokenManager(appAuth: {
    * @param tokenRequest - token request
    * @returns access token
    */
-  async function createGitHubActionsAccessToken(
+  async function createAccessToken(
       callerIdentity: GitHubActionsJwtPayload,
       tokenRequest: {
         owner: string, repositories?: string[],
@@ -264,369 +264,371 @@ export async function accessTokenManager(appAuth: {
     }
   }
 
-  /**
-   * Create error message
-   * @param rejectedTokenPermissions - rejected token permissions
-   * @param callerIdentitySubjects - caller identity subjects
-   * @returns error message
-   */
-  function createErrorMessage(
-      rejectedTokenPermissions: {
-        reason: string,
-        scope: string, permission: string,
-      }[],
-      callerIdentitySubjects?: string[]
-  ): string {
-    let message = 'Some requested permissions got rejected.\n' +
-        rejectedTokenPermissions.map(({scope, permission, reason}) => '' +
-            '- ' + `${scope}: ${permission}\n` +
-            indent(reason),
-        ).join('\n')
-
-    if (callerIdentitySubjects?.length) {
-      message += '\n' +
-          'Effective token subjects:\n' +
-          callerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n')
-    }
-    return message
-  }
-
-  /**
-   * Get owner access policy
-   * @param client - GitHub client for target repository
-   * @param owner - repository owner
-   * @param repo - repository name
-   * @param path - file path
-   * @param strict - throw error on invalid access policy
-   * @returns access policy
-   */
-  async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
-    owner: string,
-    repo: string,
-    path: string,
-    strict: boolean,
-  }): Promise<Omit<GitHubOwnerAccessPolicy, 'origin'>> {
-    const emptyPolicy: Omit<GitHubOwnerAccessPolicy, 'origin'> = {
-      'statements': [],
-      'allowed-subjects': [],
-      'allowed-repository-permissions': {},
-    }
-    const policyValue = await getRepositoryFileContent(client, {
-      owner, repo, path,
-      maxSize: 100 * 1024, // 100kb
-    })
-
-    if (!policyValue) {
-      return emptyPolicy
-    }
-
-    const policyParseResult = YamlTransformer
-        .transform((policyObject) => {
-          if (strict) return policyObject
-
-          // ignore invalid entries
-          if (isRecord(policyObject)) {
-            if (Array.isArray(policyObject['allowed-subjects'])) {
-              policyObject['allowed-subjects'] = filterValidSubjects(
-                  policyObject['allowed-subjects'])
-            }
-            if (isRecord(policyObject['allowed-repository-permissions'])) {
-              policyObject['allowed-repository-permissions'] = filterValidPermissions(
-                  policyObject['allowed-repository-permissions'], 'owner')
-            }
-            if (Array.isArray(policyObject.statements)) {
-              policyObject.statements = filterValidStatements(
-                  policyObject.statements, 'owner')
-            }
-          }
-
-          return policyObject
-        })
-        .pipe(GitHubOwnerAccessPolicySchema)
-        .safeParse(policyValue)
-
-    if (policyParseResult.error) {
-      const issues = policyParseResult.error.issues.map(formatZodIssue)
-      if (strict) {
-        throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
-      }
-      log.debug({issues}, `${owner} access policy is invalid.`)
-      return emptyPolicy
-    }
-
-    const policy = policyParseResult.data
-
-    const expectedPolicyOrigin = `${owner}/${repo}`
-    if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
-      const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
-      if (strict) {
-        throw new GithubAccessPolicyError(`${owner} owner access policy is invalid.`, issues)
-      }
-      log.debug({issues}, `${owner} owner access policy is invalid.`)
-      return emptyPolicy
-    }
-
-    policy.statements.forEach((statement) => {
-      normaliseAccessPolicyStatement(statement, {owner, repo})
-    })
-
-    return policy
-  }
-
-  /**
-   * Get repository access policy
-   * @param client - GitHub client for target repository
-   * @param owner - repository owner
-   * @param repo - repository name
-   * @param path - file path
-   * @param strict - throw error on invalid access policy
-   * @returns access policy
-   */
-  async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
-    owner: string,
-    repo: string,
-    path: string,
-    strict: boolean,
-  }): Promise<Omit<GitHubRepositoryAccessPolicy, 'origin'>> {
-    const emptyPolicy: Omit<GitHubRepositoryAccessPolicy, 'origin'> = {
-      statements: [],
-    }
-    const policyValue = await getRepositoryFileContent(client, {
-      owner, repo, path,
-      maxSize: 100 * 1024, // 100kb
-    })
-    if (!policyValue) {
-      return emptyPolicy
-    }
-
-    const policyParseResult = YamlTransformer
-        .transform((policyObject) => {
-          if (strict) return policyObject
-          // ignore invalid entries
-          if (isRecord(policyObject) && Array.isArray(policyObject.statements)) {
-            policyObject.statements = filterValidStatements(
-                policyObject.statements, 'repo')
-          }
-          return policyObject
-        })
-        .pipe(GitHubRepositoryAccessPolicySchema)
-        .safeParse(policyValue)
-
-    if (policyParseResult.error) {
-      const issues = policyParseResult.error.issues.map(formatZodIssue)
-      if (strict) {
-        throw new GithubAccessPolicyError(`${owner}/${repo} repository access policy is invalid.`, issues)
-      }
-      log.debug({issues}, `${owner}/${repo} repository access policy is invalid.`)
-      return emptyPolicy
-    }
-
-    const policy = policyParseResult.data
-
-    const expectedPolicyOrigin = `${owner}/${repo}`
-    if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
-      const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
-      if (strict) {
-        throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
-      }
-      log.debug({issues}, `${owner} access policy is invalid.`)
-      return emptyPolicy
-    }
-
-    policy.statements.forEach((statement) => {
-      normaliseAccessPolicyStatement(statement, {owner, repo})
-    })
-
-    return policy
-  }
-
-  /**
-   * Filter invalid access policy statements
-   * @param statements - access policy statements
-   * @param permissionsType - permission type
-   * @returns valid statements
-   */
-  function filterValidStatements(statements: unknown[], permissionsType: 'owner' | 'repo')
-      : unknown | GitHubAccessStatement[] {
-    return statements
-        .map((statementObject: unknown) => {
-          if (isRecord(statementObject)) {
-            // ---- subjects
-            if ('subjects' in statementObject && Array.isArray(statementObject.subjects)) {
-              // ignore invalid subjects
-              statementObject.subjects = filterValidSubjects(statementObject.subjects)
-            }
-            // ---- permissions
-            if ('permissions' in statementObject && isRecord(statementObject.permissions)) {
-              // ignore invalid permissions
-              statementObject.permissions = filterValidPermissions(statementObject.permissions, permissionsType)
-            }
-          }
-          return statementObject
-        })
-        .filter((statementObject: unknown) => GitHubAccessStatementSchema.safeParse(statementObject).success)
-  }
-
-  /**
-   * Filter invalid subjects
-   * @param subjects - access policy subjects
-   * @returns valid subjects
-   */
-  function filterValidSubjects(subjects: unknown[]): unknown[] {
-    return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
-  }
-
-  /**
-   * Filter invalid permissions
-   * @param permissions - access policy permissions
-   * @param type - permission type
-   * @returns valid permissions
-   */
-  function filterValidPermissions(permissions: Record<string, unknown>, type: 'owner' | 'repo')
-      : Record<string, unknown> {
-    let permissionSchema: ZodSchema
-    switch (type) {
-      case 'owner':
-        permissionSchema = GitHubAppPermissionsSchema
-        break
-      case 'repo':
-        permissionSchema = GitHubAppRepositoryPermissionsSchema
-        break
-      default:
-        throw new Error('Invalid permission type.')
-    }
-
-    return filterObjectEntries(permissions, ([key, value]) => permissionSchema.safeParse({[key]: value}).success)
-  }
-
-  /**
-   * Normalise access policy statement
-   * @param statement - access policy statement
-   * @param owner - policy owner
-   * @param repo - policy repository
-   * @returns void
-   */
-  function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owner, repo}: {
-    owner: string,
-    repo: string,
-  }) {
-    statement.subjects = statement.subjects
-        .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}))
-  }
-
-  /**
-   * Normalise access policy statement subject
-   * @param subject - access policy statement subject
-   * @param owner - policy owner
-   * @param repo - policy repository
-   * @returns normalised subject
-   */
-  function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
-    owner: string,
-    repo: string
-  }): string {
-    return subject.replaceAll('${origin}', `${owner}/${repo}`)
-  }
-
-  /**
-   * Evaluate granted permissions for caller identity
-   * @param accessPolicy - access policy
-   * @param callerIdentitySubjects - caller identity subjects
-   * @returns granted permissions
-   */
-  function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
-    statements: GitHubAccessStatement[],
-    callerIdentitySubjects: string[],
-  }): Record<string, string> {
-    const permissions = statements
-        .filter(statementSubjectPredicate(callerIdentitySubjects))
-        .map((it) => it.permissions)
-
-    return aggregatePermissions(permissions)
-
-    /**
-     * Create statement subject predicate
-     * @param subjects - caller identity subjects
-     * @returns true if statement subjects match any of the given subject patterns
-     */
-    function statementSubjectPredicate(subjects: string[]) {
-      return (statement: GitHubAccessStatement) => subjects
-          .some((subject) => statement.subjects
-              .some((subjectPattern) => matchSubjectPattern(subjectPattern, subject)))
-    }
-  }
-
-  /**
-   * Get effective caller identity subjects
-   * @param callerIdentity - caller identity
-   * @returns effective caller identity subjects
-   */
-  function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
-    const subjects = [callerIdentity.sub]
-
-    // --- add artificial subjects
-
-    // repo : ref
-    // => repo:qoomon/sandbox:ref:refs/heads/main
-    subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`)
-
-    // repo : workflow_ref
-    // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`)
-
-    // repo : job_workflow_ref
-    // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`)
-
-    if (callerIdentity.environment) {
-      // repo : environment
-      // => repo:qoomon/sandbox:environment:production
-      subjects.push(`repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`)
-    }
-
-    return unique(subjects)
-  }
-
-  /**
-   * Verify if subject is granted by grantedSubjectPatterns
-   * @param subjectPattern - subject pattern
-   * @param subject - subject e.g. 'repo:spongebob/sandbox:ref:refs/heads/main'
-   * @param strict - strict mode does not allow ** wildcards
-   * @returns true if subject matches any granted subject pattern
-   */
-  function matchSubjectPattern(subjectPattern: string, subject: string, strict: boolean = true): boolean {
-    if (strict && subjectPattern.includes('**')) {
-      return false
-    }
-
-    // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
-    // e.g. repo:foo/bar:* is not allowed
-    if (Object.keys(parseOIDCSubject(subjectPattern))
-        .some((claim) => claim !== '**' && claim.includes('*'))) {
-      return false
-    }
-
-    // grantedSubjectPattern example: repo:qoomon/sandbox:ref:refs/heads/*
-    // identity.sub example:     repo:qoomon/sandbox:ref:refs/heads/main
-    return regexpOfSubjectPattern(subjectPattern).test(subject)
-  }
-
-  /**
-   * Create regexp of wildcard subject pattern
-   * @param subjectPattern - wildcard subject pattern
-   * @returns regexp
-   */
-  function regexpOfSubjectPattern(subjectPattern: string): RegExp {
-    const regexp = escapeRegexp(subjectPattern)
-        .replace(/\\\*\\\*/g, '.*')
-        .replace(/\\\*/g, '[^:]*') // replace * with match one or more characters except ':' char
-        .replace(/\\\?/g, '[^:]') // replace ? with match one characters except ':' char
-    return RegExp(`^${regexp}$`, 'i')
-  }
-
   return {
-    createAccessToken: createGitHubActionsAccessToken,
+    createAccessToken,
   }
+}
+
+// --- Access Manager Functions --------------------------------------------------------------------------------------
+
+/**
+ * Create error message
+ * @param rejectedTokenPermissions - rejected token permissions
+ * @param callerIdentitySubjects - caller identity subjects
+ * @returns error message
+ */
+function createErrorMessage(
+    rejectedTokenPermissions: {
+      reason: string,
+      scope: string, permission: string,
+    }[],
+    callerIdentitySubjects?: string[]
+): string {
+  let message = 'Some requested permissions got rejected.\n' +
+      rejectedTokenPermissions.map(({scope, permission, reason}) => '' +
+          '- ' + `${scope}: ${permission}\n` +
+          indent(reason),
+      ).join('\n')
+
+  if (callerIdentitySubjects?.length) {
+    message += '\n' +
+        'Effective token subjects:\n' +
+        callerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n')
+  }
+  return message
+}
+
+/**
+ * Get owner access policy
+ * @param client - GitHub client for target repository
+ * @param owner - repository owner
+ * @param repo - repository name
+ * @param path - file path
+ * @param strict - throw error on invalid access policy
+ * @returns access policy
+ */
+async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
+  owner: string,
+  repo: string,
+  path: string,
+  strict: boolean,
+}): Promise<Omit<GitHubOwnerAccessPolicy, 'origin'>> {
+  const emptyPolicy: Omit<GitHubOwnerAccessPolicy, 'origin'> = {
+    'statements': [],
+    'allowed-subjects': [],
+    'allowed-repository-permissions': {},
+  }
+  const policyValue = await getRepositoryFileContent(client, {
+    owner, repo, path,
+    maxSize: 100 * 1024, // 100kb
+  })
+
+  if (!policyValue) {
+    return emptyPolicy
+  }
+
+  const policyParseResult = YamlTransformer
+      .transform((policyObject) => {
+        if (strict) return policyObject
+
+        // ignore invalid entries
+        if (isRecord(policyObject)) {
+          if (Array.isArray(policyObject['allowed-subjects'])) {
+            policyObject['allowed-subjects'] = filterValidSubjects(
+                policyObject['allowed-subjects'])
+          }
+          if (isRecord(policyObject['allowed-repository-permissions'])) {
+            policyObject['allowed-repository-permissions'] = filterValidPermissions(
+                policyObject['allowed-repository-permissions'], 'owner')
+          }
+          if (Array.isArray(policyObject.statements)) {
+            policyObject.statements = filterValidStatements(
+                policyObject.statements, 'owner')
+          }
+        }
+
+        return policyObject
+      })
+      .pipe(GitHubOwnerAccessPolicySchema)
+      .safeParse(policyValue)
+
+  if (policyParseResult.error) {
+    const issues = policyParseResult.error.issues.map(formatZodIssue)
+    if (strict) {
+      throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
+    }
+    log.debug({issues}, `${owner} access policy is invalid.`)
+    return emptyPolicy
+  }
+
+  const policy = policyParseResult.data
+
+  const expectedPolicyOrigin = `${owner}/${repo}`
+  if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
+    const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
+    if (strict) {
+      throw new GithubAccessPolicyError(`${owner} owner access policy is invalid.`, issues)
+    }
+    log.debug({issues}, `${owner} owner access policy is invalid.`)
+    return emptyPolicy
+  }
+
+  policy.statements.forEach((statement) => {
+    normaliseAccessPolicyStatement(statement, {owner, repo})
+  })
+
+  return policy
+}
+
+/**
+ * Get repository access policy
+ * @param client - GitHub client for target repository
+ * @param owner - repository owner
+ * @param repo - repository name
+ * @param path - file path
+ * @param strict - throw error on invalid access policy
+ * @returns access policy
+ */
+async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
+  owner: string,
+  repo: string,
+  path: string,
+  strict: boolean,
+}): Promise<Omit<GitHubRepositoryAccessPolicy, 'origin'>> {
+  const emptyPolicy: Omit<GitHubRepositoryAccessPolicy, 'origin'> = {
+    statements: [],
+  }
+  const policyValue = await getRepositoryFileContent(client, {
+    owner, repo, path,
+    maxSize: 100 * 1024, // 100kb
+  })
+  if (!policyValue) {
+    return emptyPolicy
+  }
+
+  const policyParseResult = YamlTransformer
+      .transform((policyObject) => {
+        if (strict) return policyObject
+        // ignore invalid entries
+        if (isRecord(policyObject) && Array.isArray(policyObject.statements)) {
+          policyObject.statements = filterValidStatements(
+              policyObject.statements, 'repo')
+        }
+        return policyObject
+      })
+      .pipe(GitHubRepositoryAccessPolicySchema)
+      .safeParse(policyValue)
+
+  if (policyParseResult.error) {
+    const issues = policyParseResult.error.issues.map(formatZodIssue)
+    if (strict) {
+      throw new GithubAccessPolicyError(`${owner}/${repo} repository access policy is invalid.`, issues)
+    }
+    log.debug({issues}, `${owner}/${repo} repository access policy is invalid.`)
+    return emptyPolicy
+  }
+
+  const policy = policyParseResult.data
+
+  const expectedPolicyOrigin = `${owner}/${repo}`
+  if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
+    const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
+    if (strict) {
+      throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
+    }
+    log.debug({issues}, `${owner} access policy is invalid.`)
+    return emptyPolicy
+  }
+
+  policy.statements.forEach((statement) => {
+    normaliseAccessPolicyStatement(statement, {owner, repo})
+  })
+
+  return policy
+}
+
+/**
+ * Filter invalid access policy statements
+ * @param statements - access policy statements
+ * @param permissionsType - permission type
+ * @returns valid statements
+ */
+function filterValidStatements(statements: unknown[], permissionsType: 'owner' | 'repo')
+    : unknown | GitHubAccessStatement[] {
+  return statements
+      .map((statementObject: unknown) => {
+        if (isRecord(statementObject)) {
+          // ---- subjects
+          if ('subjects' in statementObject && Array.isArray(statementObject.subjects)) {
+            // ignore invalid subjects
+            statementObject.subjects = filterValidSubjects(statementObject.subjects)
+          }
+          // ---- permissions
+          if ('permissions' in statementObject && isRecord(statementObject.permissions)) {
+            // ignore invalid permissions
+            statementObject.permissions = filterValidPermissions(statementObject.permissions, permissionsType)
+          }
+        }
+        return statementObject
+      })
+      .filter((statementObject: unknown) => GitHubAccessStatementSchema.safeParse(statementObject).success)
+}
+
+/**
+ * Filter invalid subjects
+ * @param subjects - access policy subjects
+ * @returns valid subjects
+ */
+function filterValidSubjects(subjects: unknown[]): unknown[] {
+  return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
+}
+
+/**
+ * Filter invalid permissions
+ * @param permissions - access policy permissions
+ * @param type - permission type
+ * @returns valid permissions
+ */
+function filterValidPermissions(permissions: Record<string, unknown>, type: 'owner' | 'repo')
+    : Record<string, unknown> {
+  let permissionSchema: ZodSchema
+  switch (type) {
+    case 'owner':
+      permissionSchema = GitHubAppPermissionsSchema
+      break
+    case 'repo':
+      permissionSchema = GitHubAppRepositoryPermissionsSchema
+      break
+    default:
+      throw new Error('Invalid permission type.')
+  }
+
+  return filterObjectEntries(permissions, ([key, value]) => permissionSchema.safeParse({[key]: value}).success)
+}
+
+/**
+ * Normalise access policy statement
+ * @param statement - access policy statement
+ * @param owner - policy owner
+ * @param repo - policy repository
+ * @returns void
+ */
+function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owner, repo}: {
+  owner: string,
+  repo: string,
+}) {
+  statement.subjects = statement.subjects
+      .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}))
+}
+
+/**
+ * Normalise access policy statement subject
+ * @param subject - access policy statement subject
+ * @param owner - policy owner
+ * @param repo - policy repository
+ * @returns normalised subject
+ */
+function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
+  owner: string,
+  repo: string
+}): string {
+  return subject.replaceAll('${origin}', `${owner}/${repo}`)
+}
+
+/**
+ * Evaluate granted permissions for caller identity
+ * @param accessPolicy - access policy
+ * @param callerIdentitySubjects - caller identity subjects
+ * @returns granted permissions
+ */
+function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
+  statements: GitHubAccessStatement[],
+  callerIdentitySubjects: string[],
+}): Record<string, string> {
+  const permissions = statements
+      .filter(statementSubjectPredicate(callerIdentitySubjects))
+      .map((it) => it.permissions)
+
+  return aggregatePermissions(permissions)
+
+  /**
+   * Create statement subject predicate
+   * @param subjects - caller identity subjects
+   * @returns true if statement subjects match any of the given subject patterns
+   */
+  function statementSubjectPredicate(subjects: string[]) {
+    return (statement: GitHubAccessStatement) => subjects
+        .some((subject) => statement.subjects
+            .some((subjectPattern) => matchSubjectPattern(subjectPattern, subject)))
+  }
+}
+
+/**
+ * Get effective caller identity subjects
+ * @param callerIdentity - caller identity
+ * @returns effective caller identity subjects
+ */
+function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
+  const subjects = [callerIdentity.sub]
+
+  // --- add artificial subjects
+
+  // repo : ref
+  // => repo:qoomon/sandbox:ref:refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`)
+
+  // repo : workflow_ref
+  // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`)
+
+  // repo : job_workflow_ref
+  // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`)
+
+  if (callerIdentity.environment) {
+    // repo : environment
+    // => repo:qoomon/sandbox:environment:production
+    subjects.push(`repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`)
+  }
+
+  return unique(subjects)
+}
+
+/**
+ * Verify if subject is granted by grantedSubjectPatterns
+ * @param subjectPattern - subject pattern
+ * @param subject - subject e.g. 'repo:spongebob/sandbox:ref:refs/heads/main'
+ * @param strict - strict mode does not allow ** wildcards
+ * @returns true if subject matches any granted subject pattern
+ */
+function matchSubjectPattern(subjectPattern: string, subject: string, strict: boolean = true): boolean {
+  if (strict && subjectPattern.includes('**')) {
+    return false
+  }
+
+  // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
+  // e.g. repo:foo/bar:* is not allowed
+  if (Object.keys(parseOIDCSubject(subjectPattern))
+      .some((claim) => claim !== '**' && claim.includes('*'))) {
+    return false
+  }
+
+  // grantedSubjectPattern example: repo:qoomon/sandbox:ref:refs/heads/*
+  // identity.sub example:     repo:qoomon/sandbox:ref:refs/heads/main
+  return regexpOfSubjectPattern(subjectPattern).test(subject)
+}
+
+/**
+ * Create regexp of wildcard subject pattern
+ * @param subjectPattern - wildcard subject pattern
+ * @returns regexp
+ */
+function regexpOfSubjectPattern(subjectPattern: string): RegExp {
+  const regexp = escapeRegexp(subjectPattern)
+      .replace(/\\\*\\\*/g, '.*')
+      .replace(/\\\*/g, '[^:]*') // replace * with match one or more characters except ':' char
+      .replace(/\\\?/g, '[^:]') // replace ? with match one characters except ':' char
+  return RegExp(`^${regexp}$`, 'i')
 }
 
 
@@ -733,6 +735,7 @@ async function getRepositoryFileContent(client: Octokit, {owner, repo, path, max
       })
 }
 
+
 // --- Errors ------------------------------------------------------------------------------------------------------
 
 /**
@@ -766,6 +769,7 @@ export class GithubAccessPolicyError extends Error {
   }
 }
 
+
 // --- Schemas ---------------------------------------------------------------------------------------------------------
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
@@ -784,7 +788,6 @@ const GitHubRepositoryAccessStatementSchema = GitHubBaseStatementSchema.merge(z.
   permissions: GitHubAppRepositoryPermissionsSchema,
 }))
 export type GitHubRepositoryAccessStatement = z.infer<typeof GitHubRepositoryAccessStatementSchema>
-
 
 const GitHubOwnerAccessPolicySchema = z.strictObject({
   'origin': GitHubRepositorySchema,
