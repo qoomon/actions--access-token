@@ -20,11 +20,11 @@
     "get-jwks": "^9.0.1",
     "hono": "^4.4.5",
     "pino": "^9.1.0",
-    "pino-pretty": "^11.2.0",
     "yaml": "^2.4.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "pino-pretty": "^11.2.0",
     "@cloudflare/workers-types": "^4.20240423.0",
     "@octokit/types": "^13.4.1",
     "@types/aws-lambda": "^8.10.131",

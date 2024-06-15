@@ -1,5 +1,4 @@
 import pino from 'pino'
-import 'pino-pretty'
 import process from 'process'
 
 const logger = pino({

@@ -65,8 +65,6 @@ export async function accessTokenManager(appAuth: {
         scope: 'repos', permissions: GitHubAppRepositoryPermissions
       },
   ) {
-    // TODO ensure tokenRequest permissions are for scope. maybe use assert
-
     // --- verify app installation ---------------------------------------------------------------------------------
 
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
@@ -135,6 +133,7 @@ export async function accessTokenManager(appAuth: {
       case 'owner': {
         // === owner scope permission verification ===================================================================
 
+        // --- grant permissions that are granted by owner access policy
         verifyPermissions({
           granted: ownerGrantedPermissions,
           requested: pendingTokenPermissions,
@@ -144,7 +143,7 @@ export async function accessTokenManager(appAuth: {
           delete pendingTokenPermissions[scope]
         })
 
-        // reject all pending permissions
+        // --- reject all pending permissions
         Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
           rejectedTokenPermissions.push({
             reason: `Permission has not been granted by ${tokenRequest.owner}.`,
@@ -156,33 +155,38 @@ export async function accessTokenManager(appAuth: {
       case 'repos': {
         // === repo scope permission verification ====================================================================
 
-        // --- handle owner granted permissions
-        verifyPermissions({
-          // BE AWARE to grant repository permissions only
-          granted: verifyRepositoryPermissions(ownerGrantedPermissions).valid,
-          requested: pendingTokenPermissions,
-        }).granted.forEach(({scope, permission}) => {
-          // permission granted
-          grantedTokenPermissions[scope] = permission
-          delete pendingTokenPermissions[scope]
-        })
-
-        // --- handle repository granted permissions
-        verifyPermissions({
-          // restrict repository permissions to allowed repository permissions by owner access policy
-          // BE AWARE to grant repository permissions only
-          granted: verifyRepositoryPermissions(ownerAccessPolicy['allowed-repository-permissions']).valid,
-          requested: pendingTokenPermissions,
-        }).denied.forEach(({scope, permission}) => {
-          // reject permission
-          rejectedTokenPermissions.push({
-            reason: `Permission is not allowed by ${tokenRequest.owner} owner policy.`,
-            scope, permission,
+        // --- verify repo permissions by OWNER access policy --------------------------------------------------------
+        {
+          // --- grant repo permissions that are granted by owner access policy
+          verifyPermissions({
+            // BE AWARE to grant repository permissions only
+            granted: verifyRepositoryPermissions(ownerGrantedPermissions).valid,
+            requested: pendingTokenPermissions,
+          }).granted.forEach(({scope, permission}) => {
+            grantedTokenPermissions[scope] = permission
+            delete pendingTokenPermissions[scope]
           })
-        })
 
-        // --- handle repository access policies -----------------------------------------------------------------------
-        if (!hasEntries(rejectedTokenPermissions)) {
+          // --- reject repo permissions that are not explicitly granted by owner access policy
+          verifyPermissions({
+            // BE AWARE to grant repository permissions only
+            granted: verifyRepositoryPermissions(ownerAccessPolicy['allowed-repository-permissions']).valid,
+            requested: pendingTokenPermissions,
+          }).denied.forEach(({scope, permission}) => {
+            rejectedTokenPermissions.push({
+              reason: `Permission is not allowed by ${tokenRequest.owner} owner policy.`,
+              scope, permission,
+            })
+          })
+        }
+
+        if (hasEntries(rejectedTokenPermissions)) {
+          break
+        }
+
+        // --- verify repo permissions by target REPOSITORY access policy --------------------------------------------
+        {
+          // BE AWARE to grant repository permissions only
           const pendingRepositoryTokenPermissions = verifyRepositoryPermissions(pendingTokenPermissions).valid
           if (hasEntries(pendingRepositoryTokenPermissions)) {
             const pendingRepositoryTokenScopesByRepository: Record<string, Set<string>> =
@@ -204,17 +208,16 @@ export async function accessTokenManager(appAuth: {
                     callerIdentitySubjects: effectiveCallerIdentitySubjects,
                   })
 
-                  // verify requested token permissions by repository permissions
                   const verifiedRepoPermissions = verifyPermissions({
                     granted: repoGrantedPermissions,
                     requested: pendingTokenPermissions,
                   })
+                  // --- grant repo permissions that are granted by repo access policy
                   verifiedRepoPermissions.granted.forEach(({scope}) => {
-                    // permission granted
                     pendingRepositoryTokenScopesByRepository[scope].delete(repo)
                   })
+                  // --- reject repo permissions that are not granted by repo access policy
                   verifiedRepoPermissions.denied.forEach(({scope, permission}) => {
-                    // permission rejected
                     rejectedTokenPermissions.push({
                       reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
                       scope, permission,
@@ -223,7 +226,7 @@ export async function accessTokenManager(appAuth: {
                 })),
             )
 
-            // grant repository permission only if all repositories have granted the specific permission
+            // --- grant repo permission only if all repositories have granted the specific permission
             Object.entries(pendingRepositoryTokenScopesByRepository).forEach(([scope, repositories]) => {
               if (repositories.size == 0) {
                 grantedTokenPermissions[scope] = pendingTokenPermissions[scope]
@@ -232,9 +235,9 @@ export async function accessTokenManager(appAuth: {
             })
           }
         }
+
         break
       }
-
       default:
         throw new Error('Invalid token scope.')
     }
