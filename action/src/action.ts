@@ -38,8 +38,6 @@ runAction(async () => {
 
   core.setSecret(accessToken.token)
   core.setOutput('token', accessToken.token)
-  // eslint-disable-next-line no-template-curly-in-string
-  core.info('set access token as output field \'token\'. Usage ${{ steps.STEP_ID.outputs.token }}')
 })
 
 // ---------------------------------------------------------------------------------------------------------------------
