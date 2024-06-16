@@ -12,7 +12,7 @@ Authorization is based on the GitHub Actions OIDC tokens and `.github/access-tok
   </picture>
 </p>
 
-1. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) will request an access token for a **Target Repository** from the **App Server**, authorize by the GitHub Action ID Token (JWT signed by GitHub).
+1. [This GitHub action](https://github.com/marketplace/actions/access-tokens-for-github-actions) will request an access token for a **Target Repository** from the **App Server**, authorize by the GitHub Action OIDC Token.
 2. The [App Server](/server) requests a **GitHub App Installation Token** to read `.github/access-token.yaml` file in **Granting Repository**.
 3. The [App Server](/server) reads `.github/access-token.yaml` file from **Target Repository** and determine which permissions should be granted to **Requesting GitHub Action Identity**.
 4. The [App Server](/server) requests a **GitHub App Installation Token** with granted permissions for **Requesting GitHub Action Identity** and send it back in response to [this GitHub action](https://github.com/marketplace/actions/access-manager-for-github-actions) from step `1.`.
