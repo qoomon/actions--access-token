@@ -1,5 +1,7 @@
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * *' # daily at 12:00
   push:
     branches:
       - main
