@@ -6,12 +6,12 @@
   "main": "dist/index.js",
   "scripts": {
     "lint": "eslint .",
-    "build": "ncc build src/action.ts",
-    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
-    "start": "ncc run src/action.ts"
+    "build": "ncc build src/action-main.ts && mv dist/index.js dist/main.js; ncc build src/action-post.ts && mv dist/index.js dist/post.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0",
     "@actions/http-client": "^2.2.1",
     "@aws-crypto/sha256-js": "^5.2.0",
     "@aws-sdk/credential-providers": "^3.592.0",

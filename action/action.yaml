@@ -39,4 +39,5 @@ outputs:
 
 runs:
   using: node20
-  main: action/dist/index.js
+  main: action/dist/main.js
+  post: action/dist/post.js
