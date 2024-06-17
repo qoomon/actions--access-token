@@ -176,6 +176,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
   ```shell
   GITHUB_APP_ID=[YOUR_GITHUB_APP_ID] \
   GITHUB_APP_PRIVATE_KEY=$(cat [YOUR_GITHUB_APP.pem]) \
+  GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE=... \
     npm start 
   ```
 
