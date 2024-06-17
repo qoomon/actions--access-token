@@ -188,4 +188,4 @@ build:
 * App icon: https://img.icons8.com/cotton/256/000000/grand-master-key.png
 
 ## TODO
-- revoke access token after job run `runs.post`
+- add token hash to output in main and post action
