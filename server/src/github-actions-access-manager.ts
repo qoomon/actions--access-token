@@ -30,7 +30,6 @@ import {Status} from './common/http-utils.js'
 import {components} from '@octokit/openapi-types'
 import {createAppAuth} from '@octokit/auth-app'
 import limit from 'p-limit'
-import {config} from './config.js'
 import log from './logger.js'
 import type {
   RestEndpointMethodTypes,
@@ -38,14 +37,17 @@ import type {
 
 /**
  * GitHub Access Manager
- * @param appAuth - GitHub App authentication
+ * @param options - options
  * @returns access token manager
  */
-export async function accessTokenManager(appAuth: {
-  appId: string,
-  privateKey: string,
-}) {
-  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: appAuth})
+export async function accessTokenManager(options: {
+  githubAppAuth: { appId: string, privateKey: string, },
+  accessPolicyLocation: {
+    owner: { repo: string, path: string,},
+    repo: { path: string}
+}}) {
+  log.debug({appId: options.githubAppAuth.appId}, 'GitHub app')
+  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: options.githubAppAuth})
   const GITHUB_APP = await GITHUB_APP_CLIENT.apps.getAuthenticated()
       .then((res) => res.data!)
 
@@ -106,8 +108,8 @@ export async function accessTokenManager(appAuth: {
 
       // --- load owner access policy ----------------------------------------------------------------------------------
       const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
-        owner: tokenRequest.owner, repo: config.accessPolicyLocation.owner.repo,
-        path: config.accessPolicyLocation.owner.path,
+        owner: tokenRequest.owner, repo: options.accessPolicyLocation.owner.repo,
+        path: options.accessPolicyLocation.owner.path,
         strict: false, // ignore invalid access policy entries
       })
       log.debug({ownerAccessPolicy}, `${tokenRequest.owner} access policy:`)
@@ -196,7 +198,7 @@ export async function accessTokenManager(appAuth: {
                   tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
                     const repoAccessPolicy = await getRepoAccessPolicy(appInstallationClient, {
                       owner: tokenRequest.owner, repo,
-                      path: config.accessPolicyLocation.repo.path,
+                      path: options.accessPolicyLocation.repo.path,
                       strict: false, // ignore invalid access policy entries
                     })
                     log.debug({repoAccessPolicy}, `${tokenRequest.owner}/${repo} access policy`)

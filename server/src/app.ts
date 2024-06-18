@@ -32,8 +32,7 @@ import process from 'process'
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 
-log.debug({appId: config.githubAppAuth.appId}, 'GitHub app')
-const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config.githubAppAuth)
+const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config)
 
 // --- Server Setup --------------------------------------------------------------------------------------------------
 export const app = new Hono<{ Variables: { log: Logger, id: string } }>()
