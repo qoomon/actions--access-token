@@ -1,7 +1,7 @@
 /**
  * This function will format a single line pem key to a well formatted pem key
  * @param keyString - pem key string
- * @returns well formatted pem key
+ * @return well formatted pem key
  */
 export function formatPEMKey(keyString: string): string {
   const headerMatch = keyString.match(/^\s*-----BEGIN [\w\d\s]+ KEY-----/g)

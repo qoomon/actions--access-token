@@ -9,9 +9,9 @@ export const config : Config = {
     //   },
     // },
   },
-}
+};
 
-type Config = {
+interface Config {
   api: {
     url: URL
     auth?: {

@@ -1,7 +1,7 @@
 /**
  * This function returns true if the given object has entries
  * @param obj - object to check
- * @returns true if the given object has entries
+ * @return true if the given object has entries
  */
 export function hasEntries<T extends object>(obj: T): boolean {
   return Object.entries(obj).length > 0
@@ -10,7 +10,7 @@ export function hasEntries<T extends object>(obj: T): boolean {
 /**
  * This function will throw the given error
  * @param error - error to throw
- * @returns never
+ * @return never
  */
 export function _throw(error: unknown): never {
   throw error
@@ -20,7 +20,7 @@ export function _throw(error: unknown): never {
  * This function maps the given value with the given function
  * @param value - value to map
  * @param fn - mapping function
- * @returns mapped value
+ * @return mapped value
  */
 export function mapValue<T, R>(value:T, fn: (value:T) => R): R {
   return fn(value)
@@ -29,7 +29,7 @@ export function mapValue<T, R>(value:T, fn: (value:T) => R): R {
 /**
  * This function will ensure that the given object is not empty, otherwise it will throw an error
  * @param obj - object to check
- * @returns the given object
+ * @return the given object
  */
 export function ensureHasEntries<T extends object>(obj: T): T {
   if (!hasEntries(obj)) throw Error('Illegal argument, object can not be empty')
@@ -39,7 +39,7 @@ export function ensureHasEntries<T extends object>(obj: T): T {
 /**
  * This function will return a new array with unique values
  * @param iterable - an iterable
- * @returns array with unique values
+ * @return array with unique values
  */
 export function unique<T>(iterable: Iterable<T>): T[] {
   return Array.from(new Set(iterable))
@@ -48,7 +48,7 @@ export function unique<T>(iterable: Iterable<T>): T[] {
 /**
  * This function will transform an array to an array of tuples
  * @param iterable - an iterable
- * @returns array of tuples
+ * @return array of tuples
  */
 export function tuplesOf<T>(iterable: Iterable<T>): [T, T | undefined][] {
   const result: [T, T | undefined][] = []
@@ -66,7 +66,7 @@ export function tuplesOf<T>(iterable: Iterable<T>): [T, T | undefined][] {
 /**
  * This function will reduce an array of tuples to an object
  * @param iterable - an iterable
- * @returns an object
+ * @return an object
  */
 export function objectOfTuples<T>(iterable: Iterable<[T, T | undefined]>): Record<string, T | undefined> {
   const result: Record<string, T | undefined> = {}
@@ -80,7 +80,7 @@ export function objectOfTuples<T>(iterable: Iterable<[T, T | undefined]>): Recor
  * This function will create a regular expression from a wildcard pattern
  * @param pattern - wildcard pattern
  * @param flags - regular expression flags
- * @returns regular expression
+ * @return regular expression
  */
 export function regexpOfWildcardPattern(pattern: string, flags?: string): RegExp {
   const regexp = escapeRegexp(pattern)
@@ -92,7 +92,7 @@ export function regexpOfWildcardPattern(pattern: string, flags?: string): RegExp
 /**
  * Escape regular expression special characters
  * @param string - string to escape
- * @returns escaped string
+ * @return escaped string
  */
 export function escapeRegexp(string: string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -102,7 +102,7 @@ export function escapeRegexp(string: string) {
  * This function will return a new object created from mapped entries of the given object
  * @param object - an object
  * @param fn - mapping function
- * @returns new mapped object
+ * @return new mapped object
  */
 export function mapObjectEntries<V, U>(
     object: Record<string, V>,
@@ -115,7 +115,7 @@ export function mapObjectEntries<V, U>(
  * This function will return a new object from filtered entries of the given object
  * @param object - an object
  * @param fn - filter function
- * @returns new filtered object
+ * @return new filtered object
  */
 export function filterObjectEntries<V>(
     object: Record<string, V>,
@@ -127,7 +127,7 @@ export function filterObjectEntries<V>(
 /**
  * This function will return a promise that will resolve after the given time
  * @param ms - time in milliseconds
- * @returns promise
+ * @return promise
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -141,7 +141,7 @@ export function sleep(ms: number): Promise<void> {
  * @param options.delay - delay between retries
  * @param options.onRetry - function to call on retry, return false to stop retrying
  * @param options.onError - function to call on error, return false to stop retrying
- * @returns promise
+ * @return promise
  */
 export async function retry<T>(
     fn: () => Promise<T>,
@@ -179,9 +179,9 @@ export async function retry<T>(
  * Indent string
  * @param string - string to indent
  * @param indent - indent string
- * @returns indented string
+ * @return indented string
  */
-export function indent(string: string, indent: string = '  ') {
+export function indent(string: string, indent = '  ') {
   return string.split('\n')
       .map((line) => `${indent}${line}`)
       .join('\n')
@@ -191,7 +191,7 @@ export function indent(string: string, indent: string = '  ') {
 /**
  * Check if the given value is a record
  * @param value - a value
- * @returns true if the given object is a record
+ * @return true if the given object is a record
  */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -200,7 +200,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Joins multiple regular expressions into a single regular expression
  * @param regexps - regular expressions
- * @returns regular expression
+ * @return regular expression
  */
 export function joinRegExp(...regexps: RegExp[]): RegExp {
   return new RegExp(regexps.map((r) => r.source).join(''), regexps[regexps.length-1]?.flags)
@@ -209,7 +209,7 @@ export function joinRegExp(...regexps: RegExp[]): RegExp {
 /**
  * Convert string to base64
  * @param value - string to convert
- * @returns base64 string
+ * @return base64 string
  */
 export function toBase64(value?: string | null) {
   return Buffer.from(value ?? '').toString('base64')

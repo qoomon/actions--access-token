@@ -50,7 +50,7 @@ export function aggregatePermissions(permissionSets: Record<string, string>[]) {
  * Verify permission is granted (admin > write > read)
  * @param granted - granted permission
  * @param requested - requested permission
- * @returns true if permission was granted
+ * @return true if permission was granted
  */
 export function verifyPermission({requested, granted}: {
   requested?: string,
@@ -74,7 +74,7 @@ export function verifyPermission({requested, granted}: {
  * @see verifyPermission
  * @param requested - requested permissions
  * @param granted - granted permissions
- * @returns granted and denied permissions
+ * @return granted and denied permissions
  */
 export function verifyPermissions({requested, granted}: {
   requested: GitHubAppPermissions,
@@ -105,7 +105,7 @@ export function verifyPermissions({requested, granted}: {
 /**
  * Verify repository permissions
  * @param permissions - permissions
- * @returns invalid repository permissions
+ * @return invalid repository permissions
  */
 export function verifyRepositoryPermissions(permissions: GitHubAppRepositoryPermissions) {
   const valid: GitHubAppRepositoryPermissions = {}
@@ -125,7 +125,7 @@ export function verifyRepositoryPermissions(permissions: GitHubAppRepositoryPerm
 /**
  * Normalise permission scopes to dash case
  * @param permissions - permission object
- * @returns normalised permission object
+ * @return normalised permission object
  */
 export function normalizePermissionScopes(permissions: components['schemas']['app-permissions']): GitHubAppPermissions {
   return mapObjectEntries(permissions, ([scope, permission]) => [

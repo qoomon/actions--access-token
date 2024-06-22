@@ -38,7 +38,7 @@ import type {
 /**
  * GitHub Access Manager
  * @param options - options
- * @returns access token manager
+ * @return access token manager
  */
 export async function accessTokenManager(options: {
   githubAppAuth: { appId: string, privateKey: string, },
@@ -49,13 +49,13 @@ export async function accessTokenManager(options: {
   log.debug({appId: options.githubAppAuth.appId}, 'GitHub app')
   const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: options.githubAppAuth})
   const GITHUB_APP = await GITHUB_APP_CLIENT.apps.getAuthenticated()
-      .then((res) => res.data!)
+      .then((res) => res.data ?? _throw(new Error('GitHub app not found.')))
 
   /**
    * Creates a GitHub Actions Access Token
    * @param callerIdentity - caller identity
    * @param tokenRequest - token request
-   * @returns access token
+   * @return access token
    */
   async function createAccessToken(
       callerIdentity: GitHubActionsJwtPayload,
@@ -142,6 +142,7 @@ export async function accessTokenManager(options: {
           }).granted.forEach(({scope, permission}) => {
             // permission granted
             grantedTokenPermissions[scope] = permission
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete pendingTokenPermissions[scope]
           })
 
@@ -164,6 +165,7 @@ export async function accessTokenManager(options: {
               requested: pendingTokenPermissions,
             }).granted.forEach(({scope, permission}) => {
               grantedTokenPermissions[scope] = permission
+              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
               delete pendingTokenPermissions[scope]
             })
 
@@ -230,6 +232,7 @@ export async function accessTokenManager(options: {
               Object.entries(pendingRepositoryTokenScopesByRepository).forEach(([scope, repositories]) => {
                 if (repositories.size == 0) {
                   grantedTokenPermissions[scope] = pendingTokenPermissions[scope]
+                  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
                   delete pendingTokenPermissions[scope]
                 }
               })
@@ -275,7 +278,7 @@ export async function accessTokenManager(options: {
  * Create error message
  * @param rejectedTokenPermissions - rejected token permissions
  * @param callerIdentitySubjects - caller identity subjects
- * @returns error message
+ * @return error message
  */
 function createErrorMessage(
     rejectedTokenPermissions: {
@@ -305,7 +308,7 @@ function createErrorMessage(
  * @param repo - repository name
  * @param path - file path
  * @param strict - throw error on invalid access policy
- * @returns access policy
+ * @return access policy
  */
 async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
   owner: string,
@@ -387,7 +390,7 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
  * @param repo - repository name
  * @param path - file path
  * @param strict - throw error on invalid access policy
- * @returns access policy
+ * @return access policy
  */
 async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
   owner: string,
@@ -451,7 +454,7 @@ async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}:
  * Filter invalid access policy statements
  * @param statements - access policy statements
  * @param permissionsType - permission type
- * @returns valid statements
+ * @return valid statements
  */
 function filterValidStatements(statements: unknown[], permissionsType: 'owner' | 'repo')
     : unknown | GitHubAccessStatement[] {
@@ -477,7 +480,7 @@ function filterValidStatements(statements: unknown[], permissionsType: 'owner' |
 /**
  * Filter invalid subjects
  * @param subjects - access policy subjects
- * @returns valid subjects
+ * @return valid subjects
  */
 function filterValidSubjects(subjects: unknown[]): unknown[] {
   return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
@@ -487,7 +490,7 @@ function filterValidSubjects(subjects: unknown[]): unknown[] {
  * Filter invalid permissions
  * @param permissions - access policy permissions
  * @param type - permission type
- * @returns valid permissions
+ * @return valid permissions
  */
 function filterValidPermissions(permissions: Record<string, unknown>, type: 'owner' | 'repo')
     : Record<string, unknown> {
@@ -511,7 +514,7 @@ function filterValidPermissions(permissions: Record<string, unknown>, type: 'own
  * @param statement - access policy statement
  * @param owner - policy owner
  * @param repo - policy repository
- * @returns void
+ * @return void
  */
 function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owner, repo}: {
   owner: string,
@@ -526,7 +529,7 @@ function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owne
  * @param subject - access policy statement subject
  * @param owner - policy owner
  * @param repo - policy repository
- * @returns normalised subject
+ * @return normalised subject
  */
 function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
   owner: string,
@@ -539,7 +542,7 @@ function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
  * Evaluate granted permissions for caller identity
  * @param accessPolicy - access policy
  * @param callerIdentitySubjects - caller identity subjects
- * @returns granted permissions
+ * @return granted permissions
  */
 function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
   statements: GitHubAccessStatement[],
@@ -554,7 +557,7 @@ function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
   /**
    * Create statement subject predicate
    * @param subjects - caller identity subjects
-   * @returns true if statement subjects match any of the given subject patterns
+   * @return true if statement subjects match any of the given subject patterns
    */
   function statementSubjectPredicate(subjects: string[]) {
     return (statement: GitHubAccessStatement) => subjects
@@ -566,7 +569,7 @@ function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
 /**
  * Get effective caller identity subjects
  * @param callerIdentity - caller identity
- * @returns effective caller identity subjects
+ * @return effective caller identity subjects
  */
 function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
   const subjects = [callerIdentity.sub]
@@ -599,9 +602,9 @@ function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayl
  * @param subjectPattern - subject pattern
  * @param subject - subject e.g. 'repo:spongebob/sandbox:ref:refs/heads/main'
  * @param strict - strict mode does not allow ** wildcards
- * @returns true if subject matches any granted subject pattern
+ * @return true if subject matches any granted subject pattern
  */
-function matchSubjectPattern(subjectPattern: string, subject: string, strict: boolean = true): boolean {
+function matchSubjectPattern(subjectPattern: string, subject: string, strict = true): boolean {
   if (strict && subjectPattern.includes('**')) {
     return false
   }
@@ -621,7 +624,7 @@ function matchSubjectPattern(subjectPattern: string, subject: string, strict: bo
 /**
  * Create regexp of wildcard subject pattern
  * @param subjectPattern - wildcard subject pattern
- * @returns regexp
+ * @return regexp
  */
 function regexpOfSubjectPattern(subjectPattern: string): RegExp {
   const regexp = escapeRegexp(subjectPattern)
@@ -638,7 +641,7 @@ function regexpOfSubjectPattern(subjectPattern: string): RegExp {
  * Get GitHub app installation for a repository or owner
  * @param client - GitHub client
  * @param owner - app installation owner
- * @returns installation or null if app is not installed for target
+ * @return installation or null if app is not installed for target
  */
 async function getAppInstallation(client: Octokit, {owner}: {
   owner: string
@@ -661,7 +664,7 @@ async function getAppInstallation(client: Octokit, {owner}: {
  * @param installation - target installation id
  * @param repositories - target repositories
  * @param permissions - requested permissions
- * @returns access token
+ * @return access token
  */
 async function createInstallationAccessToken(client: Octokit, installation: GitHubAppInstallation, {
   repositories, permissions,
@@ -687,7 +690,7 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
  * @param installation - app installation
  * @param permissions - requested permissions
  * @param repositories - requested repositories
- * @returns octokit instance
+ * @return octokit instance
  */
 async function createOctokit(client: Octokit, installation: GitHubAppInstallation, {permissions, repositories}: {
   permissions: components['schemas']['app-permissions'],
@@ -707,7 +710,7 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
  * @param repo - repository name
  * @param path - file path
  * @param maxSize - max file size
- * @returns file content or null if file does not exist
+ * @return file content or null if file does not exist
  */
 async function getRepositoryFileContent(client: Octokit, {owner, repo, path, maxSize}: {
   owner: string,

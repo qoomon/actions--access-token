@@ -182,14 +182,14 @@ export const UNKNOWN_SIGNING_KEY = '-----BEGIN PRIVATE KEY-----\n' +
 
 // ---- Types ----------------------------------------------------------------------------------------------------------
 
-export type AppInstallation = {
+export interface AppInstallation {
   id: number,
   permissions: components['schemas']['app-permissions'] & Record<string, string | undefined>,
   target_type?: string,
   owner: string,
 }
 
-export type Repository = {
+export interface Repository {
   name: string,
   owner: string,
   repo: string,

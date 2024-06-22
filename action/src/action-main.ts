@@ -1,14 +1,14 @@
-import * as core from '@actions/core'
-import {HttpClient, HttpClientError, HttpClientResponse} from '@actions/http-client'
-import {SignatureV4} from '@smithy/signature-v4'
-import {Sha256} from '@aws-crypto/sha256-js'
-import {fromWebToken} from '@aws-sdk/credential-providers'
-import {getInput, getYamlInput, runAction} from './github-actions-utils'
-import {z} from 'zod'
-import {signHttpRequest} from './signature4'
+import * as core from '@actions/core';
+import {HttpClient, HttpClientError, HttpClientResponse} from '@actions/http-client';
+import {SignatureV4} from '@smithy/signature-v4';
+import {Sha256} from '@aws-crypto/sha256-js';
+import {fromWebToken} from '@aws-sdk/credential-providers';
+import {getInput, getYamlInput, runAction} from './github-actions-utils.js';
+import {z} from 'zod';
+import {signHttpRequest} from './signature4.js';
 
-import {config} from './config'
-import {OutgoingHttpHeaders} from 'http'
+import {config} from './config.js';
+import {OutgoingHttpHeaders} from 'http';
 
 // --- Main ------------------------------------------------------------------------------------------------------------
 
@@ -22,27 +22,27 @@ runAction(async () => {
     repositories: z.array(z.string()).default([])
         .parse(getYamlInput('repositories')),
     owner: getInput('owner'),
-  }
+  };
 
   const tokenRequest = {
     scope: input.scope,
     permissions: input.permissions,
     repositories: input.repositories,
     owner: input.owner,
-  }
+  };
   if (input.repository) {
-    tokenRequest.repositories.unshift(input.repository)
+    tokenRequest.repositories.unshift(input.repository);
   }
 
-  core.info('Get access token.')
-  const accessToken = await getAccessToken(tokenRequest)
+  core.info('Get access token.');
+  const accessToken = await getAccessToken(tokenRequest);
 
-  core.setSecret(accessToken.token)
-  core.setOutput('token', accessToken.token)
+  core.setSecret(accessToken.token);
+  core.setOutput('token', accessToken.token);
 
   // save token to state for post-action cleanup
-  core.saveState('token', accessToken.token)
-})
+  core.saveState('token', accessToken.token);
+});
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -52,7 +52,7 @@ runAction(async () => {
  * @param tokenRequest.organization - target organization
  * @param tokenRequest.repositories - target repositories
  * @param tokenRequest.permissions - target permissions
- * @returns token
+ * @return token
  */
 async function getAccessToken(tokenRequest: {
   scope: 'repos' | 'owner' | undefined
@@ -60,9 +60,9 @@ async function getAccessToken(tokenRequest: {
   repositories: string[] | undefined
   owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
-  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
+  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname);
 
-  let requestSigner
+  let requestSigner;
   if (config.api.auth?.aws) {
     requestSigner = new SignatureV4({
       sha256: Sha256,
@@ -73,7 +73,7 @@ async function getAccessToken(tokenRequest: {
         roleArn: config.api.auth.aws.roleArn,
         durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
       }),
-    })
+    });
   }
 
   return await httpRequest({
@@ -87,47 +87,47 @@ async function getAccessToken(tokenRequest: {
     signer: requestSigner,
   })
       .then(async (response) => response.readBody())
-      .then(async (body) => JSON.parse(body))
+      .then(async (body) => JSON.parse(body));
 }
 
 /**
  * Make http request
  * @param request - request to send
  * @param options - options
- * @returns response - with parsed body if possible
+ * @return response - with parsed body if possible
  */
 async function httpRequest(request: HttpRequest, options?: {
   signer?: SignatureV4
 }): Promise<HttpClientResponse> {
-  const httpClient = new HttpClient()
+  const httpClient = new HttpClient();
   if (options?.signer) {
-    request = await signHttpRequest(request, options.signer)
+    request = await signHttpRequest(request, options.signer);
   }
 
   return await httpClient.request(request.method, request.requestUrl, request.data, request.additionalHeaders)
       .then(async (response) => {
         if (!response.message.statusCode || response.message.statusCode < 200 || response.message.statusCode >= 300) {
-          const body = await response.readBody()
-          let bodyJson
+          const body = await response.readBody();
+          let bodyJson;
           try {
-            bodyJson = JSON.parse(body)
+            bodyJson = JSON.parse(body);
           } catch {
             // ignore
           }
 
-          const msg = bodyJson?.message || body || 'Failed request'
+          const msg = bodyJson?.message || body || 'Failed request';
 
-          const httpError = new HttpClientError(msg, response.message.statusCode!)
-          httpError.result = bodyJson || body
-          throw httpError
+          const httpError = new HttpClientError(msg, response.message.statusCode ?? 0);
+          httpError.result = bodyJson || body;
+          throw httpError;
         }
-        return response
-      })
+        return response;
+      });
 }
 
 // --- Types -----------------------------------------------------------------------------------------------------------
 
-type GitHubAccessTokenResponse = {
+interface GitHubAccessTokenResponse  {
   token: string
   expires_at: string
   owner: string
@@ -138,7 +138,7 @@ type GitHubAccessTokenResponse = {
 type GitHubAppPermissions = Record<string, string>
 
 
-type HttpRequest = {
+interface HttpRequest {
   method: string,
   requestUrl: string,
   data: string | NodeJS.ReadableStream | null,

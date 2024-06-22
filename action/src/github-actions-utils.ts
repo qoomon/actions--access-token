@@ -1,21 +1,21 @@
-import type {InputOptions} from '@actions/core'
-import * as core from '@actions/core'
-import * as YAML from 'yaml'
+import type {InputOptions} from '@actions/core';
+import * as core from '@actions/core';
+import * as YAML from 'yaml';
 
 /**
  * Run action and catch errors
  * @param action - action to run
- * @returns void
+ * @return void
  */
 export function runAction(action: () => Promise<void>): void {
   action().catch(async (error: unknown) => {
-    console.error('Error:', error)
-    let failedMessage = 'Unhandled error, see job logs'
+    console.error('Error:', error);
+    let failedMessage = 'Unhandled error, see job logs';
     if (error != null && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-      failedMessage = error.message
+      failedMessage = error.message;
     }
-    core.setFailed(failedMessage)
-  })
+    core.setFailed(failedMessage);
+  });
 }
 
 /**
@@ -25,20 +25,20 @@ export function runAction(action: () => Promise<void>): void {
  *
  * @param     name     name of the input to get
  * @param     options  optional. See InputOptions.
- * @returns   parsed input as object
+ * @return   parsed input as object
  */
 export function getYamlInput(name: string, options?: InputOptions): unknown | undefined {
-  const input = getInput(name, options)
-  if (input === undefined) return
-  return YAML.parse(input)
+  const input = getInput(name, options);
+  if (input === undefined) return;
+  return YAML.parse(input);
 }
 
 /**
  * Get input value
  * @param     name     name of the input to get
  * @param     options  optional. See InputOptions.
- * @returns   input value
+ * @return   input value
  */
 export function getInput(name: string, options?: InputOptions): string | undefined {
-  return core.getInput(name, options) || undefined
+  return core.getInput(name, options) || undefined;
 }

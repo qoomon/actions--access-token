@@ -5,7 +5,7 @@ import {JestAssertionError} from 'expect'
  * Wrap test with hints
  * @param test - test function
  * @param hints - hint messages
- * @returns void
+ * @return void
  */
 export async function withHint(
     test: () => void | Promise<void>,
@@ -40,9 +40,9 @@ export async function withHint(
  * Indent string
  * @param string - string to indent
  * @param indent - indent string
- * @returns indented string
+ * @return indented string
  */
-function indent(string: string, indent: string = '  ') {
+function indent(string: string, indent = '  ') {
   return string.split('\n')
       .map((line) => `${indent}${line}`)
       .join('\n')

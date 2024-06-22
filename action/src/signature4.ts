@@ -1,14 +1,14 @@
-import {SignatureV4} from '@smithy/signature-v4'
-import {OutgoingHttpHeaders} from 'http'
+import {SignatureV4} from '@smithy/signature-v4';
+import {OutgoingHttpHeaders} from 'http';
 
 /**
  * Sign request to authenticate with AWS_IAM authentication
  * @param request - request to sign
  * @param signer - aws signer
- * @returns signed request
+ * @return signed request
  */
 export async function signHttpRequest(request: HttpRequest, signer: SignatureV4): Promise<HttpRequest> {
-  const canonicalRequestUrl = new URL(request.requestUrl)
+  const canonicalRequestUrl = new URL(request.requestUrl);
   const canonicalRequest = {
     protocol: canonicalRequestUrl.protocol,
     hostname: canonicalRequestUrl.hostname,
@@ -25,35 +25,35 @@ export async function signHttpRequest(request: HttpRequest, signer: SignatureV4)
       }),
       host: canonicalRequestUrl.hostname, // set mandatory host header for signing
     },
-  }
-  const canonicalSignedRequest = await signer.sign(canonicalRequest)
+  };
+  const canonicalSignedRequest = await signer.sign(canonicalRequest);
 
   return {
     ...request,
     data: canonicalSignedRequest.body,
     additionalHeaders: canonicalSignedRequest.headers,
-  }
+  };
 }
 
 /**
  * Convert http headers to canonical headers
- * @param headers - http headers
- * @returns canonical headers
+ * @param headers http headers
+ * @return canonical headers
  */
 function canonicalHeadersOf(headers: OutgoingHttpHeaders): Record<string, string> {
   return Object.entries(headers).reduce((result, [key, value]) => {
     if (typeof value === 'string') {
-      result[key] = value
+      result[key] = value;
     } else if (typeof value === 'number') {
-      result[key] = String(value)
+      result[key] = String(value);
     } else if (Array.isArray(value)) {
-      result[key] = value.join(', ')
+      result[key] = value.join(', ');
     }
-    return result
-  }, <Record<string, string>>{})
+    return result;
+  }, {} as Record<string, string>);
 }
 
-export type HttpRequest = {
+export interface HttpRequest {
   method: string,
   requestUrl: string,
   data: string | NodeJS.ReadableStream | null,

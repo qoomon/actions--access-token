@@ -5,7 +5,7 @@ import {retry} from './common-utils.js'
 /**
  * This function will create a function to fetch the public key for the given decoded jwt
  * @param options - jwks options
- * @returns function to fetch the public key
+ * @return function to fetch the public key
  */
 export function buildJwksKeyFetcher(options: GetJwksOptions): (jwt: DecodedJwt) => Promise<string> {
   const jwks = buildJwks(options)

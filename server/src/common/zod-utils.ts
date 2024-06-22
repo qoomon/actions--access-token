@@ -4,7 +4,7 @@ import YAML from 'yaml'
 /**
  * This function will format a zod issue
  * @param issue - zod issue
- * @returns formatted issue
+ * @return formatted issue
  */
 export function formatZodIssue(issue: z.ZodIssue): string {
   if (issue.path.length === 0) return issue.message
@@ -33,7 +33,7 @@ export const YamlTransformer = z.string().transform((str, ctx) => {
 /**
  * Shortcut for creating a zod string with regex validation
  * @param regex - regex
- * @returns zod string
+ * @return zod string
  */
 export function zStringRegex(regex: RegExp) {
   // Invalid enum value. Expected 'read' | 'write', received 'invalid',

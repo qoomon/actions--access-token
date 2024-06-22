@@ -31,7 +31,7 @@ export const config: Readonly<Config> = {
 
 // --- Types -----------------------------------------------------------------------------------------------------------
 
-type Config = {
+interface Config {
   githubAppAuth: {
     appId: string
     privateKey: string

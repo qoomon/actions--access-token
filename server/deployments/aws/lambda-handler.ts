@@ -7,10 +7,10 @@ if (!process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE']) {
   const lambda = new LambdaClient({region: process.env.AWS_REGION})
   const lambdaFunctionUrl = await lambda.send(new GetFunctionUrlConfigCommand({
     FunctionName: process.env['AWS_LAMBDA_FUNCTION_NAME'],
-  })).then((output) => output.FunctionUrl!)
+  })).then((output) => new URL(output.FunctionUrl ?? ''))
 
   // --- guess audience from AWS_LAMBDA_FUNCTION_NAME
-  process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] = new URL(lambdaFunctionUrl).hostname
+  process.env['GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE'] = lambdaFunctionUrl.hostname
 }
 
 const secretsManager = new SecretsManager({region: process.env.AWS_REGION})
@@ -24,4 +24,3 @@ process.env['REQUEST_ID_HEADER'] = 'x-request-id'
 
 const {app} = await import('../../src/app.js')
 export const handler = handle(app)
-

@@ -11,7 +11,7 @@ import {buildJwksKeyFetcher} from './jwt-utils.js'
 
 /**
  * Creates a MethodNotAllowedHandler
- * @returns NotFoundHandler
+ * @return NotFoundHandler
  */
 export function methodNotAllowedHandler(): Handler {
   return (context) => context.text('Method not allowed', 405)
@@ -19,7 +19,7 @@ export function methodNotAllowedHandler(): Handler {
 
 /**
  * Creates a NotFoundHandler that responses with json
- * @returns NotFoundHandler
+ * @return NotFoundHandler
  */
 export function notFoundHandler(): NotFoundHandler {
   return (context) => {
@@ -33,7 +33,7 @@ export function notFoundHandler(): NotFoundHandler {
 
 /**
  * Creates an ErrorHandler that response with json
- * @returns ErrorHandler
+ * @return ErrorHandler
  */
 export function errorHandler<ENV extends { Variables: { log: Logger, id?: string } }>(): ErrorHandler<ENV> {
   return (err, context) => {
@@ -68,7 +68,7 @@ export function errorHandler<ENV extends { Variables: { log: Logger, id?: string
 /**
  * Creates a middleware that generates and sets a request id
  * @param header - header name
- * @returns middleware
+ * @return middleware
  */
 export function setRequestId(header: string | undefined = 'x-request-id') {
   return createMiddleware<{ Variables: { id: string } }>(async (context, next) => {
@@ -81,7 +81,7 @@ export function setRequestId(header: string | undefined = 'x-request-id') {
 /**
  * Creates a middleware that generates and sets a request logger
  * @param logger - logger
- * @returns middleware
+ * @return middleware
  */
 export function setRequestLogger(logger: Logger = pino()) {
   return createMiddleware<{ Variables: { log: Logger, id?: string } }>(async (context, next) => {
@@ -94,7 +94,7 @@ export function setRequestLogger(logger: Logger = pino()) {
 
 /**
  * Creates a middleware to log http requests and responses
- * @returns middleware
+ * @return middleware
  */
 export function debugLogger() {
   return createMiddleware<{ Variables: { log: Logger, id?: string } }>(async (context, next) => {
@@ -117,7 +117,7 @@ export function debugLogger() {
  * Creates a middleware that parses the request body as json
  * @param req - request
  * @param schema - zod schema
- * @returns middleware
+ * @return middleware
  */
 export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema: T) {
   const body = await req.text()
@@ -136,7 +136,7 @@ export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema:
 /**
  * Creates a middleware that verifies a token and sets the token payload as 'token' context variable
  * @param options - fast-jwt createVerifier options
- * @returns middleware
+ * @return middleware
  */
 export function tokenAuthenticator<T extends object>(
     options: Partial<VerifierOptions & { key?: KeyFetcher }>,

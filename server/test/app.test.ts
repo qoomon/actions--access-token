@@ -963,7 +963,7 @@ describe('App path /access_tokens', () => {
 
 /**
  * Mock modules
- * @returns void
+ * @return void
  */
 function mockJwks() {
   jest.unstable_mockModule('get-jwks', () => {
@@ -987,7 +987,7 @@ function mockJwks() {
 
 /**
  * Mock GitHub
- * @returns GitHub environment
+ * @return GitHub environment
  */
 function mockGithub() {
   const mock: {
@@ -1155,7 +1155,7 @@ function mockGithub() {
 /**
  * Normalize permissions by replacing all '-' with '_'
  * @param permissions - permissions object
- * @returns normalized permissions
+ * @return normalized permissions
  */
 // function normalizePermissions(permissions: Record<string, string>) {
 //   return mapObject(permissions, ([key, value]) => [
@@ -1167,7 +1167,7 @@ function mockGithub() {
 /**
  * Create and modify date relative to now
  * @param hour - hours in future
- * @returns relative date
+ * @return relative date
  */
 function dateIn({hour}: { hour: number }) {
   return new Date(new Date().setHours(new Date().getHours() + hour))
