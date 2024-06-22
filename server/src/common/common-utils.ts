@@ -4,7 +4,7 @@
  * @return true if the given object has entries
  */
 export function hasEntries<T extends object>(obj: T): boolean {
-  return Object.entries(obj).length > 0
+  return Object.entries(obj).length > 0;
 }
 
 /**
@@ -13,7 +13,7 @@ export function hasEntries<T extends object>(obj: T): boolean {
  * @return never
  */
 export function _throw(error: unknown): never {
-  throw error
+  throw error;
 }
 
 /**
@@ -23,7 +23,7 @@ export function _throw(error: unknown): never {
  * @return mapped value
  */
 export function mapValue<T, R>(value:T, fn: (value:T) => R): R {
-  return fn(value)
+  return fn(value);
 }
 
 /**
@@ -32,8 +32,8 @@ export function mapValue<T, R>(value:T, fn: (value:T) => R): R {
  * @return the given object
  */
 export function ensureHasEntries<T extends object>(obj: T): T {
-  if (!hasEntries(obj)) throw Error('Illegal argument, object can not be empty')
-  return obj
+  if (!hasEntries(obj)) throw Error('Illegal argument, object can not be empty');
+  return obj;
 }
 
 /**
@@ -42,7 +42,7 @@ export function ensureHasEntries<T extends object>(obj: T): T {
  * @return array with unique values
  */
 export function unique<T>(iterable: Iterable<T>): T[] {
-  return Array.from(new Set(iterable))
+  return Array.from(new Set(iterable));
 }
 
 /**
@@ -51,29 +51,16 @@ export function unique<T>(iterable: Iterable<T>): T[] {
  * @return array of tuples
  */
 export function tuplesOf<T>(iterable: Iterable<T>): [T, T | undefined][] {
-  const result: [T, T | undefined][] = []
-  const iterator = iterable[Symbol.iterator]()
-  let iteratorResult
+  const result: [T, T | undefined][] = [];
+  const iterator = iterable[Symbol.iterator]();
+  let iteratorResult;
   while (!(iteratorResult = iterator.next()).done) {
     result.push([
       iteratorResult.value,
       iterator.next().value,
-    ])
+    ]);
   }
-  return result
-}
-
-/**
- * This function will reduce an array of tuples to an object
- * @param iterable - an iterable
- * @return an object
- */
-export function objectOfTuples<T>(iterable: Iterable<[T, T | undefined]>): Record<string, T | undefined> {
-  const result: Record<string, T | undefined> = {}
-  for (const [key, value] of iterable) {
-    result[String(key)] = value
-  }
-  return result
+  return result;
 }
 
 /**
@@ -85,8 +72,8 @@ export function objectOfTuples<T>(iterable: Iterable<[T, T | undefined]>): Recor
 export function regexpOfWildcardPattern(pattern: string, flags?: string): RegExp {
   const regexp = escapeRegexp(pattern)
       .replace(/\\\*/g, '.+') // replace * with match one or more characters
-      .replace(/\\\?/g, '.') // replace ? with match one characters
-  return RegExp(`^${regexp}$`, flags)
+      .replace(/\\\?/g, '.'); // replace ? with match one characters
+  return RegExp(`^${regexp}$`, flags);
 }
 
 /**
@@ -95,7 +82,7 @@ export function regexpOfWildcardPattern(pattern: string, flags?: string): RegExp
  * @return escaped string
  */
 export function escapeRegexp(string: string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -108,7 +95,7 @@ export function mapObjectEntries<V, U>(
     object: Record<string, V>,
     fn: (entry: [string, V]) => [string, U],
 ): Record<string, U> {
-  return Object.fromEntries(Object.entries(object).map(fn)) as Record<string, U>
+  return Object.fromEntries(Object.entries(object).map(fn)) as Record<string, U>;
 }
 
 /**
@@ -121,7 +108,7 @@ export function filterObjectEntries<V>(
     object: Record<string, V>,
     fn: (entry: [string, V]) => boolean,
 ): Record<string, V> {
-  return Object.fromEntries(Object.entries(object).filter(fn))
+  return Object.fromEntries(Object.entries(object).filter(fn));
 }
 
 /**
@@ -130,7 +117,7 @@ export function filterObjectEntries<V>(
  * @return promise
  */
 export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -146,33 +133,33 @@ export function sleep(ms: number): Promise<void> {
 export async function retry<T>(
     fn: () => Promise<T>,
     options: {
-      retries: number,
-      delay: number,
-      onRetry?: (result: T) => boolean | Promise<boolean>,
-      onError?: (error: unknown) => boolean | Promise<boolean>,
-    } = {
+    retries: number,
+    delay: number,
+    onRetry?: (result: T) => boolean | Promise<boolean>,
+    onError?: (error: unknown) => boolean | Promise<boolean>,
+  } = {
       retries: 1,
       delay: 1000,
     },
 ): Promise<T> {
-  const {retries, delay} = options
+  const {retries, delay} = options;
   for (let attempts = 0; attempts < retries; attempts++) {
     try {
-      const result = await fn()
+      const result = await fn();
       if (!options.onRetry || !options.onRetry(result)) {
-        return result
+        return result;
       }
     } catch (error: unknown) {
       if (options.onError && !options.onError(error)) {
-        throw error
+        throw error;
       }
       if (attempts >= retries) {
-        throw error
+        throw error;
       }
-      await sleep(delay)
+      await sleep(delay);
     }
   }
-  throw Error('Illegal state')
+  throw Error('Illegal state');
 }
 
 /**
@@ -184,9 +171,8 @@ export async function retry<T>(
 export function indent(string: string, indent = '  ') {
   return string.split('\n')
       .map((line) => `${indent}${line}`)
-      .join('\n')
+      .join('\n');
 }
-
 
 /**
  * Check if the given value is a record
@@ -194,7 +180,7 @@ export function indent(string: string, indent = '  ') {
  * @return true if the given object is a record
  */
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
@@ -203,7 +189,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * @return regular expression
  */
 export function joinRegExp(...regexps: RegExp[]): RegExp {
-  return new RegExp(regexps.map((r) => r.source).join(''), regexps[regexps.length-1]?.flags)
+  return new RegExp(regexps.map((r) => r.source).join(''), regexps[regexps.length - 1]?.flags);
 }
 
 /**
@@ -212,5 +198,5 @@ export function joinRegExp(...regexps: RegExp[]): RegExp {
  * @return base64 string
  */
 export function toBase64(value?: string | null) {
-  return Buffer.from(value ?? '').toString('base64')
+  return Buffer.from(value ?? '').toString('base64');
 }

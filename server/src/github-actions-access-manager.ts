@@ -1,5 +1,12 @@
-import {Octokit} from '@octokit/rest'
-import {formatZodIssue, YamlTransformer} from './common/zod-utils.js'
+import {Octokit} from '@octokit/rest';
+import {z, ZodSchema} from 'zod';
+import {components} from '@octokit/openapi-types';
+import {createAppAuth} from '@octokit/auth-app';
+import limit from 'p-limit';
+import type {
+  RestEndpointMethodTypes,
+} from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types';
+import {formatZodIssue, YamlTransformer} from './common/zod-utils.js';
 import {
   _throw,
   ensureHasEntries,
@@ -11,8 +18,7 @@ import {
   mapObjectEntries,
   retry,
   unique,
-} from './common/common-utils.js'
-import {z, ZodSchema} from 'zod'
+} from './common/common-utils.js';
 import {
   aggregatePermissions,
   GitHubActionsJwtPayload,
@@ -25,15 +31,9 @@ import {
   parseOIDCSubject,
   verifyPermissions,
   verifyRepositoryPermissions,
-} from './common/github-utils.js'
-import {Status} from './common/http-utils.js'
-import {components} from '@octokit/openapi-types'
-import {createAppAuth} from '@octokit/auth-app'
-import limit from 'p-limit'
-import log from './logger.js'
-import type {
-  RestEndpointMethodTypes,
-} from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types'
+} from './common/github-utils.js';
+import {Status} from './common/http-utils.js';
+import {logger as log} from './logger.js';
 
 /**
  * GitHub Access Manager
@@ -43,13 +43,14 @@ import type {
 export async function accessTokenManager(options: {
   githubAppAuth: { appId: string, privateKey: string, },
   accessPolicyLocation: {
-    owner: { repo: string, path: string,},
-    repo: { path: string}
-}}) {
-  log.debug({appId: options.githubAppAuth.appId}, 'GitHub app')
-  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: options.githubAppAuth})
+    owner: { repo: string, path: string, },
+    repo: { path: string }
+  }
+}) {
+  log.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
+  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: options.githubAppAuth});
   const GITHUB_APP = await GITHUB_APP_CLIENT.apps.getAuthenticated()
-      .then((res) => res.data ?? _throw(new Error('GitHub app not found.')))
+      .then((res) => res.data ?? _throw(new Error('GitHub app not found.')));
 
   /**
    * Creates a GitHub Actions Access Token
@@ -69,27 +70,27 @@ export async function accessTokenManager(options: {
   ) {
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
       owner: tokenRequest.owner,
-    })
+    });
     if (!appInstallation) {
       throw new GithubAccessTokenError(`${GITHUB_APP.name} has not been installed for ${tokenRequest.owner}.\n` +
-          `Install from ${GITHUB_APP.html_url}`)
+          `Install from ${GITHUB_APP.html_url}`);
     }
-    log.debug({appInstallation}, 'App installation')
+    log.debug({appInstallation}, 'App installation');
 
     // --- verify requested token permissions ------------------------------------------------------------------------
     // grant requested permissions explicitly to prevent accidental permission escalation
-    const grantedTokenPermissions: Record<string, string> = {}
+    const grantedTokenPermissions: Record<string, string> = {};
     {
-      const pendingTokenPermissions: Record<string, string> = {...tokenRequest.permissions}
+      const pendingTokenPermissions: Record<string, string> = {...tokenRequest.permissions};
       const rejectedTokenPermissions: {
         reason: string,
         scope: string, permission: string,
-      }[] = []
+      }[] = [];
 
       const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
         // single_file to read access policy files
         permissions: {single_file: 'read'},
-      })
+      });
 
       // --- verify app installation permissions ---------------------------------------------------------------------
       verifyPermissions({
@@ -98,39 +99,42 @@ export async function accessTokenManager(options: {
       }).denied.forEach(({scope, permission}) => {
         rejectedTokenPermissions.push({
           reason: `Permission has not been granted to ${GITHUB_APP.name} installation for ${tokenRequest.owner}.`,
-          scope, permission,
-        })
-      })
+          scope,
+          permission,
+        });
+      });
 
       if (hasEntries(rejectedTokenPermissions)) {
-        throw new GithubAccessTokenError(createErrorMessage(rejectedTokenPermissions))
+        throw new GithubAccessTokenError(createErrorMessage(rejectedTokenPermissions));
       }
 
       // --- load owner access policy ----------------------------------------------------------------------------------
       const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
-        owner: tokenRequest.owner, repo: options.accessPolicyLocation.owner.repo,
+        owner: tokenRequest.owner,
+        repo: options.accessPolicyLocation.owner.repo,
         path: options.accessPolicyLocation.owner.path,
         strict: false, // ignore invalid access policy entries
-      })
-      log.debug({ownerAccessPolicy}, `${tokenRequest.owner} access policy:`)
+      });
+      log.debug({ownerAccessPolicy}, `${tokenRequest.owner} access policy:`);
 
       // --- verify allowed caller identities --------------------------------------------------------------------------
-      const effectiveCallerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity)
+      const effectiveCallerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
 
       if (ownerAccessPolicy['allowed-subjects'].length > 0) {
         if (!ownerAccessPolicy['allowed-subjects'].some((it) => effectiveCallerIdentitySubjects
             .some((subject) => matchSubjectPattern(it, subject, false)))) {
           throw new GithubAccessTokenError(
               `OIDC token subject is not allowed by ${tokenRequest.owner} owner access policy.\n` +
-              'Effective token subjects:\n' +
-              effectiveCallerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n'))
+              `Effective token subjects:\n${effectiveCallerIdentitySubjects
+                  .map((subject) => `- ${subject}`).join('\n')}`,
+          );
         }
       }
 
       const ownerGrantedPermissions = evaluateGrantedPermissions({
         statements: ownerAccessPolicy.statements,
         callerIdentitySubjects: effectiveCallerIdentitySubjects,
-      })
+      });
 
       // --- verify scope permissions ----------------------------------------------------------------------------------
       switch (tokenRequest.scope) {
@@ -141,19 +145,20 @@ export async function accessTokenManager(options: {
             requested: pendingTokenPermissions,
           }).granted.forEach(({scope, permission}) => {
             // permission granted
-            grantedTokenPermissions[scope] = permission
+            grantedTokenPermissions[scope] = permission;
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            delete pendingTokenPermissions[scope]
-          })
+            delete pendingTokenPermissions[scope];
+          });
 
           // --- reject all pending permissions
           Object.entries(pendingTokenPermissions).forEach(([scope, permission]) => {
             rejectedTokenPermissions.push({
               reason: `Permission has not been granted by ${tokenRequest.owner}.`,
-              scope, permission,
-            })
-          })
-          break
+              scope,
+              permission,
+            });
+          });
+          break;
         }
         case 'repos': {
           // --- verify repo permissions by OWNER access policy --------------------------------------------------------
@@ -164,10 +169,10 @@ export async function accessTokenManager(options: {
               granted: verifyRepositoryPermissions(ownerGrantedPermissions).valid,
               requested: pendingTokenPermissions,
             }).granted.forEach(({scope, permission}) => {
-              grantedTokenPermissions[scope] = permission
+              grantedTokenPermissions[scope] = permission;
               // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-              delete pendingTokenPermissions[scope]
-            })
+              delete pendingTokenPermissions[scope];
+            });
 
             // --- reject repo permissions that are not explicitly granted by owner access policy
             verifyPermissions({
@@ -177,99 +182,101 @@ export async function accessTokenManager(options: {
             }).denied.forEach(({scope, permission}) => {
               rejectedTokenPermissions.push({
                 reason: `Permission is not allowed by ${tokenRequest.owner} owner policy.`,
-                scope, permission,
-              })
-            })
+                scope,
+                permission,
+              });
+            });
           }
 
           if (hasEntries(rejectedTokenPermissions)) {
-            break
+            break;
           }
 
           // --- verify repo permissions by target REPOSITORY access policy --------------------------------------------
           {
             // BE AWARE to grant repository permissions only
-            const pendingRepositoryTokenPermissions = verifyRepositoryPermissions(pendingTokenPermissions).valid
+            const pendingRepositoryTokenPermissions = verifyRepositoryPermissions(pendingTokenPermissions).valid;
             if (hasEntries(pendingRepositoryTokenPermissions)) {
-              const pendingRepositoryTokenScopesByRepository: Record<string, Set<string>> =
-                  Object.fromEntries(Object.keys(pendingRepositoryTokenPermissions)
-                      .map((scope) => [scope, new Set(tokenRequest.repositories)]))
+              const pendingRepositoryTokenScopesByRepository = Object.fromEntries(
+                  Object.keys(pendingRepositoryTokenPermissions)
+                      .map((scope) => [scope, new Set(tokenRequest.repositories)]));
 
-              const limitRepoPermissionRequests = limit(8)
+              const limitRepoPermissionRequests = limit(8);
               await Promise.all(
                   tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
                     const repoAccessPolicy = await getRepoAccessPolicy(appInstallationClient, {
-                      owner: tokenRequest.owner, repo,
+                      owner: tokenRequest.owner,
+                      repo,
                       path: options.accessPolicyLocation.repo.path,
                       strict: false, // ignore invalid access policy entries
-                    })
-                    log.debug({repoAccessPolicy}, `${tokenRequest.owner}/${repo} access policy`)
+                    });
+                    log.debug({repoAccessPolicy}, `${tokenRequest.owner}/${repo} access policy`);
 
                     const repoGrantedPermissions = evaluateGrantedPermissions({
                       statements: repoAccessPolicy.statements,
                       callerIdentitySubjects: effectiveCallerIdentitySubjects,
-                    })
+                    });
 
                     const verifiedRepoPermissions = verifyPermissions({
                       granted: repoGrantedPermissions,
                       requested: pendingTokenPermissions,
-                    })
+                    });
                     // --- grant repo permissions that are granted by repo access policy
                     verifiedRepoPermissions.granted.forEach(({scope}) => {
-                      pendingRepositoryTokenScopesByRepository[scope].delete(repo)
-                    })
+                      pendingRepositoryTokenScopesByRepository[scope].delete(repo);
+                    });
                     // --- reject repo permissions that are not granted by repo access policy
                     verifiedRepoPermissions.denied.forEach(({scope, permission}) => {
                       rejectedTokenPermissions.push({
                         reason: `Permission has not been granted by ${tokenRequest.owner}/${repo}.`,
-                        scope, permission,
-                      })
-                    })
+                        scope,
+                        permission,
+                      });
+                    });
                   })),
-              )
+              );
 
               // --- grant repo permission only if all repositories have granted the specific permission
               Object.entries(pendingRepositoryTokenScopesByRepository).forEach(([scope, repositories]) => {
                 if (repositories.size == 0) {
-                  grantedTokenPermissions[scope] = pendingTokenPermissions[scope]
+                  grantedTokenPermissions[scope] = pendingTokenPermissions[scope];
                   // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-                  delete pendingTokenPermissions[scope]
+                  delete pendingTokenPermissions[scope];
                 }
-              })
+              });
             }
           }
 
-          break
+          break;
         }
       }
 
       if (hasEntries(rejectedTokenPermissions)) {
-        throw new GithubAccessTokenError(createErrorMessage(rejectedTokenPermissions, effectiveCallerIdentitySubjects))
+        throw new GithubAccessTokenError(createErrorMessage(rejectedTokenPermissions, effectiveCallerIdentitySubjects));
       }
       // SAFEGUARD: ensure that all requested permissions have been granted. This should never happen.
       if (hasEntries(pendingTokenPermissions)) {
-        throw new Error('Unexpected pending permissions.')
+        throw new Error('Unexpected pending permissions.');
       }
     }
 
     // --- create requested access token -------------------------------------------------------------------------------
-    const accessToken = await createInstallationAccessToken(
-        GITHUB_APP_CLIENT, appInstallation, {
-          // BE AWARE that an empty object will result in a token with all app installation permissions
-          permissions: ensureHasEntries(grantedTokenPermissions),
-          // BE AWARE that an empty array will result in a token with access to all app installation repositories
-          repositories: tokenRequest.scope === 'repos' ? ensureHasEntries(tokenRequest.repositories) : undefined,
-        })
+    const accessToken = await createInstallationAccessToken(GITHUB_APP_CLIENT, appInstallation, {
+      // BE AWARE that an empty object will result in a token with all app installation permissions
+      permissions: ensureHasEntries(grantedTokenPermissions),
+      // BE AWARE that an empty array will result in a token with access to all app installation repositories
+      repositories: tokenRequest.scope === 'repos' ? ensureHasEntries(tokenRequest.repositories) : undefined,
+    });
 
     return {
       owner: appInstallation.account?.name ?? tokenRequest.owner,
       ...accessToken,
-    }
+    };
   }
 
   return {
     createAccessToken,
-  }
+  };
 }
 
 // --- Access Manager Functions --------------------------------------------------------------------------------------
@@ -285,20 +292,18 @@ function createErrorMessage(
       reason: string,
       scope: string, permission: string,
     }[],
-    callerIdentitySubjects?: string[]
+    callerIdentitySubjects?: string[],
 ): string {
   let message = 'Some requested permissions got rejected.\n' +
       rejectedTokenPermissions.map(({scope, permission, reason}) => '' +
-          '- ' + `${scope}: ${permission}\n` +
-          indent(reason),
-      ).join('\n')
+          `- ${scope}: ${permission}\n${indent(reason)}`).join('\n');
 
   if (callerIdentitySubjects?.length) {
     message += '\n' +
         'Effective token subjects:\n' +
-        callerIdentitySubjects.map((subject) => `- ${subject}`,).join('\n')
+        `${callerIdentitySubjects.map((subject) => `- ${subject}`).join('\n')}`;
   }
-  return message
+  return message;
 }
 
 /**
@@ -310,7 +315,9 @@ function createErrorMessage(
  * @param strict - throw error on invalid access policy
  * @return access policy
  */
-async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
+async function getOwnerAccessPolicy(client: Octokit, {
+  owner, repo, path, strict,
+}: {
   owner: string,
   repo: string,
   path: string,
@@ -320,67 +327,69 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
     'statements': [],
     'allowed-subjects': [],
     'allowed-repository-permissions': {},
-  }
+  };
   const policyValue = await getRepositoryFileContent(client, {
-    owner, repo, path,
+    owner,
+    repo,
+    path,
     maxSize: 100 * 1024, // 100kb
-  })
+  });
 
   if (!policyValue) {
-    return emptyPolicy
+    return emptyPolicy;
   }
 
   const policyParseResult = YamlTransformer
       .transform((policyObject) => {
-        if (strict) return policyObject
+        if (strict) return policyObject;
 
         // ignore invalid entries
         if (isRecord(policyObject)) {
           if (Array.isArray(policyObject['allowed-subjects'])) {
             policyObject['allowed-subjects'] = filterValidSubjects(
-                policyObject['allowed-subjects'])
+                policyObject['allowed-subjects']);
           }
           if (isRecord(policyObject['allowed-repository-permissions'])) {
             policyObject['allowed-repository-permissions'] = filterValidPermissions(
-                policyObject['allowed-repository-permissions'], 'owner')
+                policyObject['allowed-repository-permissions'], 'owner');
           }
           if (Array.isArray(policyObject.statements)) {
             policyObject.statements = filterValidStatements(
-                policyObject.statements, 'owner')
+                policyObject.statements, 'owner');
           }
         }
 
-        return policyObject
+        return policyObject;
       })
       .pipe(GitHubOwnerAccessPolicySchema)
-      .safeParse(policyValue)
+      .safeParse(policyValue);
 
   if (policyParseResult.error) {
-    const issues = policyParseResult.error.issues.map(formatZodIssue)
+    const issues = policyParseResult.error.issues.map(formatZodIssue);
     if (strict) {
-      throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
+      throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues);
     }
-    log.debug({issues}, `${owner} access policy is invalid.`)
-    return emptyPolicy
+    log.debug({issues}, `${owner} access policy is invalid.`);
+    return emptyPolicy;
   }
 
-  const policy = policyParseResult.data
+  const policy = policyParseResult.data;
 
-  const expectedPolicyOrigin = `${owner}/${repo}`
+  const expectedPolicyOrigin = `${owner}/${repo}`;
   if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
-    const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
+    const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`];
     if (strict) {
-      throw new GithubAccessPolicyError(`${owner} owner access policy is invalid.`, issues)
+      throw new GithubAccessPolicyError(`${owner} owner access policy is invalid.`, issues);
     }
-    log.debug({issues}, `${owner} owner access policy is invalid.`)
-    return emptyPolicy
+    log.debug({issues}, `${owner} owner access policy is invalid.`);
+    return emptyPolicy;
   }
 
   policy.statements.forEach((statement) => {
-    normaliseAccessPolicyStatement(statement, {owner, repo})
-  })
+    normaliseAccessPolicyStatement(statement, {owner, repo});
+  });
 
-  return policy
+  return policy;
 }
 
 /**
@@ -392,7 +401,9 @@ async function getOwnerAccessPolicy(client: Octokit, {owner, repo, path, strict}
  * @param strict - throw error on invalid access policy
  * @return access policy
  */
-async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}: {
+async function getRepoAccessPolicy(client: Octokit, {
+  owner, repo, path, strict,
+}: {
   owner: string,
   repo: string,
   path: string,
@@ -400,54 +411,55 @@ async function getRepoAccessPolicy(client: Octokit, {owner, repo, path, strict}:
 }): Promise<Omit<GitHubRepositoryAccessPolicy, 'origin'>> {
   const emptyPolicy: Omit<GitHubRepositoryAccessPolicy, 'origin'> = {
     statements: [],
-  }
+  };
   const policyValue = await getRepositoryFileContent(client, {
-    owner, repo, path,
+    owner,
+    repo,
+    path,
     maxSize: 100 * 1024, // 100kb
-  })
+  });
   if (!policyValue) {
-    return emptyPolicy
+    return emptyPolicy;
   }
 
   const policyParseResult = YamlTransformer
       .transform((policyObject) => {
-        if (strict) return policyObject
+        if (strict) return policyObject;
         // ignore invalid entries
         if (isRecord(policyObject) && Array.isArray(policyObject.statements)) {
-          policyObject.statements = filterValidStatements(
-              policyObject.statements, 'repo')
+          policyObject.statements = filterValidStatements(policyObject.statements, 'repo');
         }
-        return policyObject
+        return policyObject;
       })
       .pipe(GitHubRepositoryAccessPolicySchema)
-      .safeParse(policyValue)
+      .safeParse(policyValue);
 
   if (policyParseResult.error) {
-    const issues = policyParseResult.error.issues.map(formatZodIssue)
+    const issues = policyParseResult.error.issues.map(formatZodIssue);
     if (strict) {
-      throw new GithubAccessPolicyError(`${owner}/${repo} repository access policy is invalid.`, issues)
+      throw new GithubAccessPolicyError(`${owner}/${repo} repository access policy is invalid.`, issues);
     }
-    log.debug({issues}, `${owner}/${repo} repository access policy is invalid.`)
-    return emptyPolicy
+    log.debug({issues}, `${owner}/${repo} repository access policy is invalid.`);
+    return emptyPolicy;
   }
 
-  const policy = policyParseResult.data
+  const policy = policyParseResult.data;
 
-  const expectedPolicyOrigin = `${owner}/${repo}`
+  const expectedPolicyOrigin = `${owner}/${repo}`;
   if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
-    const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`]
+    const issues = [`policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`];
     if (strict) {
-      throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues)
+      throw new GithubAccessPolicyError(`${owner} access policy is invalid.`, issues);
     }
-    log.debug({issues}, `${owner} access policy is invalid.`)
-    return emptyPolicy
+    log.debug({issues}, `${owner} access policy is invalid.`);
+    return emptyPolicy;
   }
 
   policy.statements.forEach((statement) => {
-    normaliseAccessPolicyStatement(statement, {owner, repo})
-  })
+    normaliseAccessPolicyStatement(statement, {owner, repo});
+  });
 
-  return policy
+  return policy;
 }
 
 /**
@@ -464,17 +476,17 @@ function filterValidStatements(statements: unknown[], permissionsType: 'owner' |
           // ---- subjects
           if ('subjects' in statementObject && Array.isArray(statementObject.subjects)) {
             // ignore invalid subjects
-            statementObject.subjects = filterValidSubjects(statementObject.subjects)
+            statementObject.subjects = filterValidSubjects(statementObject.subjects);
           }
           // ---- permissions
           if ('permissions' in statementObject && isRecord(statementObject.permissions)) {
             // ignore invalid permissions
-            statementObject.permissions = filterValidPermissions(statementObject.permissions, permissionsType)
+            statementObject.permissions = filterValidPermissions(statementObject.permissions, permissionsType);
           }
         }
-        return statementObject
+        return statementObject;
       })
-      .filter((statementObject: unknown) => GitHubAccessStatementSchema.safeParse(statementObject).success)
+      .filter((statementObject: unknown) => GitHubAccessStatementSchema.safeParse(statementObject).success);
 }
 
 /**
@@ -483,7 +495,7 @@ function filterValidStatements(statements: unknown[], permissionsType: 'owner' |
  * @return valid subjects
  */
 function filterValidSubjects(subjects: unknown[]): unknown[] {
-  return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success)
+  return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success);
 }
 
 /**
@@ -494,19 +506,19 @@ function filterValidSubjects(subjects: unknown[]): unknown[] {
  */
 function filterValidPermissions(permissions: Record<string, unknown>, type: 'owner' | 'repo')
     : Record<string, unknown> {
-  let permissionSchema: ZodSchema
+  let permissionSchema: ZodSchema;
   switch (type) {
     case 'owner':
-      permissionSchema = GitHubAppPermissionsSchema
-      break
+      permissionSchema = GitHubAppPermissionsSchema;
+      break;
     case 'repo':
-      permissionSchema = GitHubAppRepositoryPermissionsSchema
-      break
+      permissionSchema = GitHubAppRepositoryPermissionsSchema;
+      break;
     default:
-      throw new Error('Invalid permission type.')
+      throw new Error('Invalid permission type.');
   }
 
-  return filterObjectEntries(permissions, ([key, value]) => permissionSchema.safeParse({[key]: value}).success)
+  return filterObjectEntries(permissions, ([key, value]) => permissionSchema.safeParse({[key]: value}).success);
 }
 
 /**
@@ -521,7 +533,7 @@ function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owne
   repo: string,
 }) {
   statement.subjects = statement.subjects
-      .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}))
+      .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}));
 }
 
 /**
@@ -535,7 +547,7 @@ function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
   owner: string,
   repo: string
 }): string {
-  return subject.replaceAll('${origin}', `${owner}/${repo}`)
+  return subject.replaceAll('${origin}', `${owner}/${repo}`);
 }
 
 /**
@@ -550,9 +562,9 @@ function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
 }): Record<string, string> {
   const permissions = statements
       .filter(statementSubjectPredicate(callerIdentitySubjects))
-      .map((it) => it.permissions)
+      .map((it) => it.permissions);
 
-  return aggregatePermissions(permissions)
+  return aggregatePermissions(permissions);
 
   /**
    * Create statement subject predicate
@@ -562,7 +574,7 @@ function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
   function statementSubjectPredicate(subjects: string[]) {
     return (statement: GitHubAccessStatement) => subjects
         .some((subject) => statement.subjects
-            .some((subjectPattern) => matchSubjectPattern(subjectPattern, subject)))
+            .some((subjectPattern) => matchSubjectPattern(subjectPattern, subject)));
   }
 }
 
@@ -572,29 +584,29 @@ function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
  * @return effective caller identity subjects
  */
 function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
-  const subjects = [callerIdentity.sub]
+  const subjects = [callerIdentity.sub];
 
   // --- add artificial subjects
 
   // repo : ref
   // => repo:qoomon/sandbox:ref:refs/heads/main
-  subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`)
+  subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`);
 
   // repo : workflow_ref
   // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-  subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`)
+  subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`);
 
   // repo : job_workflow_ref
   // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-  subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`)
+  subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
 
   if (callerIdentity.environment) {
     // repo : environment
     // => repo:qoomon/sandbox:environment:production
-    subjects.push(`repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`)
+    subjects.push(`repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`);
   }
 
-  return unique(subjects)
+  return unique(subjects);
 }
 
 /**
@@ -606,19 +618,19 @@ function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayl
  */
 function matchSubjectPattern(subjectPattern: string, subject: string, strict = true): boolean {
   if (strict && subjectPattern.includes('**')) {
-    return false
+    return false;
   }
 
   // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
   // e.g. repo:foo/bar:* is not allowed
   if (Object.keys(parseOIDCSubject(subjectPattern))
       .some((claim) => claim !== '**' && claim.includes('*'))) {
-    return false
+    return false;
   }
 
   // grantedSubjectPattern example: repo:qoomon/sandbox:ref:refs/heads/*
   // identity.sub example:     repo:qoomon/sandbox:ref:refs/heads/main
-  return regexpOfSubjectPattern(subjectPattern).test(subject)
+  return regexpOfSubjectPattern(subjectPattern).test(subject);
 }
 
 /**
@@ -630,10 +642,9 @@ function regexpOfSubjectPattern(subjectPattern: string): RegExp {
   const regexp = escapeRegexp(subjectPattern)
       .replace(/\\\*\\\*/g, '.*')
       .replace(/\\\*/g, '[^:]*') // replace * with match one or more characters except ':' char
-      .replace(/\\\?/g, '[^:]') // replace ? with match one characters except ':' char
-  return RegExp(`^${regexp}$`, 'i')
+      .replace(/\\\?/g, '[^:]'); // replace ? with match one characters except ':' char
+  return RegExp(`^${regexp}$`, 'i');
 }
-
 
 // --- GitHub Functions ----------------------------------------------------------------------------------------------
 
@@ -648,14 +659,15 @@ async function getAppInstallation(client: Octokit, {owner}: {
 }): Promise<GitHubAppInstallation | null> {
   // WORKAROUND: for some reason sometimes the request connection get closed unexpectedly (line closed),
   // therefore we retry on any error
-  return await retry(
+  return retry(
       async () => client.apps.getUserInstallation({username: owner})
           .then((res) => res.data)
-          .catch(async (error) => error.status === Status.NOT_FOUND ? null : _throw(error)),
+          .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error))),
       {
         delay: 1000,
         retries: 3,
-      })
+      },
+  );
 }
 
 /**
@@ -673,7 +685,7 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
   permissions: GitHubAppPermissions
 }): Promise<GitHubAppInstallationAccessToken> {
   // noinspection TypeScriptValidateJSTypes
-  return await client.apps.createInstallationAccessToken({
+  return client.apps.createInstallationAccessToken({
     installation_id: installation.id,
     // BE AWARE that an empty object will result in a token with all app installation permissions
     permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
@@ -681,7 +693,7 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
     ])),
     repositories,
   })
-      .then((res) => res.data)
+      .then((res) => res.data);
 }
 
 /**
@@ -699,8 +711,8 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
   const installationAccessToken = await createInstallationAccessToken(client, installation, {
     permissions,
     repositories,
-  })
-  return new Octokit({auth: installationAccessToken.token})
+  });
+  return new Octokit({auth: installationAccessToken.token});
 }
 
 /**
@@ -712,32 +724,34 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
  * @param maxSize - max file size
  * @return file content or null if file does not exist
  */
-async function getRepositoryFileContent(client: Octokit, {owner, repo, path, maxSize}: {
+async function getRepositoryFileContent(client: Octokit, {
+  owner, repo, path, maxSize,
+}: {
   owner: string,
   repo: string,
   path: string,
   maxSize?: number
 }): Promise<string | null> {
-  return await client.repos.getContent({owner, repo, path})
+  return client.repos.getContent({owner, repo, path})
       .then((res) => {
         if ('type' in res.data && res.data.type === 'file') {
           if (maxSize !== undefined && res.data.size > maxSize) {
             throw new Error(`Expect file size to be less than ${maxSize}b, but was ${res.data.size}b` +
-                `${owner}/${repo}/${path}`)
+                `${owner}/${repo}/${path}`);
           }
           return Buffer.from(
               res.data.content,
-              'base64').toString()
+              'base64',
+          ).toString();
         }
 
-        throw new Error('Unexpected file content')
+        throw new Error('Unexpected file content');
       })
       .catch((error) => {
-        if (error.status === Status.NOT_FOUND) return null
-        throw error
-      })
+        if (error.status === Status.NOT_FOUND) return null;
+        throw error;
+      });
 }
-
 
 // --- Errors ------------------------------------------------------------------------------------------------------
 
@@ -749,10 +763,10 @@ export class GithubAccessTokenError extends Error {
    * Creates a new GitHub access token error
    * @param msg - error message
    */
-  constructor(msg: string,) {
-    super(msg)
+  constructor(msg: string) {
+    super(msg);
 
-    Object.setPrototypeOf(this, GithubAccessTokenError.prototype)
+    Object.setPrototypeOf(this, GithubAccessTokenError.prototype);
   }
 }
 
@@ -760,52 +774,51 @@ export class GithubAccessTokenError extends Error {
  * Access Policy Error
  */
 export class GithubAccessPolicyError extends Error {
-  public issues?: string[]
+  public issues?: string[];
 
   /**
    * @param message - error message
    * @param issues - list of issues
    */
   constructor(message: string, issues?: string[]) {
-    super(message)
-    this.issues = issues
+    super(message);
+    this.issues = issues;
   }
 }
-
 
 // --- Schemas ---------------------------------------------------------------------------------------------------------
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
-const GitHubSubjectClaimSchema = z.string().trim()
+const GitHubSubjectClaimSchema = z.string().trim();
 
 const GitHubBaseStatementSchema = z.strictObject({
   subjects: z.array(GitHubSubjectClaimSchema),
-})
+});
 
 const GitHubAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
   permissions: GitHubAppPermissionsSchema,
-}))
-type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>
+}));
+type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>;
 
 const GitHubRepositoryAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
   permissions: GitHubAppRepositoryPermissionsSchema,
-}))
-export type GitHubRepositoryAccessStatement = z.infer<typeof GitHubRepositoryAccessStatementSchema>
+}));
+export type GitHubRepositoryAccessStatement = z.infer<typeof GitHubRepositoryAccessStatementSchema>;
 
 const GitHubOwnerAccessPolicySchema = z.strictObject({
   'origin': GitHubRepositorySchema,
   'statements': z.array(GitHubAccessStatementSchema).default([]),
   'allowed-subjects': z.array(GitHubSubjectClaimSchema).default([]),
   'allowed-repository-permissions': GitHubAppRepositoryPermissionsSchema.default({}),
-})
-export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>
+});
+export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>;
 
 const GitHubRepositoryAccessPolicySchema = z.strictObject({
-  'origin': GitHubRepositorySchema,
-  'statements': z.array(GitHubRepositoryAccessStatementSchema).default([]),
-})
-export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>
+  origin: GitHubRepositorySchema,
+  statements: z.array(GitHubRepositoryAccessStatementSchema).default([]),
+});
+export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>;
 
-type GitHubAppInstallation = RestEndpointMethodTypes['apps']['getUserInstallation']['response']['data']
+type GitHubAppInstallation = RestEndpointMethodTypes['apps']['getUserInstallation']['response']['data'];
 // eslint-disable-next-line max-len
-type GitHubAppInstallationAccessToken = RestEndpointMethodTypes['apps']['createInstallationAccessToken']['response']['data']
+type GitHubAppInstallationAccessToken = RestEndpointMethodTypes['apps']['createInstallationAccessToken']['response']['data'];

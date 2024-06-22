@@ -1,11 +1,11 @@
 /* eslint-disable require-jsdoc */
-import jwt, {PrivateKey, SignerOptions} from 'fast-jwt'
-import {GitHubActionsJwtPayload, parseRepository} from '../src/common/github-utils.js'
-import {components} from '@octokit/openapi-types'
-import {GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../src/github-actions-access-manager.js'
+import jwt, {PrivateKey, SignerOptions} from 'fast-jwt';
+import {components} from '@octokit/openapi-types';
+import {GitHubActionsJwtPayload, parseRepository} from '../src/common/github-utils.js';
+import {GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../src/github-actions-access-manager.js';
 
-export const DEFAULT_OWNER = 'octocat'
-export const DEFAULT_REPO = 'playground'
+export const DEFAULT_OWNER = 'octocat';
+export const DEFAULT_REPO = 'playground';
 
 export const GITHUB_APP_AUTH = {
   appId: '1234567890',
@@ -36,7 +36,7 @@ export const GITHUB_APP_AUTH = {
       'RZycinkxOLbCl8JLVqqRWdkMaDBQScMGBQce7FEFwKCOyts9uakZcRCkF5F5E0H8\n' +
       'eZB2qW17Y/X/+rA0veFlI6Ms2D/aS5q/tknlhd2BMA2gGCHbasCH\n' +
       '-----END RSA PRIVATE KEY-----\n',
-}
+};
 
 export const GITHUB_ACTIONS_TOKEN_SIGNING = {
   aud: 'example.org',
@@ -108,7 +108,7 @@ export const GITHUB_ACTIONS_TOKEN_SIGNING = {
       'a0TgLdIZMKtdzROHRqm/wJ6cm76NECUhyRL8vZkrZSBN+0UU1Xl9HskJSa+SLWVj\n' +
       'YnjhwKFXZlbaouifj9gwHBECAwEAAQ==\n' +
       '-----END PUBLIC KEY-----\n',
-}
+};
 
 export function createGitHubActionsToken({expiresIn, claims, signing}: {
   expiresIn?: string | number,
@@ -126,11 +126,11 @@ export function createGitHubActionsToken({expiresIn, claims, signing}: {
     aud: GITHUB_ACTIONS_TOKEN_SIGNING.aud,
     expiresIn: expiresIn || '1h',
     ...signing,
-  })
+  });
 
-  const payload = createGitHubActionsTokenPayload(claims)
+  const payload = createGitHubActionsTokenPayload(claims);
 
-  return signer(payload)
+  return signer(payload);
 }
 
 function createGitHubActionsTokenPayload(claims?: {
@@ -138,9 +138,9 @@ function createGitHubActionsTokenPayload(claims?: {
   ref?: string,
   workflow?: string,
 }) {
-  const repository = claims?.repository ?? `${DEFAULT_OWNER}/${DEFAULT_REPO}`
-  const ref = claims?.ref ?? 'refs/heads/main'
-  const workflow = claims?.workflow ?? 'build.yml'
+  const repository = claims?.repository ?? `${DEFAULT_OWNER}/${DEFAULT_REPO}`;
+  const ref = claims?.ref ?? 'refs/heads/main';
+  const workflow = claims?.workflow ?? 'build.yml';
   return {
     iss: GITHUB_ACTIONS_TOKEN_SIGNING.iss,
     repository,
@@ -148,7 +148,7 @@ function createGitHubActionsTokenPayload(claims?: {
     ref,
     sub: `repo:${repository}:ref:${ref}`,
     workflow_ref: `${repository}/.github/workflows/${workflow}@${ref}`,
-  } as GitHubActionsJwtPayload
+  } as GitHubActionsJwtPayload;
 }
 
 export const UNKNOWN_SIGNING_KEY = '-----BEGIN PRIVATE KEY-----\n' +
@@ -178,7 +178,7 @@ export const UNKNOWN_SIGNING_KEY = '-----BEGIN PRIVATE KEY-----\n' +
     '6j0rYmzQlHS+dQIPzuuOME856M7Ct4zXYWbO3GKwBCPlNZ00B8jwSccI3U4g0oie\n' +
     'aZfIPJWf5ZXMMKajnGEYBHz2HilRiwWoBId2+1JlGHJqs17zfFFItq8ga1Ev6KFa\n' +
     'gSUTt6QxSBWBgi3oYNRL7bk=\n' +
-    '-----END PRIVATE KEY-----'
+    '-----END PRIVATE KEY-----';
 
 // ---- Types ----------------------------------------------------------------------------------------------------------
 
@@ -196,5 +196,3 @@ export interface Repository {
   accessPolicy?: GitHubRepositoryAccessPolicy
   ownerAccessPolicy?: GitHubOwnerAccessPolicy,
 }
-
-

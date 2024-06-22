@@ -1,7 +1,7 @@
-import {mapObjectEntries, objectOfTuples, tuplesOf} from './common-utils.js'
-import {components} from '@octokit/openapi-types'
-import {z} from 'zod'
-import {zStringRegex} from './zod-utils.js'
+import {components} from '@octokit/openapi-types';
+import {z} from 'zod';
+import {mapObjectEntries, tuplesOf} from './common-utils.js';
+import {zStringRegex} from './zod-utils.js';
 
 // --- Functions -------------------------------------------------------------------------------------------------------
 
@@ -11,9 +11,9 @@ import {zStringRegex} from './zod-utils.js'
  * @return object with owner and repo
  */
 export function parseRepository(repository: string) {
-  const [owner, repo] = repository.split('/')
-  if (!owner || !repo) throw Error(`Invalid repository format '${repository}'`)
-  return {owner, repo}
+  const [owner, repo] = repository.split('/');
+  if (!owner || !repo) throw Error(`Invalid repository format '${repository}'`);
+  return {owner, repo};
 }
 
 /**
@@ -22,8 +22,8 @@ export function parseRepository(repository: string) {
  * @return object with claims
  */
 export function parseOIDCSubject(subject: string): Record<string, string | undefined> {
-  const claims = tuplesOf(subject.split(':'))
-  return objectOfTuples(claims)
+  const claims = tuplesOf(subject.split(':'));
+  return Object.fromEntries(claims);
 }
 
 /**
@@ -34,16 +34,16 @@ export function parseOIDCSubject(subject: string): Record<string, string | undef
 export function aggregatePermissions(permissionSets: Record<string, string>[]) {
   return permissionSets.reduce((result, permissions) => {
     Object.entries(permissions).forEach(([scope, permission]) => {
-      const _scope = scope
+      const _scope = scope;
       if (!result[_scope] || verifyPermission({
         granted: permission,
         requested: result[_scope],
       })) {
-        (result[_scope] satisfies string | undefined) = permission
+        (result[_scope] satisfies string | undefined) = permission;
       }
-    })
-    return result
-  }, {})
+    });
+    return result;
+  }, {});
 }
 
 /**
@@ -56,17 +56,17 @@ export function verifyPermission({requested, granted}: {
   requested?: string,
   granted?: string,
 }): boolean {
-  const PERMISSION_RANKING: string[] = ['read', 'write', 'admin']
+  const PERMISSION_RANKING: string[] = ['read', 'write', 'admin'];
 
-  if (!granted) return false
-  const grantedRank = PERMISSION_RANKING.indexOf(granted)
-  if (grantedRank < 0) return false
+  if (!granted) return false;
+  const grantedRank = PERMISSION_RANKING.indexOf(granted);
+  if (grantedRank < 0) return false;
 
-  if (!requested) return false
-  const requestedRank = PERMISSION_RANKING.indexOf(requested)
-  if (requestedRank < 0) return false
+  if (!requested) return false;
+  const requestedRank = PERMISSION_RANKING.indexOf(requested);
+  if (requestedRank < 0) return false;
 
-  return requestedRank <= grantedRank
+  return requestedRank <= grantedRank;
 }
 
 /**
@@ -80,26 +80,26 @@ export function verifyPermissions({requested, granted}: {
   requested: GitHubAppPermissions,
   granted: GitHubAppPermissions,
 }): {
-  granted: { scope: string, permission: 'read' | 'write' | 'admin' }[],
-  denied: { scope: string, permission: 'read' | 'write' | 'admin' }[],
-} {
+    granted: { scope: string, permission: 'read' | 'write' | 'admin' }[],
+    denied: { scope: string, permission: 'read' | 'write' | 'admin' }[],
+  } {
   const result = {
     granted: [] as { scope: string, permission: 'read' | 'write' | 'admin' }[],
     denied: [] as { scope: string, permission: 'read' | 'write' | 'admin' }[],
-  }
+  };
   Object.entries(requested).forEach(([scope, _requestedPermission]) => {
-    const requestedPermission = {scope, permission: _requestedPermission}
+    const requestedPermission = {scope, permission: _requestedPermission};
     if (verifyPermission({
       granted: granted[scope as keyof GitHubAppPermissions],
       requested: requestedPermission.permission,
     })) {
-      result.granted.push(requestedPermission)
+      result.granted.push(requestedPermission);
     } else {
-      result.denied.push(requestedPermission)
+      result.denied.push(requestedPermission);
     }
-  })
+  });
 
-  return result
+  return result;
 }
 
 /**
@@ -108,18 +108,18 @@ export function verifyPermissions({requested, granted}: {
  * @return invalid repository permissions
  */
 export function verifyRepositoryPermissions(permissions: GitHubAppRepositoryPermissions) {
-  const valid: GitHubAppRepositoryPermissions = {}
-  const invalid: GitHubAppPermissions = {}
+  const valid: GitHubAppRepositoryPermissions = {};
+  const invalid: GitHubAppPermissions = {};
 
   Object.entries(permissions).forEach(([scope, permission]) => {
     if (GitHubAppRepositoryPermissionsSchema.keyof()
         .safeParse(scope).success) {
-      (valid as Record<string, string>)[scope] = permission
+      (valid as Record<string, string>)[scope] = permission;
     } else {
-      (invalid as Record<string, string>)[scope] = permission
+      (invalid as Record<string, string>)[scope] = permission;
     }
-  })
-  return {valid, invalid}
+  });
+  return {valid, invalid};
 }
 
 /**
@@ -130,26 +130,27 @@ export function verifyRepositoryPermissions(permissions: GitHubAppRepositoryPerm
 export function normalizePermissionScopes(permissions: components['schemas']['app-permissions']): GitHubAppPermissions {
   return mapObjectEntries(permissions, ([scope, permission]) => [
     scope.replaceAll('_', '-'), permission,
-  ]) as GitHubAppPermissions
+  ]) as GitHubAppPermissions;
 }
 
 // --- Schemas ---------------------------------------------------------------------------------------------------------
 
-const GitHubRepositoryOwnerRegex = /^[a-z\d](-?[a-z\d])+$/i
-export const GitHubRepositoryOwnerSchema = zStringRegex(GitHubRepositoryOwnerRegex)
-const GitHubRepositoryNameRegex = /^[a-z\d-._]+$/i
-export const GitHubRepositoryNameSchema = zStringRegex(GitHubRepositoryNameRegex)
+const GitHubRepositoryOwnerRegex = /^[a-z\d](-?[a-z\d])+$/i;
+export const GitHubRepositoryOwnerSchema = zStringRegex(GitHubRepositoryOwnerRegex);
+const GitHubRepositoryNameRegex = /^[a-z\d-._]+$/i;
+export const GitHubRepositoryNameSchema = zStringRegex(GitHubRepositoryNameRegex);
 
 export const GitHubRepositorySchema = zStringRegex(
     new RegExp(`^${GitHubRepositoryOwnerRegex.source.replace(/^\^|\$$/g, '')}` +
-        `/${GitHubRepositoryNameRegex.source.replace(/^\^|\$$/g, '')}$`, 'i'))
+        `/${GitHubRepositoryNameRegex.source.replace(/^\^|\$$/g, '')}$`, 'i'),
+);
 
 export const GitHubAppPermissionsSchema = z.strictObject({
   // ---- Repository Permissions ----
   'actions': z.enum(['read', 'write']),
-  'actions-variables': z.enum(['read', 'write'] ),
+  'actions-variables': z.enum(['read', 'write']),
   'administration': z.enum(['read', 'write']),
-  'checks': z.enum(['read', 'write'] ),
+  'checks': z.enum(['read', 'write']),
   'codespaces': z.enum(['read', 'write']),
   'codespaces-lifecycle-admin': z.enum(['read', 'write']),
   'codespaces-metadata': z.enum(['read', 'write']),
@@ -200,8 +201,8 @@ export const GitHubAppPermissionsSchema = z.strictObject({
   'organization-secrets': z.enum(['read', 'write']),
   'organization-self-hosted-runners': z.enum(['read', 'write']),
   'organization-user-blocking': z.enum(['read', 'write']),
-}).partial()
-export type GitHubAppPermissions = z.infer<typeof GitHubAppPermissionsSchema>
+}).partial();
+export type GitHubAppPermissions = z.infer<typeof GitHubAppPermissionsSchema>;
 
 /**
  * === BE AWARE ===
@@ -242,8 +243,8 @@ export const GitHubAppRepositoryPermissionsSchema = GitHubAppPermissionsSchema.p
   'team-discussions': true,
   'vulnerability-alerts': true,
   'workflows': true,
-})
-export type GitHubAppRepositoryPermissions = z.infer<typeof GitHubAppRepositoryPermissionsSchema>
+});
+export type GitHubAppRepositoryPermissions = z.infer<typeof GitHubAppRepositoryPermissionsSchema>;
 
 // --- Types -----------------------------------------------------------------------------------------------------------
 
@@ -288,4 +289,4 @@ export type GitHubActionsJwtPayload = {
   run_number: string, // e.g. "107",
   run_attempt: string, // e.g. "4",
   runner_environment: string, // e.g. "github-hosted",
-} & Record<string, string>
+} & Record<string, string>;

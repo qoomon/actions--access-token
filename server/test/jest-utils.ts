@@ -1,5 +1,5 @@
-import {DIM_COLOR} from 'jest-matcher-utils'
-import {JestAssertionError} from 'expect'
+import {DIM_COLOR} from 'jest-matcher-utils';
+import {JestAssertionError} from 'expect';
 
 /**
  * Wrap test with hints
@@ -12,38 +12,38 @@ export async function withHint(
     hints: () => Record<string, unknown> | Promise<Record<string, unknown>>,
 ) {
   try {
-    await test()
+    await test();
   } catch (e: unknown) {
     if (e instanceof JestAssertionError) {
-      const hintMessage = 'Hints:\n' + indent(
+      const hintMessage = `Hints:\n${indent(
           Object.entries(await hints()).map(([name, message]) => {
-            let formattedMessage = ''
+            let formattedMessage;
             if (typeof message === 'string') {
               formattedMessage = message.includes('\n') ?
                   `\n${indent(message)}` :
-                  ` ${message}`
+                  ` ${message}`;
             } else {
-              formattedMessage = JSON.stringify(message, null, 2)
+              formattedMessage = JSON.stringify(message, null, 2);
             }
             // eslint-disable-next-line new-cap
-            return DIM_COLOR(`${name}:${formattedMessage}`)
+            return DIM_COLOR(`${name}:${formattedMessage}`);
           }).join('\n'),
-      )
-      e.message = e.message + '\n' + hintMessage
+      )}`;
+      e.message = `${e.message}\n${hintMessage}`;
     }
 
-    throw e
+    throw e;
   }
 }
 
 /**
  * Indent string
  * @param string - string to indent
- * @param indent - indent string
+ * @param indention - indention string
  * @return indented string
  */
-function indent(string: string, indent = '  ') {
+function indent(string: string, indention = '  ') {
   return string.split('\n')
-      .map((line) => `${indent}${line}`)
-      .join('\n')
+      .map((line) => `${indention}${line}`)
+      .join('\n');
 }

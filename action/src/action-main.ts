@@ -127,7 +127,7 @@ async function httpRequest(request: HttpRequest, options?: {
 
 // --- Types -----------------------------------------------------------------------------------------------------------
 
-interface GitHubAccessTokenResponse  {
+interface GitHubAccessTokenResponse {
   token: string
   expires_at: string
   owner: string

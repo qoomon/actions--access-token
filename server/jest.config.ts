@@ -1,4 +1,4 @@
-import type {JestConfigWithTsJest} from 'ts-jest'
+import type {JestConfigWithTsJest} from 'ts-jest';
 
 export default {
   preset: 'ts-jest/presets/default-esm',
@@ -8,4 +8,4 @@ export default {
   moduleNameMapper: {
     '^(\\.\\.?/.*)\\.js$': '$1',
   },
-} as JestConfigWithTsJest
+} as JestConfigWithTsJest;
