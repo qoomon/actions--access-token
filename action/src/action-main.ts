@@ -23,24 +23,22 @@ runAction(async () => {
         .parse(getYamlInput('repositories')),
     owner: getInput('owner'),
   };
+  if (input.repository) {
+    input.repositories.unshift(input.repository);
+  }
 
-  const tokenRequest = {
+  core.info('Get access token.');
+  const accessToken = await getAccessToken({
     scope: input.scope,
     permissions: input.permissions,
     repositories: input.repositories,
     owner: input.owner,
-  };
-  if (input.repository) {
-    tokenRequest.repositories.unshift(input.repository);
-  }
-
-  core.info('Get access token.');
-  const accessToken = await getAccessToken(tokenRequest);
+  });
 
   core.setSecret(accessToken.token);
   core.setOutput('token', accessToken.token);
 
-  // save token to state for post-action cleanup
+  // save token to state to be able to revoke it in post-action
   core.saveState('token', accessToken.token);
 });
 
