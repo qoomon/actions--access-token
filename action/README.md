@@ -52,7 +52,7 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
 <details><summary>Click me</summary>
 
-To grant repository permission create an `access-token.yaml` file within the `.github/` directory of the target repository with [this template content](/actions/docs/access-token.repo-template.yaml)
+To grant repository permission create an `access-token.yaml` file within the `.github/` directory of the target repository with [this template content](/action/docs/access-token.repo-template.yaml)
 
 
 #### Repository Access Policy Example
@@ -62,7 +62,7 @@ To grant repository permission create an `access-token.yaml` file within the `.g
 ### Grant Owner Permissions
 <details><summary>Click me</summary>
 
-To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/actions/docs/access-token.owner-template.yaml)
+To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/action/docs/access-token.owner-template.yaml)
 
 </details>
 
