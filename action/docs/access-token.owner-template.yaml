@@ -6,7 +6,7 @@ allowed-subjects: [] # An empty list means that all subjects are allowed
 allowed-repository-permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
   # actions: write # read or write
   # actions-variables: write # read or write
-  # administration: write # read or write
+  # administration: write # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
   # checks : write # read or write
   # codespaces : write # read or write
   # codespaces-lifecycle-admin : write # read or write
@@ -64,7 +64,7 @@ statements:
     permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
     # actions: write # read or write
     # actions-variables: write # read or write
-    # administration: write # read or write
+    # administration: write # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
     # checks : write # read or write
     # codespaces : write # read or write
     # codespaces-lifecycle-admin : write # read or write
