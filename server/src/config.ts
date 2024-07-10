@@ -20,8 +20,8 @@ export const config: Readonly<Config> = {
   },
   accessPolicyLocation: {
     owner: {
-      path: 'access-token.yaml',
       repo: '.github-access-token',
+      path: 'access-token.yaml',
     },
     repo: {
       path: '.github/access-token.yaml',

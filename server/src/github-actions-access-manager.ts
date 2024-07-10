@@ -534,6 +534,53 @@ function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owne
 }) {
   statement.subjects = statement.subjects
       .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}));
+
+  // LEGACY SUPPORT for artificial subject pattern
+  const artificialSubjects = getArtificialAccessPolicyStatementSubjects(statement.subjects, {owner, repo});
+  statement.subjects.push(...artificialSubjects);
+}
+
+/**
+ * LEGACY SUPPORT
+ * Get artificial access policy statement subjects
+ * @param subjects - access policy statement subjects
+ * @param owner - policy owner
+ * @param repo - policy repository
+ * @return artificial subjects
+ */
+function getArtificialAccessPolicyStatementSubjects(subjects: string[], {owner, repo}: {
+  owner: string,
+  repo: string,
+}) {
+  const artificialSubjects : string[] =[];
+
+  subjects.forEach((it) => {
+    const subjectRepo = it.match(/(^|:)repo:(?<repo>[^:]+)/)?.groups?.repo ?? `${owner}/${repo}`;
+
+    let artificialSubject = it;
+
+    // prefix subject with repo claim, if not already prefixed
+    artificialSubject = artificialSubject.replace(
+        /(?<!^repo:)/,
+        `repo:${subjectRepo}:`,
+    );
+
+    // prefix (job_)workflow_ref claim value with repo, if not already prefixed
+    artificialSubject = artificialSubject.replace(
+        /(?<=^|:)(?<claim>(job_)?workflow_ref):(?<value>[^:]+)/,
+        (match, ...args) => {
+          const {claim, value} = args.at(-1);
+          if (value.startsWith('/')) return `${claim}:${subjectRepo}${value}`;
+          return match;
+        },
+    );
+
+    if (artificialSubject !== it) {
+      artificialSubjects.push(artificialSubject);
+    }
+  });
+
+  return artificialSubjects;
 }
 
 /**
@@ -547,6 +594,7 @@ function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
   owner: string,
   repo: string
 }): string {
+  // resolve variables
   return subject.replaceAll('${origin}', `${owner}/${repo}`);
 }
 
