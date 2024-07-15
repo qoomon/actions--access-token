@@ -23,7 +23,6 @@ export class AppStack extends Stack {
         privateKey: SecretValue.unsafePlainText('change-me'),
       },
     })
-    new CfnOutput(this, 'GitHubAppSecretName', {value: githubAppSecret.secretName})
 
     // --- API Access Token Function--------------------------------------------------------------------------------
 
@@ -32,7 +31,7 @@ export class AppStack extends Stack {
       handler: 'index.handler',
       memorySize: 128,
       timeout: Duration.seconds(30),
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../../../../dist')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../../../dist')),
       environment: {
         LOG_LEVEL: 'INFO',
         GITHUB_APP_SECRETS_NAME: githubAppSecret.secretName,
@@ -66,7 +65,7 @@ export class AppStack extends Stack {
 
     // --- Outputs -------------------------------------------------------------------------------------------------
 
-    new CfnOutput(this, 'GitHubAppSecret', {value: githubAppSecret.secretName})
+    new CfnOutput(this, 'GitHubAppSecretName', {value: githubAppSecret.secretName})
 
     new CfnOutput(this, 'ApiRegion', {value: httpApiAccessTokenFunctionUrl.stack.region})
     new CfnOutput(this, 'ApiAccessRoleArn', {value: httpApiAccessRole.roleArn})
