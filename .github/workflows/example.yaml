@@ -10,9 +10,10 @@ jobs:
   RepoAccess:
     runs-on: ubuntu-latest
     permissions:
+      checks: read
       id-token: write
     steps:
-      - uses: qoomon/actions--access-token@main
+      - uses: ${{ github.action_repository }}@main
         id: access-token
         with:
           permissions: |
