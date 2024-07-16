@@ -13,7 +13,7 @@ jobs:
       checks: read
       id-token: write
     steps:
-      - uses: ${{ github.action_repository }}@main
+      - uses: .
         id: access-token
         with:
           permissions: |
