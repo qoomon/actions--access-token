@@ -57,7 +57,7 @@ export class AppStack extends Stack {
       roleName: API_ACCESS_ROLE_NAME,
       maxSessionDuration: Duration.hours(1), // should set to minimum value for security reasons
       assumedBy: new iam.OpenIdConnectPrincipal(githubOidcProvider, {
-        'StringEquals': {[`${githubOidcProvider.openIdConnectProviderIssuer}:aud`]: httpApiAccessTokenFunctionUrlDomain},
+        'StringEquals': {[`${githubOidcProvider.openIdConnectProviderIssuer}:aud`]: 'sts.amazonaws.com'},
         'ForAnyValue:StringLike': {[`${githubOidcProvider.openIdConnectProviderIssuer}:sub`]: GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS},
       }),
     })

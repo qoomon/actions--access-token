@@ -39382,13 +39382,15 @@ function getInput(name, options) {
 
 runAction(async () => {
     const token = lib_core.getState('token');
-    lib_core.info('Revoke access token.');
-    // revoke access token
-    // https://docs.github.com/en/rest/apps/installations?apiVersion=2022-11-28#revoke-an-installation-access-token
-    await github.getOctokit(token)
-        .request('DELETE /installation/token', {
-        headers: { 'X-GitHub-Api-Version': '2022-11-28' },
-    });
+    if (token) {
+        lib_core.info('Revoke access token.');
+        // revoke access token
+        // https://docs.github.com/en/rest/apps/installations?apiVersion=2022-11-28#revoke-an-installation-access-token
+        await github.getOctokit(token)
+            .request('DELETE /installation/token', {
+            headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+        });
+    }
 });
 
 })();

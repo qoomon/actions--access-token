@@ -1,16 +1,28 @@
+name: Action > Regression Test
+
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 12 * * *' # daily at 12:00
   push:
     branches:
       - main
+    paths:
+      - action/dist/**
+  workflow_run:
+    workflows:
+      - "Server > Build"
+    types:
+      - completed
+  schedule:
+    - cron: '0 12 * * *' # daily at 12:00
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  RepoAccess:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      checks: read
+      contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -19,9 +31,9 @@ jobs:
         with:
           permissions: |
             secrets: write
-
+            
       - run: >-
-          gh secret set RAINBOW_API_KEY 
+          gh secret set RAINBOW_API_KEY
           --body "Unicorn-$(date +%s)"
           --app actions
           --repo $GITHUB_REPOSITORY

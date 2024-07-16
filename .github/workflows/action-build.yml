@@ -3,6 +3,8 @@ name: Action > Build
 on:
   push:
     branches: ['**']
+    paths:
+      - action/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,9 +33,11 @@ jobs:
       - run: npm run build
 
       # Verify that the dist/ is up-to-date
-      - run: |
-          git_diff="$(git diff --name-only dist/)"
+      - name: Verify Action release
+        run: |
+          git_diff="$(git diff --ignore-cr-at-eol dist/)"
           if [ -n "$git_diff" ]; then
-            echo "Drift detected in dist/ directory"
+            echo "::error::Drift detected in dist/ directory"
+            echo "$git_diff"
             exit 1
           fi
