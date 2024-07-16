@@ -10,8 +10,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     defaults:
       run:
         working-directory: action
@@ -32,10 +30,10 @@ jobs:
       - run: npm run test
       - run: npm run build
 
-      # commit and push changes
-      - run: git add -f dist/
-      - uses: qoomon/actions--create-commit@v1
-        with:
-          message: 'chore: build action'
-          skip-empty: true
-      - run: git push
+      # Verify that the dist/ is up-to-date
+      - run: |
+          git_diff="$(git diff --name-only dist/)"
+          if [ -n "$git_diff" ]; then
+            echo "Drift detected in dist/ directory"
+            exit 1
+          fi
