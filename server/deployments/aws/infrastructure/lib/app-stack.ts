@@ -33,12 +33,20 @@ export class AppStack extends Stack {
       timeout: Duration.seconds(30),
       code: lambda.Code.fromAsset(path.join(__dirname, '../../../../dist')),
       environment: {
-        LOG_LEVEL: 'INFO',
+        LOG_LEVEL: 'info',
         GITHUB_APP_SECRETS_NAME: githubAppSecret.secretName,
         GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS.join(','),
       },
     })
     githubAppSecret.grantRead(httpApiAccessTokenFunction.role!)
+    new Policy(this, `${httpApiAccessTokenFunction.node.id}RolePolicy`, {
+      statements: [
+        new PolicyStatement({
+          actions: ['lambda:GetFunctionUrlConfig'],
+          resources: [ httpApiAccessTokenFunction.functionArn ],
+        })
+      ]
+    }).attachToRole(httpApiAccessTokenFunction.role!)
 
     // --- add function url
     const httpApiAccessTokenFunctionUrl = httpApiAccessTokenFunction.addFunctionUrl({

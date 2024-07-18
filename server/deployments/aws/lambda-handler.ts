@@ -17,8 +17,8 @@ const secretsManager = new SecretsManager({region: process.env.AWS_REGION});
 const githubAppSecret = await secretsManager.send(new GetSecretValueCommand({
   SecretId: process.env.GITHUB_APP_SECRETS_NAME,
 })).then((output) => JSON.parse(output.SecretString ?? '{}'));
-process.env.GITHUB_ACTIONS_APP_ID = githubAppSecret.appId;
-process.env.GITHUB_ACTIONS_APP_PRIVATE_KEY = githubAppSecret.privateKey;
+process.env.GITHUB_APP_ID = githubAppSecret.appId;
+process.env.GITHUB_APP_PRIVATE_KEY = githubAppSecret.privateKey;
 
 process.env.REQUEST_ID_HEADER = 'x-request-id';
 

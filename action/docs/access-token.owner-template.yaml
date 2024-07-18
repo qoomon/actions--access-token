@@ -20,7 +20,6 @@ allowed-repository-permissions: # https://docs.github.com/en/rest/authentication
   # environments : write # read or write
   # issues : write # read or write
   # merge-queues : write # read or write
-  # metadata : write # read or write
   # packages : write # read or write
   # pages : write # read or write
   # projects : write # read or write or admin
@@ -31,7 +30,6 @@ allowed-repository-permissions: # https://docs.github.com/en/rest/authentication
   # secret-scanning-alerts : write # read or write
   # secrets : write # read or write
   # security-events : write # read or write
-  # single-file : write # read or write
   # statuses : write # read or write
   # team-discussions : write # read or write
   # vulnerability-alerts : write # read or write
@@ -78,7 +76,6 @@ statements:
     # environments : write # read or write
     # issues : write # read or write
     # merge-queues : write # read or write
-    # metadata : write # read or write
     # packages : write # read or write
     # pages : write # read or write
     # projects : write # read or write or admin
@@ -89,7 +86,6 @@ statements:
     # secret-scanning-alerts : write # read or write
     # secrets : write # read or write
     # security-events : write # read or write
-    # single-file : write # read or write
     # statuses : write # read or write
     # team-discussions : write # read or write
     # vulnerability-alerts : write # read or write
