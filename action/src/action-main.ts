@@ -74,7 +74,7 @@ async function getAccessToken(tokenRequest: {
       service: config.api.auth.aws.service,
       region: config.api.auth.aws.region,
       credentials: fromWebToken({
-        webIdentityToken: idTokenForAccessManager,
+        webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
         roleArn: config.api.auth.aws.roleArn,
         durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
       }),
