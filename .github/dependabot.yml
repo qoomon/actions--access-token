@@ -6,7 +6,9 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/"
+    directories: 
+      - action
+      - server
     schedule:
       interval: "weekly"
   - package-ecosystem: "github-actions"
