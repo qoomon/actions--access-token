@@ -1,5 +1,4 @@
 import {DIM_COLOR} from 'jest-matcher-utils';
-import {JestAssertionError} from 'expect';
 
 /**
  * Wrap test with hints
@@ -14,7 +13,8 @@ export async function withHint(
   try {
     await test();
   } catch (e: unknown) {
-    if (e instanceof JestAssertionError) {
+    if (e instanceof Error && e.constructor.name === 'JestAssertionError') {
+      console.log(e.constructor.name);
       const hintMessage = `Hints:\n${indent(
           Object.entries(await hints()).map(([name, message]) => {
             let formattedMessage;

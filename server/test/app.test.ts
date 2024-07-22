@@ -297,7 +297,7 @@ describe('App path /access_tokens', () => {
           method: 'POST',
           headers: {Authorization: `Bearer ${githubToken}`},
           body: JSON.stringify({
-            repositories: ['invalid/invalid'],
+            repositories: ['invalid/invalid/invalid'],
             permissions: {actions: 'read'},
           }),
         });
@@ -312,6 +312,59 @@ describe('App path /access_tokens', () => {
           message: expect.stringMatching(joinRegExp(
               /^Invalid request body.\n/,
               /- repositories.0: Invalid format\..*$/,
+          )),
+        });
+      });
+
+      it('if token request repositories owners differ from request owner', async () => {
+        // --- Given ---
+
+        // --- When ---
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            owner: 'octocat',
+            repositories: ['spongebob/sandbox'],
+            permissions: {actions: 'read'},
+          }),
+        });
+
+        // --- Then ---
+        await withHint(() => {
+          expect(response.status).toEqual(Status.BAD_REQUEST);
+        }, async () => ({'response.json()': await response.json()}));
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Token repositories must belong to same owner\.$/,
+          )),
+        });
+      });
+
+      it('if token request repositories have different owners', async () => {
+        // --- Given ---
+
+        // --- When ---
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+          body: JSON.stringify({
+            repositories: ['spongebob/sandbox', 'patrick/sandbox'],
+            permissions: {actions: 'read'},
+          }),
+        });
+
+        // --- Then ---
+        await withHint(() => {
+          expect(response.status).toEqual(Status.BAD_REQUEST);
+        }, async () => ({'response.json()': await response.json()}));
+        expect(await response.json()).toMatchObject({
+          requestId: expect.any(String),
+          error: 'Bad Request',
+          message: expect.stringMatching(joinRegExp(
+              /^Token repositories must belong to same owner\.$/,
           )),
         });
       });
@@ -904,6 +957,46 @@ describe('App path /access_tokens', () => {
             }),
           });
 
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK);
+          }, async () => ({'response.json()': await response.json()}));
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {secrets: 'write'},
+            repositories: [actionRepo.repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
+          });
+        });
+
+        it('even if requested repositories contains owner prefix', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [
+                {
+                  subjects: ['repo:${origin}:ref:refs/heads/*'],
+                  permissions: {secrets: 'write'},
+                }, {
+                  permissions: 'invalid',
+                } as unknown as GitHubRepositoryAccessStatement,
+              ],
+            },
+          });
+          const githubToken = Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              repositories: [`${actionRepo.owner}/${actionRepo.repo}`],
+              permissions: {secrets: 'write'},
+            }),
+          });
           // --- Then ---
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);

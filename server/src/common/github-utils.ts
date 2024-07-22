@@ -11,9 +11,12 @@ import {zStringRegex} from './zod-utils.js';
  * @return object with owner and repo
  */
 export function parseRepository(repository: string) {
-  const [owner, repo] = repository.split('/');
-  if (!owner || !repo) throw Error(`Invalid repository format '${repository}'`);
-  return {owner, repo};
+  const separatorIndex = repository.indexOf('/');
+  if (separatorIndex === -1) throw Error(`Invalid repository format '${repository}'`);
+  return {
+    owner: repository.substring(0, separatorIndex),
+    repo: repository.substring(separatorIndex + 1),
+  };
 }
 
 /**
@@ -80,9 +83,9 @@ export function verifyPermissions({requested, granted}: {
   requested: GitHubAppPermissions,
   granted: GitHubAppPermissions,
 }): {
-    granted: { scope: string, permission: 'read' | 'write' | 'admin' }[],
-    denied: { scope: string, permission: 'read' | 'write' | 'admin' }[],
-  } {
+  granted: { scope: string, permission: 'read' | 'write' | 'admin' }[],
+  denied: { scope: string, permission: 'read' | 'write' | 'admin' }[],
+} {
   const result = {
     granted: [] as { scope: string, permission: 'read' | 'write' | 'admin' }[],
     denied: [] as { scope: string, permission: 'read' | 'write' | 'admin' }[],
@@ -131,6 +134,17 @@ export function normalizePermissionScopes(permissions: components['schemas']['ap
   return mapObjectEntries(permissions, ([scope, permission]) => [
     scope.replaceAll('_', '-'), permission,
   ]) as GitHubAppPermissions;
+}
+
+/**
+ * Get workflow run url from OIDC token payload
+ * @param token - OIDC token payload
+ * @return workflow run url
+ */
+export function buildWorkflowRunUrl(token: GitHubActionsJwtPayload) {
+  // workflowRunUrl example: https://github.com/qoomon/actions--access-token/actions/runs/9192965843/attempts/2
+  return `https://github.com/${token.repository}/actions/runs/${token.run_id}` +
+      `${token.attempts ? `/attempts/${token.attempts}` : ''}`;
 }
 
 // --- Schemas ---------------------------------------------------------------------------------------------------------

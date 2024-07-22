@@ -9,12 +9,13 @@ import process from 'process';
 import {hasEntries, toBase64} from './common/common-utils.js';
 import {buildJwksKeyFetcher} from './common/jwt-utils.js';
 import {
+  buildWorkflowRunUrl,
   GitHubActionsJwtPayload,
   GitHubAppPermissions,
   GitHubAppPermissionsSchema,
   GitHubAppRepositoryPermissions,
   GitHubRepositoryNameSchema,
-  GitHubRepositoryOwnerSchema,
+  GitHubRepositoryOwnerSchema, GitHubRepositorySchema,
   normalizePermissionScopes,
   parseRepository,
   verifyRepositoryPermissions,
@@ -69,49 +70,11 @@ app.post(
           run_id: callerIdentity.run_id,
           attempts: callerIdentity.attempts,
         },
-        // workflowRunUrl example: https://github.com/qoomon/actions--access-token/actions/runs/9192965843/attempts/2
-        workflowRunUrl: `https://github.com/${callerIdentity.repository}/actions/runs/${callerIdentity.run_id}` +
-            `${callerIdentity.attempts ? `/attempts/${callerIdentity.attempts}` : ''}`,
+        workflowRunUrl: buildWorkflowRunUrl(callerIdentity),
       }, 'Caller Identity');
 
-      const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema).then((it) => {
-        if (Object.entries(it.permissions).length === 0) {
-          throw new HTTPException(Status.BAD_REQUEST, {message: 'Token permissions must not be empty.'});
-        }
-
-        // use caller repository owner as default target owner
-        it.owner = it.owner || callerIdentity.repository_owner;
-
-        switch (it.scope) {
-          case 'owner': {
-            return it as typeof it & { scope: 'owner', owner: string, permissions: GitHubAppPermissions };
-          }
-          case 'repos': {
-            if (!hasEntries(it.repositories)) {
-              if (it.owner !== callerIdentity.repository_owner) {
-                throw new HTTPException(Status.BAD_REQUEST, {message: 'Token repositories must not be empty.'});
-              }
-
-              // use caller repository as default repository
-              it.repositories = [parseRepository(callerIdentity.repository).repo];
-            }
-
-            // ensure only repository permissions are requested
-            const invalidRepositoryPermissionScopes = verifyRepositoryPermissions(it.permissions).invalid;
-            if (hasEntries(invalidRepositoryPermissionScopes)) {
-              throw new HTTPException(Status.BAD_REQUEST, {
-                message: `Invalid permissions scopes for token scope 'repos'.\n` +
-                    Object.keys(invalidRepositoryPermissionScopes).map((scope) => `- ${scope}`).join('\n'),
-              });
-            }
-
-            return it as typeof it & { scope: 'repos', owner: string, permissions: GitHubAppRepositoryPermissions };
-          }
-          default:
-            throw new HTTPException(Status.BAD_REQUEST, {message: `Invalid token scope '${it.scope}'.`});
-        }
-      });
-
+      const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
+          .then((it) => normalizeAccessTokenRequestBody(it, callerIdentity));
       requestLog.info({tokenRequest}, 'Token Request');
 
       const githubActionsAccessToken = await GITHUB_ACTIONS_ACCESS_MANAGER
@@ -143,11 +106,79 @@ app.post(
     },
 );
 
+/**
+ * Normalize access token request body
+ * @param it - access token request body
+ * @param callerIdentity - caller identity
+ * @return normalized access token request body
+ */
+function normalizeAccessTokenRequestBody(it: AccessTokenRequestBody, callerIdentity: GitHubActionsJwtPayload) {
+  if (Object.entries(it.permissions).length === 0) {
+    throw new HTTPException(Status.BAD_REQUEST, {message: 'Token permissions must not be empty.'});
+  }
+
+  // determine default owner
+  if (!it.owner) {
+    if (it.repositories.length === 1 && it.repositories[0].includes('/')) {
+      // use repository owner as default target owner
+      it.owner = parseRepository(it.repositories[0]).owner;
+    } else {
+      // use caller repository owner as default target owner
+      it.owner = callerIdentity.repository_owner;
+    }
+  }
+
+  // remove owner prefixes and ensure all token repositories belong to same owner
+  it.repositories = it.repositories.map((repository) => {
+    if (repository.includes('/')) {
+      const {owner, repo} = parseRepository(repository);
+      if (owner !== it.owner) {
+        throw new HTTPException(Status.BAD_REQUEST, {
+          message: `Token repositories must belong to same owner.`,
+        });
+      }
+      return repo;
+    }
+
+    return repository;
+  });
+
+  switch (it.scope) {
+    case 'owner': {
+      return it as typeof it & { scope: 'owner', owner: string, permissions: GitHubAppPermissions };
+    }
+    case 'repos': {
+      if (!hasEntries(it.repositories)) {
+        if (it.owner !== callerIdentity.repository_owner) {
+          throw new HTTPException(Status.BAD_REQUEST, {message: 'Token repositories must not be empty.'});
+        }
+
+        // use caller repository as default repository
+        it.repositories = [parseRepository(callerIdentity.repository).repo];
+      }
+
+      // ensure only repository permissions are requested
+      const invalidRepositoryPermissionScopes = verifyRepositoryPermissions(it.permissions).invalid;
+      if (hasEntries(invalidRepositoryPermissionScopes)) {
+        throw new HTTPException(Status.BAD_REQUEST, {
+          message: `Invalid permissions scopes for token scope 'repos'.\n` +
+              Object.keys(invalidRepositoryPermissionScopes).map((scope) => `- ${scope}`).join('\n'),
+        });
+      }
+
+      return it as typeof it & { scope: 'repos', owner: string, permissions: GitHubAppRepositoryPermissions };
+    }
+    default:
+      throw new HTTPException(Status.BAD_REQUEST, {message: `Invalid token scope '${it.scope}'.`});
+  }
+}
+
 // --- Schemas & Types -----------------------------------------------------------------------------------------------------------
 
-export const AccessTokenRequestBodySchema = z.strictObject({
+const AccessTokenRequestBodySchema = z.strictObject({
   owner: GitHubRepositoryOwnerSchema.optional(),
   scope: z.enum(['repos', 'owner']).default('repos'),
   permissions: GitHubAppPermissionsSchema,
-  repositories: z.array(GitHubRepositoryNameSchema).default([]),
+  repositories: z.array(z.union([GitHubRepositoryNameSchema, GitHubRepositorySchema])).default([]),
 });
+type AccessTokenRequestBody = z.infer<typeof AccessTokenRequestBodySchema>;
