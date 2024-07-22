@@ -27,13 +27,14 @@ runAction(async () => {
     input.repositories.unshift(input.repository);
   }
 
-  core.info('Get access token.');
+  core.info('Get access token...');
   const accessToken = await getAccessToken({
     scope: input.scope,
     permissions: input.permissions,
     repositories: input.repositories,
     owner: input.owner,
   });
+  core.info('Access token hash: ' + accessToken.token_hash);
 
   core.setSecret(accessToken.token);
   core.setOutput('token', accessToken.token);
@@ -133,10 +134,11 @@ async function httpRequest(request: HttpRequest, options?: {
 
 interface GitHubAccessTokenResponse {
   token: string
+  token_hash: string
   expires_at: string
-  owner: string
-  repositories: string[]
   permissions: GitHubAppPermissions
+  repositories: string[]
+  owner: string
 }
 
 type GitHubAppPermissions = Record<string, string>

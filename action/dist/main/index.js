@@ -61153,13 +61153,14 @@ runAction(async () => {
     if (input.repository) {
         input.repositories.unshift(input.repository);
     }
-    core.info('Get access token.');
+    core.info('Get access token...');
     const accessToken = await getAccessToken({
         scope: input.scope,
         permissions: input.permissions,
         repositories: input.repositories,
         owner: input.owner,
     });
+    core.info('Access token hash: ' + accessToken.token_hash);
     core.setSecret(accessToken.token);
     core.setOutput('token', accessToken.token);
     // save token to state to be able to revoke it in post-action

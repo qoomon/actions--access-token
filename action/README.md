@@ -186,6 +186,3 @@ build:
 
 ## Resources
 * App icon: https://img.icons8.com/cotton/256/000000/grand-master-key.png
-
-## TODO
-- add token hash to output in main and post action

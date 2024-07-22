@@ -9,9 +9,12 @@ import process from 'process';
 import {hasEntries, toBase64} from './common/common-utils.js';
 import {buildJwksKeyFetcher} from './common/jwt-utils.js';
 import {
-  GitHubActionsJwtPayload, GitHubAppPermissions,
-  GitHubAppPermissionsSchema, GitHubAppRepositoryPermissions,
-  GitHubRepositoryOwnerSchema, GitHubRepositoryNameSchema,
+  GitHubActionsJwtPayload,
+  GitHubAppPermissions,
+  GitHubAppPermissionsSchema,
+  GitHubAppRepositoryPermissions,
+  GitHubRepositoryNameSchema,
+  GitHubRepositoryOwnerSchema,
   normalizePermissionScopes,
   parseRepository,
   verifyRepositoryPermissions,
@@ -97,8 +100,8 @@ app.post(
             const invalidRepositoryPermissionScopes = verifyRepositoryPermissions(it.permissions).invalid;
             if (hasEntries(invalidRepositoryPermissionScopes)) {
               throw new HTTPException(Status.BAD_REQUEST, {
-                message: `Invalid permissions scopes for token scope 'repos'.\n${
-                  Object.keys(invalidRepositoryPermissionScopes).map((scope) => `- ${scope}`).join('\n')}`,
+                message: `Invalid permissions scopes for token scope 'repos'.\n` +
+                    Object.keys(invalidRepositoryPermissionScopes).map((scope) => `- ${scope}`).join('\n'),
               });
             }
 
@@ -123,9 +126,10 @@ app.post(
       // --- response with requested access token --------------------------------------------------------------------
       const tokenResponseBody = {
         token: githubActionsAccessToken.token,
+        token_hash: await sha256(githubActionsAccessToken.token).then(toBase64),
         expires_at: githubActionsAccessToken.expires_at,
         permissions: githubActionsAccessToken.permissions ?
-        normalizePermissionScopes(githubActionsAccessToken.permissions) : undefined,
+            normalizePermissionScopes(githubActionsAccessToken.permissions) : undefined,
         repositories: githubActionsAccessToken.repositories?.map((it) => it.name),
         owner: githubActionsAccessToken.owner,
       };
@@ -133,7 +137,6 @@ app.post(
       requestLog.info({
         ...tokenResponseBody,
         token: undefined,
-        token_hash: await sha256(githubActionsAccessToken.token).then(toBase64),
       }, 'Access Token');
 
       return context.json(tokenResponseBody);
