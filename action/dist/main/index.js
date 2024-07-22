@@ -61175,6 +61175,13 @@ runAction(async () => {
  * @return token
  */
 async function getAccessToken(tokenRequest) {
+    const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
+        .catch((error) => {
+        if (error.message === 'Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable') {
+            throw new Error(error.message + ' Probably job permission `id-token: write` is missing');
+        }
+        throw error;
+    });
     let requestSigner;
     if (config.api.auth?.aws) {
         requestSigner = new dist_cjs.SignatureV4({
@@ -61182,13 +61189,12 @@ async function getAccessToken(tokenRequest) {
             service: config.api.auth.aws.service,
             region: config.api.auth.aws.region,
             credentials: (0,credential_providers_dist_cjs.fromWebToken)({
-                webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
+                webIdentityToken: idTokenForAccessManager,
                 roleArn: config.api.auth.aws.roleArn,
                 durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
             }),
         });
     }
-    const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname);
     return await httpRequest({
         method: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
         data: JSON.stringify(tokenRequest),

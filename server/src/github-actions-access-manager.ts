@@ -68,6 +68,8 @@ export async function accessTokenManager(options: {
         scope: 'repos', permissions: GitHubAppRepositoryPermissions
       },
   ) {
+    const effectiveCallerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
+
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {
       owner: tokenRequest.owner,
     });
@@ -118,8 +120,6 @@ export async function accessTokenManager(options: {
       log.debug({ownerAccessPolicy}, `${tokenRequest.owner} access policy:`);
 
       // --- verify allowed caller identities --------------------------------------------------------------------------
-      const effectiveCallerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
-
       if (ownerAccessPolicy['allowed-subjects'].length > 0) {
         if (!ownerAccessPolicy['allowed-subjects'].some((it) => effectiveCallerIdentitySubjects
             .some((subject) => matchSubjectPattern(it, subject, false)))) {
@@ -552,7 +552,7 @@ function getArtificialAccessPolicyStatementSubjects(subjects: string[], {owner, 
   owner: string,
   repo: string,
 }) {
-  const artificialSubjects : string[] =[];
+  const artificialSubjects: string[] = [];
 
   subjects.forEach((it) => {
     const subjectRepo = it.match(/(^|:)repo:(?<repo>[^:]+)/)?.groups?.repo ?? `${owner}/${repo}`;
@@ -672,12 +672,12 @@ function matchSubjectPattern(subjectPattern: string, subject: string, strict = t
   // claims must not contain wildcards to prevent granting access accidentally e.g. pull requests
   // e.g. repo:foo/bar:* is not allowed
   if (Object.keys(parseOIDCSubject(subjectPattern))
-      .some((claim) => claim !== '**' && claim.includes('*'))) {
+      .some((claim) => !claim.includes('**') && claim.includes('*'))) {
     return false;
   }
 
   // grantedSubjectPattern example: repo:qoomon/sandbox:ref:refs/heads/*
-  // identity.sub example:     repo:qoomon/sandbox:ref:refs/heads/main
+  // identity.sub example: repo:qoomon/sandbox:ref:refs/heads/main
   return regexpOfSubjectPattern(subjectPattern).test(subject);
 }
 
@@ -688,9 +688,9 @@ function matchSubjectPattern(subjectPattern: string, subject: string, strict = t
  */
 function regexpOfSubjectPattern(subjectPattern: string): RegExp {
   const regexp = escapeRegexp(subjectPattern)
-      .replace(/\\\*\\\*/g, '.*')
-      .replace(/\\\*/g, '[^:]*') // replace * with match one or more characters except ':' char
-      .replace(/\\\?/g, '[^:]'); // replace ? with match one characters except ':' char
+      .replace(/\\\*\\\*/g, '.*') // ** matches zero or more characters
+      .replace(/\\\*/g, '[^:]*') //  *  matches zero or more characters except ':'
+      .replace(/\\\?/g, '[^:]'); //  ?  matches one character except ':'
   return RegExp(`^${regexp}$`, 'i');
 }
 

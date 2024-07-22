@@ -1,82 +1,150 @@
-import * as iam from 'aws-cdk-lib/aws-iam'
-import {OpenIdConnectProvider} from 'aws-cdk-lib/aws-iam'
-import {CfnOutput, Duration, Fn, SecretValue, Stack, StackProps} from 'aws-cdk-lib'
-import {Construct} from 'constructs'
-import * as lambda from 'aws-cdk-lib/aws-lambda'
-import {FunctionUrlAuthType} from 'aws-cdk-lib/aws-lambda'
-import * as path from 'path'
-import * as secretManager from 'aws-cdk-lib/aws-secretsmanager'
+import * as core from '@actions/core';
+import {HttpClient, HttpClientError, HttpClientResponse} from '@actions/http-client';
+import {SignatureV4} from '@smithy/signature-v4';
+import {Sha256} from '@aws-crypto/sha256-js';
+import {fromWebToken} from '@aws-sdk/credential-providers';
+import {getInput, getYamlInput, runAction} from './github-actions-utils.js';
+import {z} from 'zod';
+import {signHttpRequest} from './signature4.js';
 
-const API_ACCESS_ROLE_NAME = 'github-actions-access-token-api-access'
-// https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
-const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: string[] = [] // e.g. ['repo:octo-org/*']
+import {config} from './config.js';
+import {OutgoingHttpHeaders} from 'http';
 
-export class AppStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props)
+// --- Main ------------------------------------------------------------------------------------------------------------
 
-    // --- GitHub App Secrets---------------------------------------------------------------------------------------
-
-    const githubAppSecret = new secretManager.Secret(this, 'GitHubAppSecret', {
-      secretName: `${this.stackName}/GitHubApp`, secretObjectValue: {
-        appId: SecretValue.unsafePlainText('change-me'),
-        privateKey: SecretValue.unsafePlainText('change-me'),
-      },
-    })
-
-    // --- API Access Token Function--------------------------------------------------------------------------------
-
-    const httpApiAccessTokenFunction = new lambda.Function(this, 'HttpApiAccessTokenFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      memorySize: 128,
-      timeout: Duration.seconds(30),
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../../../dist')),
-      environment: {
-        LOG_LEVEL: 'info',
-        GITHUB_APP_SECRETS_NAME: githubAppSecret.secretName,
-        GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS.join(','),
-      },
-    })
-    githubAppSecret.grantRead(httpApiAccessTokenFunction.role!)
-    new Policy(this, `${httpApiAccessTokenFunction.node.id}RolePolicy`, {
-      statements: [
-        new PolicyStatement({
-          actions: ['lambda:GetFunctionUrlConfig'],
-          resources: [ httpApiAccessTokenFunction.functionArn ],
-        })
-      ]
-    }).attachToRole(httpApiAccessTokenFunction.role!)
-
-    // --- add function url
-    const httpApiAccessTokenFunctionUrl = httpApiAccessTokenFunction.addFunctionUrl({
-      authType: FunctionUrlAuthType.AWS_IAM,
-    })
-    const httpApiAccessTokenFunctionUrlDomain = Fn.split('://', httpApiAccessTokenFunctionUrl.url, 2)[1]
-
-    // --- API Access Role------------------------------------------------------------------------------------------
-
-    const githubOidcProvider = OpenIdConnectProvider.fromOpenIdConnectProviderArn(
-        this, 'HttpApiAuthOidcProvider',
-        `arn:aws:iam::${this.account}:oidc-provider/token.actions.githubusercontent.com`,
-    )
-
-    const httpApiAccessRole = new iam.Role(this, 'HttpApiAccessRole', {
-      roleName: API_ACCESS_ROLE_NAME,
-      maxSessionDuration: Duration.hours(1), // should set to minimum value for security reasons
-      assumedBy: new iam.OpenIdConnectPrincipal(githubOidcProvider, {
-        'StringEquals': {[`${githubOidcProvider.openIdConnectProviderIssuer}:aud`]: 'sts.amazonaws.com'},
-        'ForAnyValue:StringLike': {[`${githubOidcProvider.openIdConnectProviderIssuer}:sub`]: GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS},
-      }),
-    })
-    httpApiAccessTokenFunctionUrl.grantInvokeUrl(httpApiAccessRole)
-
-    // --- Outputs -------------------------------------------------------------------------------------------------
-
-    new CfnOutput(this, 'GitHubAppSecretName', {value: githubAppSecret.secretName})
-
-    new CfnOutput(this, 'ApiRegion', {value: httpApiAccessTokenFunctionUrl.stack.region})
-    new CfnOutput(this, 'ApiAccessRoleArn', {value: httpApiAccessRole.roleArn})
-    new CfnOutput(this, 'ApiUrl', {value: httpApiAccessTokenFunctionUrl.url})
+runAction(async () => {
+  const input = {
+    scope: z.enum(['repos', 'owner'])
+        .parse(getInput('scope')),
+    permissions: z.record(z.string())
+        .parse(getYamlInput('permissions', {required: true})),
+    repository: getInput('repository'),
+    repositories: z.array(z.string()).default([])
+        .parse(getYamlInput('repositories')),
+    owner: getInput('owner'),
+  };
+  if (input.repository) {
+    input.repositories.unshift(input.repository);
   }
+
+  core.info('Get access token.');
+  const accessToken = await getAccessToken({
+    scope: input.scope,
+    permissions: input.permissions,
+    repositories: input.repositories,
+    owner: input.owner,
+  });
+
+  core.setSecret(accessToken.token);
+  core.setOutput('token', accessToken.token);
+
+  // save token to state to be able to revoke it in post-action
+  core.saveState('token', accessToken.token);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Get access token from access manager endpoint
+ * @param tokenRequest - token request
+ * @param tokenRequest.organization - target organization
+ * @param tokenRequest.repositories - target repositories
+ * @param tokenRequest.permissions - target permissions
+ * @return token
+ */
+async function getAccessToken(tokenRequest: {
+  scope: 'repos' | 'owner' | undefined
+  permissions: GitHubAppPermissions
+  repositories: string[] | undefined
+  owner: string | undefined
+}): Promise<GitHubAccessTokenResponse> {
+  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
+      .catch((error) => {
+        if (error.message === 'Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable') {
+          throw new Error(error.message + ' Probably job permission `id-token: write` is missing');
+        }
+        throw error;
+      });
+
+  let requestSigner;
+  if (config.api.auth?.aws) {
+    requestSigner = new SignatureV4({
+      sha256: Sha256,
+      service: config.api.auth.aws.service,
+      region: config.api.auth.aws.region,
+      credentials: fromWebToken({
+        webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
+        roleArn: config.api.auth.aws.roleArn,
+        durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
+      }),
+    });
+  }
+
+  return await httpRequest({
+    method: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
+    data: JSON.stringify(tokenRequest),
+    additionalHeaders: {
+      'authorization': 'Bearer ' + idTokenForAccessManager,
+      'content-type': 'application/json',
+    },
+  }, {
+    signer: requestSigner,
+  })
+      .then(async (response) => response.readBody())
+      .then(async (body) => JSON.parse(body));
+}
+
+/**
+ * Make http request
+ * @param request - request to send
+ * @param options - options
+ * @return response - with parsed body if possible
+ */
+async function httpRequest(request: HttpRequest, options?: {
+  signer?: SignatureV4
+}): Promise<HttpClientResponse> {
+  const httpClient = new HttpClient();
+  if (options?.signer) {
+    request = await signHttpRequest(request, options.signer);
+  }
+
+  return await httpClient.request(request.method, request.requestUrl, request.data, request.additionalHeaders)
+      .then(async (response) => {
+        if (!response.message.statusCode || response.message.statusCode < 200 || response.message.statusCode >= 300) {
+          const body = await response.readBody();
+          let bodyJson;
+          try {
+            bodyJson = JSON.parse(body);
+          } catch {
+            // ignore
+          }
+
+          const msg = bodyJson?.message || body || 'Failed request';
+
+          const httpError = new HttpClientError(msg, response.message.statusCode ?? 0);
+          httpError.result = bodyJson || body;
+          throw httpError;
+        }
+        return response;
+      });
+}
+
+// --- Types -----------------------------------------------------------------------------------------------------------
+
+interface GitHubAccessTokenResponse {
+  token: string
+  expires_at: string
+  owner: string
+  repositories: string[]
+  permissions: GitHubAppPermissions
+}
+
+type GitHubAppPermissions = Record<string, string>
+
+
+interface HttpRequest {
+  method: string,
+  requestUrl: string,
+  data: string | NodeJS.ReadableStream | null,
+  additionalHeaders?: OutgoingHttpHeaders
 }

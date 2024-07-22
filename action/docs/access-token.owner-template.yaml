@@ -1,38 +1,40 @@
-origin: GITHUB_REPO_OWNER/.github-access-token # e.g. qoomon/.github-access-token
+origin: __CHANGE_ME_TO_GITHUB_REPO_OWNER__/.github-access-token # e.g. qoomon/.github-access-token
 
-allowed-subjects: [] # An empty list means that all subjects are allowed
+# An empty list means that all subjects are allowed e.g. ['repo:qoomon/*:**']
+# Wildcards: '*' matches everything except ':', '**' matches everything
+allowed-subjects: []
 
 # Configuration which permissions are allowed to be managed by the repositories themselves
 allowed-repository-permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
   # actions: write # read or write
   # actions-variables: write # read or write
   # administration: write # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
-  # checks : write # read or write
-  # codespaces : write # read or write
-  # codespaces-lifecycle-admin : write # read or write
-  # codespaces-metadata : write # read or write
+  # checks: write # read or write
+  # codespaces: write # read or write
+  # codespaces-lifecycle-admin: write # read or write
+  # codespaces-metadata: write # read or write
   # codespaces-secrets: write # write
-  # contents : write # read or write
-  # custom-properties : write # read or write
-  # dependabot-secrets : write # read or write
-  # deployments : write # read or write
-  # discussions : write # read or write
-  # environments : write # read or write
-  # issues : write # read or write
-  # merge-queues : write # read or write
-  # packages : write # read or write
-  # pages : write # read or write
-  # projects : write # read or write or admin
-  # pull-requests : write # read or write
-  # repository-advisories : write # read or write
-  # repository-hooks : write # read or write
-  # repository-projects : write # read or write or admin
-  # secret-scanning-alerts : write # read or write
-  # secrets : write # read or write
-  # security-events : write # read or write
-  # statuses : write # read or write
-  # team-discussions : write # read or write
-  # vulnerability-alerts : write # read or write
+  # contents: write # read or write
+  # custom-properties: write # read or write
+  # dependabot-secrets: write # read or write
+  # deployments: write # read or write
+  # discussions: write # read or write
+  # environments: write # read or write
+  # issues: write # read or write
+  # merge-queues: write # read or write
+  # packages: write # read or write
+  # pages: write # read or write
+  # projects: write # read or write or admin
+  # pull-requests: write # read or write
+  # repository-advisories: write # read or write
+  # repository-hooks: write # read or write
+  # repository-projects: write # read or write or admin
+  # secret-scanning-alerts: write # read or write
+  # secrets: write # read or write
+  # security-events: write # read or write
+  # statuses: write # read or write
+  # team-discussions: write # read or write
+  # vulnerability-alerts: write # read or write
   # workflows: write # write
 
 # Grant owner scoped permissions (owner permission or owner wide repository permissions)
@@ -63,30 +65,30 @@ statements:
     # actions: write # read or write
     # actions-variables: write # read or write
     # administration: write # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
-    # checks : write # read or write
-    # codespaces : write # read or write
-    # codespaces-lifecycle-admin : write # read or write
-    # codespaces-metadata : write # read or write
+    # checks: write # read or write
+    # codespaces: write # read or write
+    # codespaces-lifecycle-admin: write # read or write
+    # codespaces-metadata: write # read or write
     # codespaces-secrets: write # write
-    # contents : write # read or write
-    # custom-properties : write # read or write
-    # dependabot-secrets : write # read or write
-    # deployments : write # read or write
-    # discussions : write # read or write
-    # environments : write # read or write
-    # issues : write # read or write
-    # merge-queues : write # read or write
-    # packages : write # read or write
-    # pages : write # read or write
-    # projects : write # read or write or admin
-    # pull-requests : write # read or write
-    # repository-advisories : write # read or write
-    # repository-hooks : write # read or write
-    # repository-projects : write # read or write or admin
-    # secret-scanning-alerts : write # read or write
-    # secrets : write # read or write
-    # security-events : write # read or write
-    # statuses : write # read or write
-    # team-discussions : write # read or write
-    # vulnerability-alerts : write # read or write
+    # contents: write # read or write
+    # custom-properties: write # read or write
+    # dependabot-secrets: write # read or write
+    # deployments: write # read or write
+    # discussions: write # read or write
+    # environments: write # read or write
+    # issues: write # read or write
+    # merge-queues: write # read or write
+    # packages: write # read or write
+    # pages: write # read or write
+    # projects: write # read or write or admin
+    # pull-requests: write # read or write
+    # repository-advisories: write # read or write
+    # repository-hooks: write # read or write
+    # repository-projects: write # read or write or admin
+    # secret-scanning-alerts: write # read or write
+    # secrets: write # read or write
+    # security-events: write # read or write
+    # statuses: write # read or write
+    # team-discussions: write # read or write
+    # vulnerability-alerts: write # read or write
     # workflows: write # write

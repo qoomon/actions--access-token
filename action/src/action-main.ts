@@ -58,6 +58,13 @@ async function getAccessToken(tokenRequest: {
   repositories: string[] | undefined
   owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
+  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
+      .catch((error) => {
+        if (error.message === 'Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable') {
+          throw new Error(error.message + ' Probably job permission `id-token: write` is missing');
+        }
+        throw error;
+      });
 
   let requestSigner;
   if (config.api.auth?.aws) {
@@ -66,14 +73,13 @@ async function getAccessToken(tokenRequest: {
       service: config.api.auth.aws.service,
       region: config.api.auth.aws.region,
       credentials: fromWebToken({
-        webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
+        webIdentityToken: idTokenForAccessManager,
         roleArn: config.api.auth.aws.roleArn,
         durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
       }),
     });
   }
 
-  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname);
   return await httpRequest({
     method: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
     data: JSON.stringify(tokenRequest),
@@ -142,5 +148,3 @@ interface HttpRequest {
   data: string | NodeJS.ReadableStream | null,
   additionalHeaders?: OutgoingHttpHeaders
 }
-
-
