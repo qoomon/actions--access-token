@@ -2,6 +2,8 @@ import {Stack, StackProps} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
 import {OpenIdConnectPrincipal, OpenIdConnectProvider, Role} from 'aws-cdk-lib/aws-iam';
 
+const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS = ['repo:qoomon/actions--access-token:ref:refs/heads/main'];
+
 export class DeploymentStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props)
@@ -22,9 +24,16 @@ export class DeploymentStack extends Stack {
           [`${githubOidcProvider.openIdConnectProviderIssuer}:aud`]: 'sts.amazonaws.com',
         },
         'ForAnyValue:StringLike': {
-          [`${githubOidcProvider.openIdConnectProviderIssuer}:sub`]: ['repo:JH-JDS/actions--access-token:ref:refs/heads/main'],
+          [`${githubOidcProvider.openIdConnectProviderIssuer}:sub`]: ensureNotEmpty(GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS),
         }
       }),
     })
   }
+}
+
+function ensureNotEmpty<T extends Array<unknown>>(value: T, message: string = 'Array must not be empty'): T {
+  if (value.length === 0) {
+    throw new Error(message)
+  }
+  return value
 }
