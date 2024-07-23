@@ -1,11 +1,8 @@
-import {Octokit} from '@octokit/rest';
+import {Octokit, RestEndpointMethodTypes} from '@octokit/rest';
 import {z, ZodSchema} from 'zod';
 import {components} from '@octokit/openapi-types';
 import {createAppAuth} from '@octokit/auth-app';
 import limit from 'p-limit';
-import type {
-  RestEndpointMethodTypes,
-} from '@octokit/plugin-rest-endpoint-methods/dist-types/generated/parameters-and-response-types';
 import {formatZodIssue, YamlTransformer} from './common/zod-utils.js';
 import {
   _throw,
