@@ -41,54 +41,54 @@ allowed-repository-permissions: # https://docs.github.com/en/rest/authentication
 # NOTE: Every statement will always implicitly grant `metadata: read` permission.
 statements:
   - subjects:
-    # === GitHub Actions OIDC Token Subjects ===
-    # A GitHub Actions job will always have the following subjects
-    # The original OIDC token 'sub' claim e.g. repo:${origin}:ref:refs/heads/main or repo:${origin}:environment:production
-    # repo:${origin}:ref:<ref> e.g. repo:${origin}:ref:refs/heads/main
-    # repo:${origin}:environment:<environment> e.g. repo:${origin}:environment:production
-    # repo:${origin}:workflow_ref:<workflow_ref> e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
-    # repo:${origin}:job_workflow_ref:<job_workflow_ref> e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+      # === GitHub Actions OIDC Token Subjects ===
+      # A GitHub Actions job will always have the following subjects
+      # The original OIDC token 'sub' claim e.g. repo:${origin}:ref:refs/heads/main or repo:${origin}:environment:production
+      # repo:${origin}:ref:<ref> e.g. repo:${origin}:ref:refs/heads/main
+      # repo:${origin}:environment:<environment> e.g. repo:${origin}:environment:production
+      # repo:${origin}:workflow_ref:<workflow_ref> e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+      # repo:${origin}:job_workflow_ref:<job_workflow_ref> e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
 
-    # === Subject Pattern Variables ===
-    # ${origin} - the origin repository name e.g. qoomon/sandbox
+      # === Subject Pattern Variables ===
+      # ${origin} - the origin repository name e.g. qoomon/sandbox
 
-    # === Subject Pattern examples ===
-    # grant access to jobs running on the main branch
-    # - repo:${origin}:ref:refs/heads/main
-    # grant access jobs running on any tag starting with a v
-    # - repo:${origin}:ref:refs/tags/v*
-    # grant access to jobs using production environment
-    # - repo:${origin}:environment:production
-    # grant access to jobs of a specific workflow file
-    # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+      # === Subject Pattern examples ===
+      # grant access to jobs running on the main branch
+      # - repo:${origin}:ref:refs/heads/main
+      # grant access jobs running on any tag starting with a v
+      # - repo:${origin}:ref:refs/tags/v*
+      # grant access to jobs using production environment
+      # - repo:${origin}:environment:production
+      # grant access to jobs of a specific workflow file
+      # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
     permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
-    # actions: write # read or write
-    # actions-variables: write # read or write
-    # administration: write # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
-    # checks: write # read or write
-    # codespaces: write # read or write
-    # codespaces-lifecycle-admin: write # read or write
-    # codespaces-metadata: write # read or write
-    # codespaces-secrets: write # write
-    # contents: write # read or write
-    # custom-properties: write # read or write
-    # dependabot-secrets: write # read or write
-    # deployments: write # read or write
-    # discussions: write # read or write
-    # environments: write # read or write
-    # issues: write # read or write
-    # merge-queues: write # read or write
-    # packages: write # read or write
-    # pages: write # read or write
-    # projects: write # read or write or admin
-    # pull-requests: write # read or write
-    # repository-advisories: write # read or write
-    # repository-hooks: write # read or write
-    # repository-projects: write # read or write or admin
-    # secret-scanning-alerts: write # read or write
-    # secrets: write # read or write
-    # security-events: write # read or write
-    # statuses: write # read or write
-    # team-discussions: write # read or write
-    # vulnerability-alerts: write # read or write
-    # workflows: write # write
+      # actions: write # read or write
+      # actions-variables: write # read or write
+      # administration: write # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
+      # checks: write # read or write
+      # codespaces: write # read or write
+      # codespaces-lifecycle-admin: write # read or write
+      # codespaces-metadata: write # read or write
+      # codespaces-secrets: write # write
+      # contents: write # read or write
+      # custom-properties: write # read or write
+      # dependabot-secrets: write # read or write
+      # deployments: write # read or write
+      # discussions: write # read or write
+      # environments: write # read or write
+      # issues: write # read or write
+      # merge-queues: write # read or write
+      # packages: write # read or write
+      # pages: write # read or write
+      # projects: write # read or write or admin
+      # pull-requests: write # read or write
+      # repository-advisories: write # read or write
+      # repository-hooks: write # read or write
+      # repository-projects: write # read or write or admin
+      # secret-scanning-alerts: write # read or write
+      # secrets: write # read or write
+      # security-events: write # read or write
+      # statuses: write # read or write
+      # team-discussions: write # read or write
+      # vulnerability-alerts: write # read or write
+      # workflows: write # write
