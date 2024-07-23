@@ -1,4 +1,4 @@
-origin: __CHANGE_ME_GITHUB_REPO_OWNER__/GITHUB_REPO_NAME # e.g. qoomon/sandbox
+origin: __CHANGE_ME_TO_GITHUB_REPO_OWNER__/GITHUB_REPO_NAME # e.g. qoomon/sandbox
 
 # Grant repository scoped permissions
 # NOTE: Every statement will always implicitly grant `metadata: read` permission.
