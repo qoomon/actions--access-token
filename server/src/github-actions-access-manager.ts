@@ -557,10 +557,8 @@ function getArtificialAccessPolicyStatementSubjects(subjects: string[], {owner, 
     let artificialSubject = it;
 
     // prefix subject with repo claim, if not already prefixed
-    artificialSubject = artificialSubject.replace(
-        /(?<!^repo:)/,
-        `repo:${subjectRepo}:`,
-    );
+    artificialSubject = artificialSubject.startsWith('repo:') ? artificialSubject :
+        `repo:${subjectRepo}:${artificialSubject}`;
 
     // prefix (job_)workflow_ref claim value with repo, if not already prefixed
     artificialSubject = artificialSubject.replace(
