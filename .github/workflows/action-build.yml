@@ -34,6 +34,7 @@ jobs:
 
       # Verify that the dist/ is up-to-date
       - name: Verify Action release
+        if: github.ref == 'refs/heads/main'
         run: |
           git_diff="$(git diff --ignore-cr-at-eol dist/)"
           if [ -n "$git_diff" ]; then
