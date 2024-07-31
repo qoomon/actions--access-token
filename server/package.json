@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.592.0",
-    "@aws-sdk/client-secrets-manager": "^3.592.0",
+    "@aws-sdk/client-secrets-manager": "^3.621.0",
     "@hono/node-server": "^1.11.2",
     "@octokit/auth-app": "^7.1.0",
     "@octokit/rest": "^21.0.1",
