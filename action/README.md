@@ -1,4 +1,4 @@
-# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens
+# ![](https://img.icons8.com/cotton/64/000000/grand-master-key.png)&nbsp; GitHub Actions Access Tokens &nbsp; [![Actions](https://img.shields.io/badge/qoomon-GitHub%20Actions-blue)](https://github.com/qoomon/actions)
 
 Obtain temporary Access Tokens for GitHub Actions workflows by requesting GitHub App Installation Access Tokens.
 Authorization is based on the GitHub Actions OIDC tokens and `.github/access-token.yaml` file in the target repositories.
