@@ -44,25 +44,28 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
 - Hit `Create` button
 
- </details>
+</details>
 
-### Grant Repository Permissions
+### Configure Owner Policy
+<details><summary>Click me</summary>
+
+Create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/action/docs/access-token.owner-template.yaml)
+
+With this owner policy you can configure wich permissions can be manged or granted by repository token policies (`allowed-repository-permissions:`).
+
+You can also grant owner specific or owner wide permission.
+
+</details>
+
+## Grant Repository Permissions
+> [!IMPORTANT]
+> Ensure repository permissions have been granted by `allowed-repository-permissions:` in owner policy file see [Setup Owner Permission Access](#grant-owner-permissions)
 > [!Note]
 > You can also grant repository permissions by owner access token policy see [Setup Owner Permission Access](#grant-owner-permissions)
 
 <details><summary>Click me</summary>
 
 To grant repository permission create an `access-token.yaml` file within the `.github/` directory of the target repository with [this template content](/action/docs/access-token.repo-template.yaml)
-
-
-#### Repository Access Policy Example
-
-</details>
-
-### Grant Owner Permissions
-<details><summary>Click me</summary>
-
-To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/action/docs/access-token.owner-template.yaml)
 
 </details>
 
