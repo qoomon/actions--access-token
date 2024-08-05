@@ -21,10 +21,10 @@ export const config: Readonly<Config> = {
   accessPolicyLocation: {
     owner: {
       repo: '.github-access-token',
-      path: 'access-token.yaml',
+      paths: ['access-token.yaml', 'access-token.yml'],
     },
     repo: {
-      path: '.github/access-token.yaml',
+      paths: ['.github/access-token.yaml', '.github/access-token.yml'],
     },
   },
 };
@@ -42,11 +42,11 @@ interface Config {
   }
   accessPolicyLocation: {
     owner: {
+      paths: string[]
       repo: string
-      path: string
     },
     repo: {
-      path: string
+      paths: string[]
     }
   }
 }

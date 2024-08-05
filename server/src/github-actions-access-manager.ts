@@ -32,6 +32,8 @@ import {
 import {Status} from './common/http-utils.js';
 import {logger as log} from './logger.js';
 
+const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
+
 /**
  * GitHub Access Manager
  * @param options - options
@@ -40,8 +42,8 @@ import {logger as log} from './logger.js';
 export async function accessTokenManager(options: {
   githubAppAuth: { appId: string, privateKey: string, },
   accessPolicyLocation: {
-    owner: { repo: string, path: string, },
-    repo: { path: string }
+    owner: { paths: string[], repo: string },
+    repo: { paths: string[] }
   }
 }) {
   log.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
@@ -111,7 +113,7 @@ export async function accessTokenManager(options: {
       const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
         owner: tokenRequest.owner,
         repo: options.accessPolicyLocation.owner.repo,
-        path: options.accessPolicyLocation.owner.path,
+        paths: options.accessPolicyLocation.owner.paths,
         strict: false, // ignore invalid access policy entries
       });
       log.debug({ownerAccessPolicy}, `${tokenRequest.owner} access policy:`);
@@ -204,7 +206,7 @@ export async function accessTokenManager(options: {
                     const repoAccessPolicy = await getRepoAccessPolicy(appInstallationClient, {
                       owner: tokenRequest.owner,
                       repo,
-                      path: options.accessPolicyLocation.repo.path,
+                      paths: options.accessPolicyLocation.repo.paths,
                       strict: false, // ignore invalid access policy entries
                     });
                     log.debug({repoAccessPolicy}, `${tokenRequest.owner}/${repo} access policy`);
@@ -313,11 +315,11 @@ function createErrorMessage(
  * @return access policy
  */
 async function getOwnerAccessPolicy(client: Octokit, {
-  owner, repo, path, strict,
+  owner, repo, paths, strict,
 }: {
   owner: string,
   repo: string,
-  path: string,
+  paths: string[],
   strict: boolean,
 }): Promise<Omit<GitHubOwnerAccessPolicy, 'origin'>> {
   const emptyPolicy: Omit<GitHubOwnerAccessPolicy, 'origin'> = {
@@ -325,13 +327,16 @@ async function getOwnerAccessPolicy(client: Octokit, {
     'allowed-subjects': [],
     'allowed-repository-permissions': {},
   };
-  const policyValue = await getRepositoryFileContent(client, {
-    owner,
-    repo,
-    path,
-    maxSize: 100 * 1024, // 100kb
-  });
 
+  let policyValue = null;
+  for (const path of paths) {
+    policyValue = await getRepositoryFileContent(client, {
+      owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE,
+    });
+    if (policyValue) {
+      break;
+    }
+  }
   if (!policyValue) {
     return emptyPolicy;
   }
@@ -399,22 +404,27 @@ async function getOwnerAccessPolicy(client: Octokit, {
  * @return access policy
  */
 async function getRepoAccessPolicy(client: Octokit, {
-  owner, repo, path, strict,
+  owner, repo, paths, strict,
 }: {
   owner: string,
   repo: string,
-  path: string,
+  paths: string[],
   strict: boolean,
 }): Promise<Omit<GitHubRepositoryAccessPolicy, 'origin'>> {
   const emptyPolicy: Omit<GitHubRepositoryAccessPolicy, 'origin'> = {
     statements: [],
   };
-  const policyValue = await getRepositoryFileContent(client, {
-    owner,
-    repo,
-    path,
-    maxSize: 100 * 1024, // 100kb
-  });
+
+  let policyValue = null;
+  for (const path of paths) {
+    policyValue = await getRepositoryFileContent(client, {
+      owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE,
+    });
+    if (policyValue) {
+      break;
+    }
+  }
+
   if (!policyValue) {
     return emptyPolicy;
   }

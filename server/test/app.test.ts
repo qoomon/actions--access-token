@@ -1166,12 +1166,12 @@ function mockGithub() {
 
                 const repository = mock.repositories[`${params.owner}/${params.repo}`];
 
-                if (repository?.accessPolicy && params.path === config.accessPolicyLocation.repo.path) {
+                if (repository?.accessPolicy && config.accessPolicyLocation.repo.paths.includes(params.path)) {
                   const contentString = YAML.stringify(repository.accessPolicy);
                   return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
                 }
 
-                if (repository?.ownerAccessPolicy && params.path === config.accessPolicyLocation.owner.path) {
+                if (repository?.ownerAccessPolicy && config.accessPolicyLocation.owner.paths.includes(params.path)) {
                   const contentString = YAML.stringify(repository.ownerAccessPolicy);
                   return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
                 }
