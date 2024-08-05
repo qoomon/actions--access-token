@@ -41,7 +41,9 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 - Set `Enforcement status` to `Active`
 - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
 - Set `Target repositories` to `All repositories`
-- Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+- Enable `Restrict file paths`
+  - Click `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+    - Also add file path `.github/access-token.yml` 
 - Hit `Create` button
 
 </details>
