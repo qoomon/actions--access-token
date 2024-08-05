@@ -21,6 +21,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
             - Add file path `.github/access-token.yaml` - for repository scoped token policy
               - Also add file path `.github/access-token.yml`
             - Add file path `access-token.yaml` - for owner scoped token policy
+              - Also add file path `access-token.yml`
     - Choose permissions you want to allow to request
     - Hit `Create GitHub App` button
     - Take a note of `App ID`
