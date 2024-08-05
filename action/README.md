@@ -24,7 +24,7 @@ See [Action Metadata](/action/action.yaml) and [Example Use Cases](#example-use-
 
 ## Prerequisites
 
-### Install Access Manager App to Target Repositories
+### 1. Install Access Manager App to Target Repositories
 
 Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.com/marketplace/access-manager-for-github-actions)
  **or** [host and install **your own** GitHub App](/server/README.md)
@@ -46,7 +46,7 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
 </details>
 
-### Configure Owner Policy
+### 2. Create and Configure Owner Policy
 <details><summary>Click me</summary>
 
 Create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/action/docs/access-token.owner-template.yaml)
@@ -58,10 +58,12 @@ You can also grant owner specific or owner wide permission.
 </details>
 
 ## Grant Repository Permissions
+
 > [!IMPORTANT]
-> Ensure repository permissions have been granted by `allowed-repository-permissions:` in owner policy file see [Setup Owner Permission Access](#grant-owner-permissions)
+> Ensure repository permissions have been granted within owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
+
 > [!Note]
-> You can also grant repository permissions by owner access token policy see [Setup Owner Permission Access](#grant-owner-permissions)
+> You can also grant repository permissions within owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
 
 <details><summary>Click me</summary>
 
