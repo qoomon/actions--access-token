@@ -19,6 +19,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     - Add Mandatory `Repository permissions`
         - Single file: `Read-only`
             - Add file path `.github/access-token.yaml` - for repository scoped token policy
+              - Also add file path `.github/access-token.yml`
             - Add file path `access-token.yaml` - for owner scoped token policy
     - Choose permissions you want to allow to request
     - Hit `Create GitHub App` button
@@ -53,7 +54,9 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > - Set `Enforcement status` to `Active`
 > - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
 > - Set `Target repositories` to `All repositories`
-> - Enable `Restrict file paths`, hit `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
+> - Enable `Restrict file paths`
+>   - Click `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path` 
+>     - Also add file path `.github/access-token.yml`
 > - Hit `Create` button
 
 <details><summary>Click me</summary>
