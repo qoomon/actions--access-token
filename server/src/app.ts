@@ -30,7 +30,7 @@ import {
   tokenAuthenticator,
 } from './common/hono-utils.js';
 import {Status} from './common/http-utils.js';
-import {accessTokenManager, GithubAccessTokenError} from './github-actions-access-manager.js';
+import {accessTokenManager, GithubAccessTokenError} from './access-token-manager.js';
 import {logger as log} from './logger.js';
 import {config} from './config.js';
 

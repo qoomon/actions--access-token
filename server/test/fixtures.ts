@@ -2,7 +2,7 @@
 import jwt, {PrivateKey, SignerOptions} from 'fast-jwt';
 import {components} from '@octokit/openapi-types';
 import {GitHubActionsJwtPayload, parseRepository} from '../src/common/github-utils.js';
-import {GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../src/github-actions-access-manager.js';
+import {GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../src/access-token-manager.js';
 
 export const DEFAULT_OWNER = 'octocat';
 export const DEFAULT_REPO = 'playground';
