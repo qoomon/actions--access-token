@@ -257,8 +257,7 @@ export async function accessTokenManager(options: {
         // --- verify requested permissions against target REPOSITORY access policies ----------------------------------
         if (hasEntries(pendingTokenPermissions)) {
           if (hasEntries(verifyRepositoryPermissions(pendingTokenPermissions).invalid)) {
-            throw new Error('SAFEGUARD Error - Unexpected repository permissions: ' +
-                JSON.stringify(pendingTokenPermissions, null, 2));
+            throw new Error('SAFEGUARD Error - Unexpected repository permissions');
           }
 
           const requestedTokenIssues: ({
@@ -353,6 +352,8 @@ export async function accessTokenManager(options: {
 
         break;
       }
+      default:
+        throw new Error('SAFEGUARD Error - Unexpected token scope');
     }
 
     // --- create requested access token -------------------------------------------------------------------------------
