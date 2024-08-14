@@ -8,6 +8,20 @@ export function hasEntries<T extends object>(obj: T): boolean {
 }
 
 /**
+ * This function will return a result with promise result or error
+ * @param promise - promise
+ * @return result
+ */
+export function safePromise<T>(promise: Promise<T>): Promise<
+    { success: true, data: T, error?: never } |
+    { success: false, error: unknown, data?: never }
+> {
+  return promise
+      .then((data) => ({success: true, data} satisfies { success: true, data: T }))
+      .catch((error) => ({success: false, error}));
+}
+
+/**
  * This function will throw the given error
  * @param error - error to throw
  * @return never
@@ -22,7 +36,7 @@ export function _throw(error: unknown): never {
  * @param fn - mapping function
  * @return mapped value
  */
-export function mapValue<T, R>(value:T, fn: (value:T) => R): R {
+export function mapValue<T, R>(value: T, fn: (value: T) => R): R {
   return fn(value);
 }
 
@@ -133,11 +147,11 @@ export function sleep(ms: number): Promise<void> {
 export async function retry<T>(
     fn: () => Promise<T>,
     options: {
-    retries: number,
-    delay: number,
-    onRetry?: (result: T) => boolean | Promise<boolean>,
-    onError?: (error: unknown) => boolean | Promise<boolean>,
-  } = {
+      retries: number,
+      delay: number,
+      onRetry?: (result: T) => boolean | Promise<boolean>,
+      onError?: (error: unknown) => boolean | Promise<boolean>,
+    } = {
       retries: 1,
       delay: 1000,
     },
@@ -166,11 +180,12 @@ export async function retry<T>(
  * Indent string
  * @param string - string to indent
  * @param indent - indent string
+ * @param subsequentIndent - subsequent indent string
  * @return indented string
  */
-export function indent(string: string, indent = '  ') {
+export function indent(string: string, indent = '  ', subsequentIndent = ' '.repeat(indent.length)): string {
   return string.split('\n')
-      .map((line) => `${indent}${line}`)
+      .map((line, index) => `${index === 0 ? indent : subsequentIndent}${line}`)
       .join('\n');
 }
 
@@ -186,10 +201,13 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Joins multiple regular expressions into a single regular expression
  * @param regexps - regular expressions
+ * @param flags - regular expression flags
  * @return regular expression
  */
-export function joinRegExp(...regexps: RegExp[]): RegExp {
-  return new RegExp(regexps.map((r) => r.source).join(''), regexps[regexps.length - 1]?.flags);
+export function joinRegExp(regexps: (string | RegExp)[], flags?: string): RegExp {
+  return new RegExp(regexps
+      .map((r) => typeof r === 'string' ? r : r.source)
+      .join(''), flags);
 }
 
 /**
@@ -200,3 +218,5 @@ export function joinRegExp(...regexps: RegExp[]): RegExp {
 export function toBase64(value?: string | null) {
   return Buffer.from(value ?? '').toString('base64');
 }
+
+export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;

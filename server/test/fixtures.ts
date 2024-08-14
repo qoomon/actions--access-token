@@ -187,6 +187,7 @@ export interface AppInstallation {
   permissions: components['schemas']['app-permissions'] & Record<string, string | undefined>,
   target_type?: string,
   owner: string,
+  single_file_paths?: string[],
 }
 
 export interface Repository {

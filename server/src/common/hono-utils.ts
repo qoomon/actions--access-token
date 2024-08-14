@@ -12,6 +12,7 @@ import {
 import {formatZodIssue, JsonTransformer} from './zod-utils.js';
 import {Status, StatusPhrases} from './http-utils.js';
 import {buildJwksKeyFetcher} from './jwt-utils.js';
+import {indent} from './common-utils';
 
 /**
  * Creates a MethodNotAllowedHandler
@@ -128,9 +129,9 @@ export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema:
 
   if (!bodyParseResult.success) {
     throw new HTTPException(Status.BAD_REQUEST, {
-      message: `Invalid request body.\n${
+      message: `Invalid request body:\n${
         bodyParseResult.error.issues.map(formatZodIssue)
-            .map((it) => `- ${it}`).join('\n')}`,
+            .map((it) => indent(it, '- ')).join('\n')}`,
     });
   }
   return bodyParseResult.data;

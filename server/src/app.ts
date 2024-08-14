@@ -15,7 +15,8 @@ import {
   GitHubAppPermissionsSchema,
   GitHubAppRepositoryPermissions,
   GitHubRepositoryNameSchema,
-  GitHubRepositoryOwnerSchema, GitHubRepositorySchema,
+  GitHubRepositoryOwnerSchema,
+  GitHubRepositorySchema,
   normalizePermissionScopes,
   parseRepository,
   verifyRepositoryPermissions,
@@ -108,33 +109,36 @@ app.post(
 
 /**
  * Normalize access token request body
- * @param it - access token request body
+ * @param tokenRequest - access token request body
  * @param callerIdentity - caller identity
  * @return normalized access token request body
  */
-function normalizeAccessTokenRequestBody(it: AccessTokenRequestBody, callerIdentity: GitHubActionsJwtPayload) {
-  if (Object.entries(it.permissions).length === 0) {
+function normalizeAccessTokenRequestBody(
+    tokenRequest: AccessTokenRequestBody,
+    callerIdentity: GitHubActionsJwtPayload,
+) {
+  if (Object.entries(tokenRequest.permissions).length === 0) {
     throw new HTTPException(Status.BAD_REQUEST, {message: 'Token permissions must not be empty.'});
   }
 
   // determine default owner
-  if (!it.owner) {
-    if (it.repositories.length === 1 && it.repositories[0].includes('/')) {
-      // use repository owner as default target owner
-      it.owner = parseRepository(it.repositories[0]).owner;
+  if (!tokenRequest.owner) {
+    if (tokenRequest.repositories.length === 1 && tokenRequest.repositories[0].includes('/')) {
+      // use the repository owner as the default target owner
+      tokenRequest.owner = parseRepository(tokenRequest.repositories[0]).owner;
     } else {
-      // use caller repository owner as default target owner
-      it.owner = callerIdentity.repository_owner;
+      // use the caller repository owner as the default target owner
+      tokenRequest.owner = callerIdentity.repository_owner;
     }
   }
 
-  // remove owner prefixes and ensure all token repositories belong to same owner
-  it.repositories = it.repositories.map((repository) => {
+  // remove owner prefixes and ensure all token repositories belong to the same owner
+  tokenRequest.repositories = tokenRequest.repositories.map((repository) => {
     if (repository.includes('/')) {
       const {owner, repo} = parseRepository(repository);
-      if (owner !== it.owner) {
+      if (owner !== tokenRequest.owner) {
         throw new HTTPException(Status.BAD_REQUEST, {
-          message: `Token repositories must belong to same owner.`,
+          message: `All target repositories must belong to same owner.`,
         });
       }
       return repo;
@@ -143,22 +147,22 @@ function normalizeAccessTokenRequestBody(it: AccessTokenRequestBody, callerIdent
     return repository;
   });
 
-  switch (it.scope) {
+  switch (tokenRequest.scope) {
     case 'owner': {
-      return it as typeof it & { scope: 'owner', owner: string, permissions: GitHubAppPermissions };
+      return tokenRequest as typeof tokenRequest & { scope: 'owner', owner: string, permissions: GitHubAppPermissions };
     }
     case 'repos': {
-      if (!hasEntries(it.repositories)) {
-        if (it.owner !== callerIdentity.repository_owner) {
+      if (!hasEntries(tokenRequest.repositories)) {
+        if (tokenRequest.owner !== callerIdentity.repository_owner) {
           throw new HTTPException(Status.BAD_REQUEST, {message: 'Token repositories must not be empty.'});
         }
 
         // use caller repository as default repository
-        it.repositories = [parseRepository(callerIdentity.repository).repo];
+        tokenRequest.repositories = [parseRepository(callerIdentity.repository).repo];
       }
 
       // ensure only repository permissions are requested
-      const invalidRepositoryPermissionScopes = verifyRepositoryPermissions(it.permissions).invalid;
+      const invalidRepositoryPermissionScopes = verifyRepositoryPermissions(tokenRequest.permissions).invalid;
       if (hasEntries(invalidRepositoryPermissionScopes)) {
         throw new HTTPException(Status.BAD_REQUEST, {
           message: `Invalid permissions scopes for token scope 'repos'.\n` +
@@ -166,10 +170,14 @@ function normalizeAccessTokenRequestBody(it: AccessTokenRequestBody, callerIdent
         });
       }
 
-      return it as typeof it & { scope: 'repos', owner: string, permissions: GitHubAppRepositoryPermissions };
+      return tokenRequest as typeof tokenRequest & {
+        scope: 'repos',
+        owner: string,
+        permissions: GitHubAppRepositoryPermissions
+      };
     }
     default:
-      throw new HTTPException(Status.BAD_REQUEST, {message: `Invalid token scope '${it.scope}'.`});
+      throw new HTTPException(Status.BAD_REQUEST, {message: `Invalid token scope '${tokenRequest.scope}'.`});
   }
 }
 

@@ -35,6 +35,5 @@ export const YamlTransformer = z.string().transform((str, ctx) => {
  * @return zod string
  */
 export function zStringRegex(regex: RegExp) {
-  // Invalid enum value. Expected 'read' | 'write', received 'invalid',
-  return z.string().regex(regex, `Invalid format. Expected format ${regex}`);
+  return z.string().regex(regex, `String must match regex pattern ${regex}`);
 }
