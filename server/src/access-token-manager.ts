@@ -143,8 +143,7 @@ export async function accessTokenManager(options: {
           // BE AWARE to prevent leaking owner existence
           issues: tokenRequest.owner !== callerIdentity.repository_owner ?
               [NOT_AUTHORIZED_MESSAGE] :
-              [error.message + (!error.issues?.length ? '' : '\n' +
-                  error.issues.map((issue) => indent(issue, '- ')).join('\n'))],
+              [formatAccessPolicyError(error)],
 
         }], effectiveCallerIdentitySubjects));
       }
@@ -293,9 +292,7 @@ export async function accessTokenManager(options: {
                       owner: tokenRequest.owner, repo,
                       issues: tokenRequest.owner !== callerIdentity.repository_owner ?
                           [NOT_AUTHORIZED_MESSAGE] :
-                          // TODO extract to methd
-                          [error.message + (!error.issues?.length ? '' : '\n' +
-                              error.issues.map((issue) => indent(issue)).join('\n'))],
+                          [formatAccessPolicyError(error)],
                     });
                     return;
                   }
@@ -817,6 +814,16 @@ function regexpOfSubjectPattern(subjectPattern: string): RegExp {
       .replace(/\\\*/g, '[^:]*') //  *  matches zero or more characters except ':'
       .replace(/\\\?/g, '[^:]'); //  ?  matches one character except ':'
   return RegExp(`^${regexp}$`, 'i');
+}
+
+/**
+ * Format access policy error
+ * @param error - access policy error
+ * @return formatted error message
+ */
+function formatAccessPolicyError(error: GithubAccessPolicyError) {
+  return error.message + (!error.issues?.length ? '' : '\n' +
+      error.issues.map((issue) => indent(issue, '- ')).join('\n'));
 }
 
 // --- GitHub Functions ----------------------------------------------------------------------------------------------
