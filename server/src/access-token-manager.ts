@@ -243,12 +243,11 @@ export async function accessTokenManager(options: {
 
             // -- deny permissions
             if (requestedRepositoryPermissions.denied.length > 0) {
-              // TODO Potential security issue: Do not leak repository existence
               throw new GithubAccessTokenError([{
                 owner: tokenRequest.owner,
                 issues: requestedRepositoryPermissions.denied.map(({scope, permission}) => ({
                   scope, permission,
-                  message: NOT_AUTHORIZED_MESSAGE,
+                  message: NOT_AUTHORIZED_MESSAGE, // TODO set detailed message, if tokenRequest.owner === callerIdentity.repository_owner
                 })),
               }], effectiveCallerIdentitySubjects);
             }
@@ -348,7 +347,6 @@ export async function accessTokenManager(options: {
           });
 
           if (hasEntries(requestedTokenIssues)) {
-            // TODO Potential security issue: Do not leak repository existence
             throw new GithubAccessTokenError(requestedTokenIssues, effectiveCallerIdentitySubjects);
           }
         }
@@ -916,45 +914,26 @@ export class GithubAccessTokenError extends Error {
       })[],
       callerIdentitySubjects: string[],
   ) {
-    super(createAccessTokenRequestErrorMessage(reasons, callerIdentitySubjects));
+    const message = '' +
+        'Issues:\n' +
+        reasons.map((reason) => {
+          let messagePrefix = reason.owner;
+          if ('repo' in reason && reason.repo) {
+            messagePrefix += `/${reason.repo}`;
+          }
+          return `${messagePrefix}:\n` +
+              reason.issues.map((issue) => {
+                if (typeof issue === 'string') {
+                  return issue;
+                }
+                return `${issue.scope}: ${issue.permission} - ${issue.message}`;
+              }).map((message) => indent(message, '- ')).join('\n');
+        }).map((message) => indent(message, '- ')).join('\n') + '\n' +
 
-    /**
-     * Create error message
-     * @param reasons - error reasons
-     * @param callerIdentitySubjects - caller identity subjects
-     * @return error message
-     */
-    function createAccessTokenRequestErrorMessage(
-        reasons: ({
-          owner: string,
-          issues: (string | { scope: string, permission: string, message: string })[],
-        } | {
-          owner: string, repo: string,
-          issues: (string | { scope: string, permission: string, message: string })[],
-        })[],
-        callerIdentitySubjects: string[],
-    ): string {
-      let message = 'Issues:\n' +
-          reasons.map((reason) => {
-            let messagePrefix = reason.owner;
-            if ('repo' in reason && reason.repo) {
-              messagePrefix += `/${reason.repo}`;
-            }
-            return `${messagePrefix}:\n` +
-                reason.issues.map((issue) => {
-                  if (typeof issue === 'string') {
-                    return issue;
-                  }
-                  return `${issue.scope}: ${issue.permission} - ${issue.message}`;
-                }).map((message) => indent(message, '- ')).join('\n');
-          }).map((message) => indent(message, '- ')).join('\n');
+        'Effective OIDC token subjects:\n' +
+        `${callerIdentitySubjects.map((subject) => indent(subject, '- ')).join('\n')}`;
 
-      message += '\n' +
-          'Effective OIDC token subjects:\n' +
-          `${callerIdentitySubjects.map((subject) => indent(subject, '- ')).join('\n')}`;
-
-      return message;
-    }
+    super(message);
 
     Object.setPrototypeOf(this, GithubAccessTokenError.prototype);
   }
