@@ -79,13 +79,13 @@ export async function accessTokenManager(options: {
       owner: tokenRequest.owner,
     });
     if (!appInstallation) {
-      throw new GithubAccessTokenError(createErrorMessage([{
+      throw new GithubAccessTokenError([{
         owner: tokenRequest.owner,
         // BE AWARE to prevent leaking owner existence
         issues: tokenRequest.owner !== callerIdentity.repository_owner ?
             [NOT_AUTHORIZED_MESSAGE] :
             [`'${GITHUB_APP.name}' has not been installed. Install from ${GITHUB_APP.html_url}`],
-      }], effectiveCallerIdentitySubjects));
+      }], effectiveCallerIdentitySubjects);
     }
     log.debug({appInstallation}, 'App installation');
 
@@ -93,13 +93,13 @@ export async function accessTokenManager(options: {
     if (!accessPolicyPaths.every((path) => appInstallation.single_file_paths?.includes(path))) {
       log.debug({required: accessPolicyPaths, actual: appInstallation.single_file_paths},
           `App installation is missing 'single_file' permission for access policy file(s)`);
-      throw new GithubAccessTokenError(createErrorMessage([{
+      throw new GithubAccessTokenError([{
         owner: tokenRequest.owner,
         // BE AWARE to prevent leaking owner existence
         issues: callerIdentity.repository !== `${tokenRequest.owner}/${options.accessPolicyLocation.owner.repo}` ?
             [NOT_AUTHORIZED_MESSAGE] :
             [`'${GITHUB_APP.name}' installation is missing 'single_file' permission for access policy file(s)`],
-      }], effectiveCallerIdentitySubjects));
+      }], effectiveCallerIdentitySubjects);
     }
 
     // --- verify requested token permissions ------------------------------------------------------------------------
@@ -112,7 +112,7 @@ export async function accessTokenManager(options: {
 
     if (requestedAppInstallationPermissions.denied.length > 0) {
       // TODO potential security issue: Do not leak app installation permissions
-      throw new GithubAccessTokenError(createErrorMessage([{
+      throw new GithubAccessTokenError([{
         owner: tokenRequest.owner,
         // BE AWARE to prevent leaking owner existence
         issues: callerIdentity.repository !== `${tokenRequest.owner}/${options.accessPolicyLocation.owner.repo}` ?
@@ -121,7 +121,7 @@ export async function accessTokenManager(options: {
               scope, permission,
               message: `Permission has not been granted to '${GITHUB_APP.name}' installation`,
             })),
-      }], effectiveCallerIdentitySubjects));
+      }], effectiveCallerIdentitySubjects);
     }
 
     const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
@@ -138,14 +138,14 @@ export async function accessTokenManager(options: {
     }).catch((error) => {
       if (error instanceof GithubAccessPolicyError) {
         log.debug({issues: error.issues}, `'${tokenRequest.owner}' access policy`);
-        throw new GithubAccessTokenError(createErrorMessage([{
+        throw new GithubAccessTokenError([{
           owner: tokenRequest.owner,
           // BE AWARE to prevent leaking owner existence
           issues: tokenRequest.owner !== callerIdentity.repository_owner ?
               [NOT_AUTHORIZED_MESSAGE] :
               [formatAccessPolicyError(error)],
 
-        }], effectiveCallerIdentitySubjects));
+        }], effectiveCallerIdentitySubjects);
       }
       throw error;
     });
@@ -158,13 +158,13 @@ export async function accessTokenManager(options: {
         [`repo:${tokenRequest.owner}/*:**`]; // e.g., ['repo:qoomon/*:**' ]
 
     if (!matchSubject(allowedSubjects, effectiveCallerIdentitySubjects)) {
-      throw new GithubAccessTokenError(createErrorMessage([{
+      throw new GithubAccessTokenError([{
         owner: tokenRequest.owner,
         // BE AWARE to prevent leaking owner existence
         issues: tokenRequest.owner !== callerIdentity.repository_owner ?
             [NOT_AUTHORIZED_MESSAGE] :
             ['OIDC token subject is not allowed by owner access policy'],
-      }], effectiveCallerIdentitySubjects));
+      }], effectiveCallerIdentitySubjects);
     }
 
     // grant requested permissions explicitly to prevent accidental permission escalation
@@ -182,11 +182,11 @@ export async function accessTokenManager(options: {
         // --- verify requested permissions against owner access policy ----------------------------------------------
 
         if (!hasEntries(ownerGrantedPermissions)) {
-          throw new GithubAccessTokenError(createErrorMessage([{
+          throw new GithubAccessTokenError([{
             owner: tokenRequest.owner,
             // BE AWARE to prevent leaking owner existence
             issues: [NOT_AUTHORIZED_MESSAGE],
-          }], effectiveCallerIdentitySubjects));
+          }], effectiveCallerIdentitySubjects);
         }
 
         const requestedOwnerPermissions = verifyPermissions({
@@ -196,13 +196,13 @@ export async function accessTokenManager(options: {
 
         // -- deny permissions
         if (requestedOwnerPermissions.denied.length > 0) {
-          throw new GithubAccessTokenError(createErrorMessage([{
+          throw new GithubAccessTokenError([{
             owner: tokenRequest.owner,
             issues: requestedOwnerPermissions.denied.map(({scope, permission}) => ({
               scope, permission,
               message: NOT_AUTHORIZED_MESSAGE,
             })),
-          }], effectiveCallerIdentitySubjects));
+          }], effectiveCallerIdentitySubjects);
         }
 
         // --- grant permissions
@@ -244,13 +244,13 @@ export async function accessTokenManager(options: {
             // -- deny permissions
             if (requestedRepositoryPermissions.denied.length > 0) {
               // TODO Potential security issue: Do not leak repository existence
-              throw new GithubAccessTokenError(createErrorMessage([{
+              throw new GithubAccessTokenError([{
                 owner: tokenRequest.owner,
                 issues: requestedRepositoryPermissions.denied.map(({scope, permission}) => ({
                   scope, permission,
                   message: NOT_AUTHORIZED_MESSAGE,
                 })),
-              }], effectiveCallerIdentitySubjects));
+              }], effectiveCallerIdentitySubjects);
             }
           }
         }
@@ -349,7 +349,7 @@ export async function accessTokenManager(options: {
 
           if (hasEntries(requestedTokenIssues)) {
             // TODO Potential security issue: Do not leak repository existence
-            throw new GithubAccessTokenError(createErrorMessage(requestedTokenIssues, effectiveCallerIdentitySubjects));
+            throw new GithubAccessTokenError(requestedTokenIssues, effectiveCallerIdentitySubjects);
           }
         }
 
@@ -387,41 +387,13 @@ export async function accessTokenManager(options: {
 // --- Access Manager Functions --------------------------------------------------------------------------------------
 
 /**
- * Create error message
- * @param reasons - error reasons
- * @param callerIdentitySubjects - caller identity subjects
- * @return error message
+ * Format access policy error
+ * @param error - access policy error
+ * @return formatted error message
  */
-function createErrorMessage(
-    reasons: ({
-      owner: string,
-      issues: (string | { scope: string, permission: string, message: string })[],
-    } | {
-      owner: string, repo: string,
-      issues: (string | { scope: string, permission: string, message: string })[],
-    })[],
-    callerIdentitySubjects: string[],
-): string {
-  let message = 'Issues:\n' +
-      reasons.map((reason) => {
-        let messagePrefix = reason.owner;
-        if ('repo' in reason && reason.repo) {
-          messagePrefix += `/${reason.repo}`;
-        }
-        return `${messagePrefix}:\n` +
-            reason.issues.map((issue) => {
-              if (typeof issue === 'string') {
-                return issue;
-              }
-              return `${issue.scope}: ${issue.permission} - ${issue.message}`;
-            }).map((message) => indent(message, '- ')).join('\n');
-      }).map((message) => indent(message, '- ')).join('\n');
-
-  message += '\n' +
-      'Effective OIDC token subjects:\n' +
-      `${callerIdentitySubjects.map((subject) => indent(subject, '- ')).join('\n')}`;
-
-  return message;
+function formatAccessPolicyError(error: GithubAccessPolicyError) {
+  return error.message + (!error.issues?.length ? '' : '\n' +
+      error.issues.map((issue) => indent(issue, '- ')).join('\n'));
 }
 
 /**
@@ -816,16 +788,6 @@ function regexpOfSubjectPattern(subjectPattern: string): RegExp {
   return RegExp(`^${regexp}$`, 'i');
 }
 
-/**
- * Format access policy error
- * @param error - access policy error
- * @return formatted error message
- */
-function formatAccessPolicyError(error: GithubAccessPolicyError) {
-  return error.message + (!error.issues?.length ? '' : '\n' +
-      error.issues.map((issue) => indent(issue, '- ')).join('\n'));
-}
-
 // --- GitHub Functions ----------------------------------------------------------------------------------------------
 
 /**
@@ -941,10 +903,58 @@ async function getRepositoryFileContent(client: Octokit, {
 export class GithubAccessTokenError extends Error {
   /**
    * Creates a new GitHub access token error
-   * @param msg - error message
+   * @param reasons - error reasons
+   * @param callerIdentitySubjects - caller identity subjects
    */
-  constructor(msg: string) {
-    super(msg);
+  constructor(
+      reasons: ({
+        owner: string,
+        issues: (string | { scope: string, permission: string, message: string })[],
+      } | {
+        owner: string, repo: string,
+        issues: (string | { scope: string, permission: string, message: string })[],
+      })[],
+      callerIdentitySubjects: string[],
+  ) {
+    super(createAccessTokenRequestErrorMessage(reasons, callerIdentitySubjects));
+
+    /**
+     * Create error message
+     * @param reasons - error reasons
+     * @param callerIdentitySubjects - caller identity subjects
+     * @return error message
+     */
+    function createAccessTokenRequestErrorMessage(
+        reasons: ({
+          owner: string,
+          issues: (string | { scope: string, permission: string, message: string })[],
+        } | {
+          owner: string, repo: string,
+          issues: (string | { scope: string, permission: string, message: string })[],
+        })[],
+        callerIdentitySubjects: string[],
+    ): string {
+      let message = 'Issues:\n' +
+          reasons.map((reason) => {
+            let messagePrefix = reason.owner;
+            if ('repo' in reason && reason.repo) {
+              messagePrefix += `/${reason.repo}`;
+            }
+            return `${messagePrefix}:\n` +
+                reason.issues.map((issue) => {
+                  if (typeof issue === 'string') {
+                    return issue;
+                  }
+                  return `${issue.scope}: ${issue.permission} - ${issue.message}`;
+                }).map((message) => indent(message, '- ')).join('\n');
+          }).map((message) => indent(message, '- ')).join('\n');
+
+      message += '\n' +
+          'Effective OIDC token subjects:\n' +
+          `${callerIdentitySubjects.map((subject) => indent(subject, '- ')).join('\n')}`;
+
+      return message;
+    }
 
     Object.setPrototypeOf(this, GithubAccessTokenError.prototype);
   }
