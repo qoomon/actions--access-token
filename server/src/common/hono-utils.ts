@@ -12,7 +12,7 @@ import {
 import {formatZodIssue, JsonTransformer} from './zod-utils.js';
 import {Status, StatusPhrases} from './http-utils.js';
 import {buildJwksKeyFetcher} from './jwt-utils.js';
-import {indent} from './common-utils';
+import {indent} from './common-utils.js';
 
 /**
  * Creates a MethodNotAllowedHandler
