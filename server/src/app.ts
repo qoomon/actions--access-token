@@ -31,7 +31,7 @@ import {
   tokenAuthenticator,
 } from './common/hono-utils.js';
 import {Status} from './common/http-utils.js';
-import {accessTokenManager, GithubAccessTokenError} from './access-token-manager.js';
+import {accessTokenManager, GitHubAccessTokenError} from './access-token-manager.js';
 import {logger as log} from './logger.js';
 import {config} from './config.js';
 
@@ -81,7 +81,7 @@ app.post(
       const githubActionsAccessToken = await GITHUB_ACTIONS_ACCESS_MANAGER
           .createAccessToken(callerIdentity, tokenRequest)
           .catch((error) => {
-            if (error instanceof GithubAccessTokenError) {
+            if (error instanceof GitHubAccessTokenError) {
               throw new HTTPException(Status.FORBIDDEN, {message: error.message});
             }
             throw error;
