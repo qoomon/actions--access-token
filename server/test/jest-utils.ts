@@ -25,7 +25,6 @@ export async function withHint(
             } else {
               formattedMessage = JSON.stringify(message, null, 2);
             }
-            // eslint-disable-next-line new-cap
             return DIM_COLOR(`${name}:${formattedMessage}`);
           }).join('\n'),
       )}`;

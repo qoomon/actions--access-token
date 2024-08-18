@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // noinspection DuplicatedCode
-/* eslint-disable @typescript-eslint/no-explicit-any,padded-blocks */
 
 import process from 'process';
 import YAML from 'yaml';
@@ -1179,7 +1179,7 @@ describe('App path /access_tokens', () => {
  */
 function mockJwks() {
   jest.unstable_mockModule('get-jwks', () => {
-    const actual = jest.requireActual('get-jwks') as any;
+    const actual = jest.requireActual<any>('get-jwks');
     return {
       default: jest.fn().mockImplementation((params) => ({
         ...actual(params),
