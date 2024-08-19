@@ -80,9 +80,9 @@ export async function accessTokenManager(options: {
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
           // BE AWARE to prevent leaking owner existence
-          issues: tokenRequest.owner !== callerIdentity.repository_owner ?
-              [NOT_AUTHORIZED_MESSAGE] :
-              [`'${GITHUB_APP.name}' has not been installed. Install from ${GITHUB_APP.html_url}`],
+          issues: callerIdentity.repository_owner === tokenRequest.owner ?
+              [`'${GITHUB_APP.name}' has not been installed. Install from ${GITHUB_APP.html_url}`] :
+              [NOT_AUTHORIZED_MESSAGE],
         }], effectiveCallerIdentitySubjects);
       }
       log.debug({appInstallation}, 'App installation');
@@ -93,13 +93,13 @@ export async function accessTokenManager(options: {
       ];
       if (!accessPolicyPaths.every((path) => appInstallation.single_file_paths?.includes(path))) {
         log.debug({required: accessPolicyPaths, actual: appInstallation.single_file_paths},
-            `App installation is missing 'single_file' permission for some access policy file(s)`);
+            `'${GITHUB_APP.name}' is not authorized to read all access policy file(s) by 'single_file' permission`);
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
           // BE AWARE to prevent leaking owner existence
-          issues: callerIdentity.repository !== `${tokenRequest.owner}/${options.accessPolicyLocation.owner.repo}` ?
-              [NOT_AUTHORIZED_MESSAGE] :
-              [`'${GITHUB_APP.name}' installation is missing 'single_file' permission for some access policy file(s)`],
+          issues: callerIdentity.repository_owner === tokenRequest.owner ?
+              [`'${GITHUB_APP.name}' is not authorized to read all access policy file(s) by 'single_file' permission`] :
+              [NOT_AUTHORIZED_MESSAGE],
         }], effectiveCallerIdentitySubjects);
       }
     }
@@ -120,12 +120,12 @@ export async function accessTokenManager(options: {
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
           // BE AWARE to prevent leaking owner existence
-          issues: callerIdentity.repository !== `${tokenRequest.owner}/${options.accessPolicyLocation.owner.repo}` ?
-              [NOT_AUTHORIZED_MESSAGE] :
+          issues: callerIdentity.repository_owner === tokenRequest.owner ?
               requestedAppInstallationPermissions.denied.map(({scope, permission}) => ({
                 scope, permission,
                 message: `'${GITHUB_APP.name}' installation not authorized`,
-              })),
+              })) :
+              [NOT_AUTHORIZED_MESSAGE],
         }], effectiveCallerIdentitySubjects);
       }
     }
@@ -142,9 +142,11 @@ export async function accessTokenManager(options: {
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
           // BE AWARE to prevent leaking owner existence
-          issues: tokenRequest.owner !== callerIdentity.repository_owner ?
-              [NOT_AUTHORIZED_MESSAGE] :
-              [formatAccessPolicyError(error)],
+          issues: callerIdentity.repository === `${tokenRequest.owner}/${options.accessPolicyLocation.owner.repo}` ?
+              [formatAccessPolicyError(error)] :
+              tokenRequest.owner === callerIdentity.repository_owner ?
+                  [error.message] :
+                  [NOT_AUTHORIZED_MESSAGE],
         }], effectiveCallerIdentitySubjects);
       }
       throw error;
@@ -161,9 +163,9 @@ export async function accessTokenManager(options: {
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
           // BE AWARE to prevent leaking owner existence
-          issues: tokenRequest.owner !== callerIdentity.repository_owner ?
-              [NOT_AUTHORIZED_MESSAGE] :
-              ['OIDC token subject is not allowed by owner access policy'],
+          issues: callerIdentity.repository_owner === tokenRequest.owner ?
+              ['OIDC token subject is not allowed by owner access policy'] :
+              [NOT_AUTHORIZED_MESSAGE],
         }], effectiveCallerIdentitySubjects);
       }
     }
@@ -245,7 +247,10 @@ export async function accessTokenManager(options: {
                   owner: tokenRequest.owner,
                   issues: requestedRepositoryPermissions.denied.map(({scope, permission}) => ({
                     scope, permission,
-                    message: NOT_AUTHORIZED_MESSAGE, // TODO set detailed message, if tokenRequest.owner === callerIdentity.repository_owner
+                    // BE AWARE to prevent leaking owner policy details
+                    message: callerIdentity.repository_owner === tokenRequest.owner ?
+                        'Not allowed by owner access policy' :
+                        NOT_AUTHORIZED_MESSAGE,
                   })),
                 }], effectiveCallerIdentitySubjects);
               }
@@ -283,9 +288,9 @@ export async function accessTokenManager(options: {
                       log.debug({issues: error.issues}, `'${targetRepository}' access policy`);
                       requestedTokenIssues.push({
                         owner: tokenRequest.owner, repo,
-                        issues: tokenRequest.owner !== callerIdentity.repository_owner ?
-                            [NOT_AUTHORIZED_MESSAGE] :
-                            [formatAccessPolicyError(error)],
+                        issues: callerIdentity.repository_owner === tokenRequest.owner ?
+                            [formatAccessPolicyError(error)] :
+                            [NOT_AUTHORIZED_MESSAGE],
                       });
                       return;
                     }

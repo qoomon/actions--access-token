@@ -450,7 +450,7 @@ describe('App path /access_tokens', () => {
           error: 'Forbidden',
           message: expect.stringMatching(joinRegExp([/^Issues:\n/,
             `- ${actionRepo.owner}:\n`,
-            / {2}- Not authorized\n/,
+            / {2}- secrets: write - '[^']+' installation not authorized\n/,
           ])),
         });
       });
@@ -529,7 +529,6 @@ describe('App path /access_tokens', () => {
           message: expect.stringMatching(joinRegExp([/^Issues:\n/,
             `- ${actionRepo.owner}:\n`,
             / {2}- Invalid access policy\n/,
-            / {2} {2}- origin: .+\n/,
           ])),
         });
       });
@@ -645,7 +644,7 @@ describe('App path /access_tokens', () => {
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
               `- ${actionRepo.owner}:\n`,
-              / {2}- contents: write - Not authorized\n/,
+              / {2}- contents: write - Not allowed by owner access policy\n/,
             ])),
           });
         });
