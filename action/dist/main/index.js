@@ -56967,6 +56967,23 @@ module.exports = JSON.parse('{"name":"@aws-sdk/client-sts","description":"AWS SD
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -56975,6 +56992,11 @@ module.exports = JSON.parse('{"name":"@aws-sdk/client-sts","description":"AWS SD
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
+
+// EXPORTS
+__nccwpck_require__.d(__webpack_exports__, {
+  "e": () => (/* binding */ mapObjectEntries)
+});
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
@@ -61358,6 +61380,8 @@ runAction(async () => {
             .parse(getYamlInput('repositories')),
         owner: getInput('owner'),
     };
+    // Legacy support for snake_case permissions
+    input.permissions = mapObjectEntries(input.permissions, ([key, value]) => [key.replace('_', '-'), value]);
     if (input.repository) {
         input.repositories.unshift(input.repository);
     }
@@ -61447,6 +61471,12 @@ async function httpRequest(request, options) {
         return response;
     });
 }
+// --- Utils -----------------------------------------------------------------------------------------------------------
+function mapObjectEntries(object, fn) {
+    return Object.fromEntries(Object.entries(object).map(fn));
+}
 
 })();
 
+var __webpack_exports__mapObjectEntries = __webpack_exports__.e;
+export { __webpack_exports__mapObjectEntries as mapObjectEntries };
