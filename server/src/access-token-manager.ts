@@ -93,13 +93,13 @@ export async function accessTokenManager(options: {
       ];
       if (!accessPolicyPaths.every((path) => appInstallation.single_file_paths?.includes(path))) {
         log.debug({required: accessPolicyPaths, actual: appInstallation.single_file_paths},
-            `App installation is missing 'single_file' permission for access policy file(s)`);
+            `App installation is missing 'single_file' permission for some access policy file(s)`);
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
           // BE AWARE to prevent leaking owner existence
           issues: callerIdentity.repository !== `${tokenRequest.owner}/${options.accessPolicyLocation.owner.repo}` ?
               [NOT_AUTHORIZED_MESSAGE] :
-              [`'${GITHUB_APP.name}' installation is missing 'single_file' permission for access policy file(s)`],
+              [`'${GITHUB_APP.name}' installation is missing 'single_file' permission for some access policy file(s)`],
         }], effectiveCallerIdentitySubjects);
       }
     }
