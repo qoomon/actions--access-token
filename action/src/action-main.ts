@@ -23,6 +23,11 @@ runAction(async () => {
         .parse(getYamlInput('repositories')),
     owner: getInput('owner'),
   };
+
+  // Legacy support for snake_case permissions
+  input.permissions = mapObjectEntries(input.permissions,
+      ([key, value]) => [key.replace('_', '-'), value]);
+
   if (input.repository) {
     input.repositories.unshift(input.repository);
   }
@@ -149,4 +154,13 @@ interface HttpRequest {
   requestUrl: string,
   data: string | NodeJS.ReadableStream | null,
   additionalHeaders?: OutgoingHttpHeaders
+}
+
+// --- Utils -----------------------------------------------------------------------------------------------------------
+
+export function mapObjectEntries<V, U>(
+    object: Record<string, V>,
+    fn: (entry: [string, V]) => [string, U],
+): Record<string, U> {
+  return Object.fromEntries(Object.entries(object).map(fn)) as Record<string, U>;
 }
