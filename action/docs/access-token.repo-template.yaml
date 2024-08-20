@@ -12,7 +12,9 @@ statements:
       # repo:${origin}:workflow_ref:<workflow_ref> e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
       # repo:${origin}:job_workflow_ref:<job_workflow_ref> e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
 
-      # === Subject Pattern Variables ===
+      # === Subject Wildcards and Pattern Variables ===
+      # *  - matches every character except ':'
+      # ** - matches every character 
       # ${origin} - the origin repository name e.g. qoomon/sandbox
 
       # === Subject Pattern examples ===
