@@ -24,19 +24,14 @@ process.env.GITHUB_APP_PRIVATE_KEY = githubAppSecret.privateKey;
 
 const {app} = await import('../../src/app.js');
 
-// --- Set request id header -------------------------------------------------------------------------------------------
 const requestIdHeader = 'X-Request-Id';
-process.env.REQUEST_ID_HEADER = requestIdHeader;
 app.use(async (context: Context<{ Bindings: { event: LambdaEvent, lambdaContext: LambdaContext } }>, next) => {
+  // Set request id header
   context.req.header()[requestIdHeader] = context.env.lambdaContext.awsRequestId;
   await next();
+  // Ensure all logs are flushed before the function returns
   logger.flush();
 })
-
-// --- Flush logs after each request -----------------------------------------------------------------------------------
-app.use(async (context, next) => {
-  await next();
-  logger.flush();
-})
+process.env.REQUEST_ID_HEADER = requestIdHeader;
 
 export const handler = handle(app);
