@@ -922,7 +922,11 @@ describe('App path /access_tokens', () => {
       beforeEach(() => {
         githubMockEnvironment.addAppInstallation({
           permissions: {
-            single_file: 'read', contents: 'write', secrets: 'write', organization_secrets: 'write',
+            single_file: 'read',
+            contents: 'write',
+            secrets: 'write',
+            pull_requests: 'write',
+            organization_secrets: 'write',
           },
         });
       });
@@ -931,7 +935,11 @@ describe('App path /access_tokens', () => {
         beforeEach(() => {
           githubMockEnvironment.addOwnerRepository({
             ownerAccessPolicy: {
-              'allowed-repository-permissions': {secrets: 'write'},
+              'allowed-repository-permissions': {
+                secrets: 'write',
+                pull_requests: 'write'
+              } satisfies GitHubAppRepositoryPermissions
+                  & { pull_requests: 'write' } as GitHubAppRepositoryPermissions,
             },
           });
         });
@@ -1126,6 +1134,44 @@ describe('App path /access_tokens', () => {
             expires_at: expect.stringMatching(/Z$/),
           });
         });
+
+        it('even if requested repository policy uses underscore permissions scopes', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [
+                {
+                  subjects: ['repo:${origin}:ref:refs/heads/*'],
+                  permissions: {pull_requests: 'write'} as GitHubAppRepositoryPermissions,
+                },
+              ],
+            },
+          });
+          const githubToken = Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              repositories: [`${actionRepo.owner}/${actionRepo.repo}`],
+              permissions: {'pull-requests': 'write'},
+            }),
+          });
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK);
+          }, async () => ({'response.json()': await response.json()}));
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {'pull-requests': 'write'},
+            repositories: [actionRepo.repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
+          });
+        });
       });
 
       describe('owner scope', () => {
@@ -1163,6 +1209,44 @@ describe('App path /access_tokens', () => {
           expect(await response.json()).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'organization-secrets': 'write'},
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
+          });
+        });
+
+        it('even if requested org policy uses underscore permissions scopes', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({});
+          const githubToken = Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          githubMockEnvironment.addOwnerRepository({
+            ownerAccessPolicy: {
+              'statements': [{
+                subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
+                permissions: {'pull_requests': 'write'} as GitHubAppRepositoryPermissions,
+              }],
+            },
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              scope: 'owner',
+              permissions: {'pull-requests': 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK);
+          }, async () => ({'response.json()': await response.json()}));
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {'pull-requests': 'write'},
             token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
             expires_at: expect.stringMatching(/Z$/),
           });
