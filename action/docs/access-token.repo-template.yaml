@@ -14,7 +14,7 @@ statements:
 
       # === Subject Wildcards and Pattern Variables ===
       # *  - matches every character except ':'
-      # ** - matches every character 
+      # ** - matches every character, can only be used at the end of a subject pattern    
       # ${origin} - the origin repository name e.g. qoomon/sandbox
 
       # === Subject Pattern examples ===
