@@ -980,6 +980,78 @@ describe('App path /access_tokens', () => {
           });
         });
 
+        it('if requested repo permissions are granted by repo with * wildcard', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: [`repo:${DEFAULT_OWNER}/*:ref:refs/heads/main`],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const githubToken = Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK);
+          }, async () => ({'response.json()': await response.json()}));
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {secrets: 'write'},
+            repositories: [parseRepository(actionRepo.name).repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
+          });
+        });
+
+        it('if requested repo permissions are granted by repo with ** wildcard', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:${origin}:**'],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const githubToken = Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.OK);
+          }, async () => ({'response.json()': await response.json()}));
+          expect(await response.json()).toMatchObject({
+            owner: actionRepo.owner,
+            permissions: {secrets: 'write'},
+            repositories: [parseRepository(actionRepo.name).repo],
+            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+            expires_at: expect.stringMatching(/Z$/),
+          });
+        });
+
         it('if requested repo permissions are granted by owner', async () => {
           // --- Given ---
 
