@@ -13,8 +13,8 @@ statements:
       # repo:${origin}:job_workflow_ref:<job_workflow_ref> e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
 
       # === Subject Wildcards and Pattern Variables ===
-      # *  - matches every character except ':'
-      # ** - matches every character, can only be used at the end of a subject pattern    
+      # '*'  - matches every character except ':'
+      # ':**' - matches every following claims, can only be used at the end of a subject pattern
       # ${origin} - the origin repository name e.g. qoomon/sandbox
 
       # === Subject Pattern examples ===
