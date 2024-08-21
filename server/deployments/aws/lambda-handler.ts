@@ -1,8 +1,9 @@
-import {handle} from 'hono/aws-lambda';
+import {handle, LambdaContext, LambdaEvent} from 'hono/aws-lambda';
 import process from 'process';
 import {GetFunctionUrlConfigCommand, LambdaClient} from '@aws-sdk/client-lambda';
 import {GetSecretValueCommand, SecretsManager} from '@aws-sdk/client-secrets-manager';
 import {logger} from '../../src/logger.js';
+import {Context} from 'hono';
 
 if (!process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE) {
   const lambda = new LambdaClient({region: process.env.AWS_REGION});
@@ -21,10 +22,18 @@ const githubAppSecret = await secretsManager.send(new GetSecretValueCommand({
 process.env.GITHUB_APP_ID = githubAppSecret.appId;
 process.env.GITHUB_APP_PRIVATE_KEY = githubAppSecret.privateKey;
 
-process.env.REQUEST_ID_HEADER = 'x-request-id';
-
 const {app} = await import('../../src/app.js');
 
+// --- Set request id header -------------------------------------------------------------------------------------------
+const requestIdHeader = 'X-Request-Id';
+process.env.REQUEST_ID_HEADER = requestIdHeader;
+app.use(async (context: Context<{ Bindings: { event: LambdaEvent, lambdaContext: LambdaContext } }>, next) => {
+  context.req.header()[requestIdHeader] = context.env.lambdaContext.awsRequestId;
+  await next();
+  logger.flush();
+})
+
+// --- Flush logs after each request -----------------------------------------------------------------------------------
 app.use(async (context, next) => {
   await next();
   logger.flush();

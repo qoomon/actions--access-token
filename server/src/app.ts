@@ -36,14 +36,13 @@ import {logger as log} from './logger.js';
 import {config} from './config.js';
 
 // --- Initialization ------------------------------------------------------------------------------------------------
-
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
 
 // --- Server Setup --------------------------------------------------------------------------------------------------
 export const app = new Hono< {
   Variables: RequestIdVariables & RequestLoggerVariables
 }>();
-app.use(requestId({headerName: process.env.REQUEST_ID_HEADER}));
+app.use(requestId({headerName: process.env.REQUEST_ID_HEADER ?? 'X-Request-Id'}));
 app.use(setRequestLogger(log));
 app.use(debugLogger());
 app.onError(errorHandler());
