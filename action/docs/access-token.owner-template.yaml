@@ -1,9 +1,12 @@
 origin: __CHANGE_ME_TO_GITHUB_REPO_OWNER__/.github-access-token # e.g. qoomon/.github-access-token
 
 # Configure which subjects are allowed to request an access token.
-# Defaults to ['repo:ORIGIN_OWNER/*:**'] which allows any job from any repository form owner to request an access token.
-# Wildcards: '*' matches everything except ':', '**' matches everything
-# allowed-subjects: []
+#
+# === Subject Wildcards and Pattern Variables ===
+# '*'  - matches every character except ':'
+# ':**' - matches every following claims, can only be used at the end of a subject pattern
+#
+# allowed-subjects: [] # Defaults to ['repo:ORIGIN_OWNER/*:**']
 
 # Configuration which permissions are allowed to be managed by the repositories themselves
 allowed-repository-permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
