@@ -1,29 +1,18 @@
-import {
-  ErrorHandler, Handler, HonoRequest, NotFoundHandler,
-} from 'hono';
+import {ErrorHandler, HonoRequest, NotFoundHandler,} from 'hono';
 import pino, {Logger} from 'pino';
 import {HTTPException} from 'hono/http-exception';
 import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status';
 import {createMiddleware} from 'hono/factory';
 import {ZodType} from 'zod';
-import {
-  createVerifier, KeyFetcher, TokenError, VerifierOptions,
-} from 'fast-jwt';
+import {createVerifier, KeyFetcher, TokenError, VerifierOptions,} from 'fast-jwt';
 import {formatZodIssue, JsonTransformer} from './zod-utils.js';
 import {Status, StatusPhrases} from './http-utils.js';
 import {buildJwksKeyFetcher} from './jwt-utils.js';
 import {indent} from './common-utils.js';
+import {RequestIdVariables} from 'hono/request-id';
 
 /**
- * Creates a MethodNotAllowedHandler
- * @return NotFoundHandler
- */
-export function methodNotAllowedHandler(): Handler {
-  return (context) => context.text('Method not allowed', 405);
-}
-
-/**
- * Creates a NotFoundHandler that responses with json
+ * Creates a NotFoundHandler that responses with JSON
  * @return NotFoundHandler
  */
 export function notFoundHandler(): NotFoundHandler {
@@ -37,20 +26,22 @@ export function notFoundHandler(): NotFoundHandler {
 }
 
 /**
- * Creates an ErrorHandler that response with json
+ * Creates an ErrorHandler that response with JSON
  * @return ErrorHandler
  */
-export function errorHandler<ENV extends { Variables: { log: Logger, id?: string } }>(): ErrorHandler<ENV> {
+export function errorHandler<ENV extends {
+  Variables: RequestIdVariables & RequestLoggerVariables
+}>(): ErrorHandler<ENV> {
   return (err, context) => {
-    const requestId = context.get('id');
-    let requestLogger = context.get('log');
+    const requestId = context.get('requestId');
+    let requestLog = context.get('logger');
 
-    if (!requestLogger.bindings().requestId) {
-      requestLogger = requestLogger.child({requestId});
+    if (!requestLog.bindings().requestId) {
+      requestLog = requestLog.child({requestId});
     }
 
     if (err instanceof HTTPException && err.status < Status.INTERNAL_SERVER_ERROR) {
-      requestLogger.debug({err}, 'Http Request Client Error');
+      requestLog.debug({err}, 'Http Request Client Error');
       context.status(err.status);
       return context.json({
         requestId,
@@ -59,7 +50,7 @@ export function errorHandler<ENV extends { Variables: { log: Logger, id?: string
         message: err.message,
       });
     }
-    requestLogger.error({err}, 'Http Request Internal Server Error');
+    requestLog.error({err}, 'Http Request Internal Server Error');
     context.status(Status.INTERNAL_SERVER_ERROR);
     return context.json({
       requestId,
@@ -70,39 +61,28 @@ export function errorHandler<ENV extends { Variables: { log: Logger, id?: string
 }
 
 /**
- * Creates a middleware that generates and sets a request id
- * @param header - header name
- * @return middleware
- */
-export function setRequestId(header: string | undefined = 'x-request-id') {
-  return createMiddleware<{ Variables: { id: string } }>(async (context, next) => {
-    const id = context.req.header()[header ?? ''] || crypto.randomUUID();
-    context.set('id', id);
-    await next();
-  });
-}
-
-/**
  * Creates a middleware that generates and sets a request logger
  * @param logger - logger
  * @return middleware
  */
 export function setRequestLogger(logger: Logger = pino()) {
-  return createMiddleware<{ Variables: { log: Logger, id?: string } }>(async (context, next) => {
-    const requestId = context.get('id');
+  return createMiddleware<{ Variables: RequestIdVariables & RequestLoggerVariables }>(async (context, next) => {
+    const requestId = context.get('requestId');
     const requestLogger = logger.child({requestId});
-    context.set('log', requestLogger);
+    context.set('logger', requestLogger);
     await next();
   });
 }
+
+export type RequestLoggerVariables = { logger: Logger }
 
 /**
  * Creates a middleware to log http requests and responses
  * @return middleware
  */
 export function debugLogger() {
-  return createMiddleware<{ Variables: { log: Logger, id?: string } }>(async (context, next) => {
-    const debugLogger = context.get('log');
+  return createMiddleware<{ Variables: RequestLoggerVariables }>(async (context, next) => {
+    const debugLogger = context.get('logger');
     debugLogger.debug({
       path: context.req.path,
       method: context.req.method,
@@ -130,8 +110,8 @@ export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema:
   if (!bodyParseResult.success) {
     throw new HTTPException(Status.BAD_REQUEST, {
       message: `Invalid request body:\n${
-        bodyParseResult.error.issues.map(formatZodIssue)
-            .map((it) => indent(it, '- ')).join('\n')}`,
+          bodyParseResult.error.issues.map(formatZodIssue)
+              .map((it) => indent(it, '- ')).join('\n')}`,
     });
   }
   return bodyParseResult.data;
@@ -149,9 +129,9 @@ export function tokenAuthenticator<T extends object>(
   const verifier = createVerifier(options);
 
   return createMiddleware<{ Variables: { token: T } }>(async (context, next) => {
-    // In addition to Authorization header the X-Authorization header can be used for situations,
+    // In addition to Authorization header, the X-Authorization header can be used for situations,
     // where the Authorization header cannot be used
-    // (e.g. when using an AWS IAM authorizer (SignatureV4) in front of this endpoint)
+    // (e.g., when using an AWS IAM authorizer (SignatureV4) in front of this endpoint)
     const authorizationHeaderValue = context.req.header()['x-authorization'] || context.req.header().authorization;
     if (!authorizationHeaderValue) {
       throw new HTTPException(Status.UNAUTHORIZED, {

@@ -1,9 +1,10 @@
 import {Hono} from 'hono';
+import type {RequestIdVariables} from 'hono/request-id'
+import {requestId} from 'hono/request-id'
 import {prettyJSON} from 'hono/pretty-json';
 import {HTTPException} from 'hono/http-exception';
 import {bodyLimit} from 'hono/body-limit';
 import {sha256} from 'hono/utils/crypto';
-import {Logger} from 'pino';
 import {z} from 'zod';
 import process from 'process';
 import {hasEntries, toBase64} from './common/common-utils.js';
@@ -25,8 +26,7 @@ import {
   debugLogger,
   errorHandler,
   notFoundHandler,
-  parseJsonBody,
-  setRequestId,
+  parseJsonBody, RequestLoggerVariables,
   setRequestLogger,
   tokenAuthenticator,
 } from './common/hono-utils.js';
@@ -40,8 +40,10 @@ import {config} from './config.js';
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
 
 // --- Server Setup --------------------------------------------------------------------------------------------------
-export const app = new Hono<{ Variables: { log: Logger, id: string } }>();
-app.use(setRequestId(process.env.REQUEST_ID_HEADER));
+export const app = new Hono< {
+  Variables: RequestIdVariables & RequestLoggerVariables
+}>();
+app.use(requestId({headerName: process.env.REQUEST_ID_HEADER}));
 app.use(setRequestLogger(log));
 app.use(debugLogger());
 app.onError(errorHandler());
@@ -62,26 +64,28 @@ app.post(
     '/access_tokens',
     githubOidcAuthenticator,
     async (context) => {
-      const requestLog = context.get('log');
+      const requestLog = context.get('logger');
 
       const callerIdentity = context.get('token');
       requestLog.info({
         callerIdentity: {
           workflow_ref: callerIdentity.workflow_ref,
+          job_workflow_ref: callerIdentity.job_workflow_ref,
           run_id: callerIdentity.run_id,
           attempts: callerIdentity.attempts,
         },
         workflowRunUrl: buildWorkflowRunUrl(callerIdentity),
       }, 'Caller Identity');
 
-      const tokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
+      const accessTokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
           .then((it) => normalizeAccessTokenRequestBody(it, callerIdentity));
-      requestLog.info({tokenRequest}, 'Token Request');
+      requestLog.info({accessTokenRequest}, 'Access Token Request');
 
       const githubActionsAccessToken = await GITHUB_ACTIONS_ACCESS_MANAGER
-          .createAccessToken(callerIdentity, tokenRequest)
+          .createAccessToken(callerIdentity, accessTokenRequest)
           .catch((error) => {
             if (error instanceof GitHubAccessTokenError) {
+              requestLog.info('Access Token - Denied');
               throw new HTTPException(Status.FORBIDDEN, {message: error.message});
             }
             throw error;
@@ -98,10 +102,8 @@ app.post(
         owner: githubActionsAccessToken.owner,
       };
 
-      requestLog.info({
-        ...tokenResponseBody,
-        token: undefined,
-      }, 'Access Token');
+      // BE AWARE: do not log the access token
+      requestLog.info({accessToken: {...tokenResponseBody, token: undefined}}, 'Access Token');
 
       return context.json(tokenResponseBody);
     },

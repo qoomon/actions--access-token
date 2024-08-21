@@ -16,6 +16,7 @@ export default [
     rules: {
       'max-len': ['error', {'code': 120, 'ignoreComments': true}],
       'no-trailing-spaces': ['error', {'skipBlankLines': true}],
+      '@typescript-eslint/consistent-type-definitions': 'off',
     },
   },
   {

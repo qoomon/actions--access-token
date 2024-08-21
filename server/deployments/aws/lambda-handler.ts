@@ -2,6 +2,7 @@ import {handle} from 'hono/aws-lambda';
 import process from 'process';
 import {GetFunctionUrlConfigCommand, LambdaClient} from '@aws-sdk/client-lambda';
 import {GetSecretValueCommand, SecretsManager} from '@aws-sdk/client-secrets-manager';
+import {logger} from '../../src/logger.js';
 
 if (!process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE) {
   const lambda = new LambdaClient({region: process.env.AWS_REGION});
@@ -23,4 +24,10 @@ process.env.GITHUB_APP_PRIVATE_KEY = githubAppSecret.privateKey;
 process.env.REQUEST_ID_HEADER = 'x-request-id';
 
 const {app} = await import('../../src/app.js');
+
+app.use(async (context, next) => {
+  await next();
+  logger.flush();
+})
+
 export const handler = handle(app);
