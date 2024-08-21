@@ -9,7 +9,8 @@ if (!process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE) {
 
 process.env.REQUEST_ID_HEADER = 'x-vercel-id';
 
-const {app} = await import('../../../src/app.js');
+const {appInit} = await import('../../../src/app.js');
+const app = appInit();
 
 export const GET = handle(app);
 export const POST = handle(app);

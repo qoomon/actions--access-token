@@ -26,7 +26,9 @@ mockJwks();
 const githubMockEnvironment = mockGithub();
 
 const {config} = await import('../src/config');
-const {app} = await import('../src/app');
+const {appInit} = await import('../src/app');
+
+const app = appInit();
 
 beforeEach(() => githubMockEnvironment.reset());
 
