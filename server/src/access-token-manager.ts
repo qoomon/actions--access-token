@@ -442,6 +442,23 @@ async function getOwnerAccessPolicy(client: Octokit, {
     throw new GithubAccessPolicyError(`Access policy not found`);
   }
 
+  const normalizeAccessPolicyEntries = (policy: unknown) => {
+    if (isRecord(policy)) {
+      if (isRecord(policy['allowed-repository-permissions'])) {
+        policy['allowed-repository-permissions'] = normalizePermissionScopes(policy['allowed-repository-permissions']);
+      }
+      if (Array.isArray(policy.statements)) {
+        policy.statements = policy.statements.map((statement: unknown) => {
+          if (isRecord(statement) && isRecord(statement.permissions)) {
+            statement.permissions = normalizePermissionScopes(statement.permissions);
+          }
+          return statement;
+        });
+      }
+    }
+    return policy;
+  };
+
   const filterInvalidAccessPolicyEntries = (policy: unknown) => {
     if (isRecord(policy)) {
       if (Array.isArray(policy['allowed-subjects'])) {
@@ -457,11 +474,11 @@ async function getOwnerAccessPolicy(client: Octokit, {
             policy.statements, 'owner');
       }
     }
-
     return policy;
   };
 
   const policyParseResult = YamlTransformer
+      .transform(normalizeAccessPolicyEntries)
       .transform(strict ? (it) => it : filterInvalidAccessPolicyEntries)
       .pipe(GitHubOwnerAccessPolicySchema)
       .safeParse(policyValue);
@@ -516,18 +533,28 @@ async function getRepoAccessPolicy(client: Octokit, {
     throw new GithubAccessPolicyError(`Access policy not found`);
   }
 
-  const filterInvalidAccessPolicyEntries = (policy: unknown) => {
-    if (isRecord(policy)) {
-      if (Array.isArray(policy.statements)) {
-        policy.statements = filterValidStatements(
-            policy.statements, 'repo');
-      }
+  const normalizeAccessPolicyEntries = (policy: unknown) => {
+    if (isRecord(policy) && Array.isArray(policy.statements)) {
+      policy.statements = policy.statements.map((statement: unknown) => {
+        if (isRecord(statement) && isRecord(statement.permissions)) {
+          statement.permissions = normalizePermissionScopes(statement.permissions);
+        }
+        return statement;
+      });
     }
+    return policy;
+  };
 
+  const filterInvalidAccessPolicyEntries = (policy: unknown) => {
+    if (isRecord(policy) && Array.isArray(policy.statements)) {
+      policy.statements = filterValidStatements(
+          policy.statements, 'repo');
+    }
     return policy;
   };
 
   const policyParseResult = YamlTransformer
+      .transform(normalizeAccessPolicyEntries)
       .transform(strict ? (it) => it : filterInvalidAccessPolicyEntries)
       .pipe(GitHubRepositoryAccessPolicySchema)
       .safeParse(policyValue);
@@ -774,7 +801,7 @@ function matchSubject(subjectPattern: string | string[], subject: string | strin
     return subjectPattern.some((subjectPattern) => matchSubject(subjectPattern, subject));
   }
 
-  // claims must not contain wildcards to prevent granting access accidentally
+  // subject pattern claims must not contain wildcards to prevent granting access accidentally
   //   repo:foo/bar:*  is NOT allowed
   //   repo:foo/bar:** is allowed
   //   repo:foo/*:**   is allowed
@@ -847,8 +874,7 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
       scope.replaceAll('-', '_'), permission,
     ])),
     repositories,
-  })
-      .then((res) => res.data);
+  }).then((res) => res.data);
 }
 
 /**
