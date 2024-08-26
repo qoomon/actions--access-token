@@ -147,6 +147,7 @@ function createGitHubActionsTokenPayload(claims?: {
     ref,
     sub: `repo:${repository}:ref:${ref}`,
     workflow_ref: `${repository}/.github/workflows/${workflow}@${ref}`,
+    job_workflow_ref: `${repository}/.github/workflows/${workflow}@${ref}`,
   } as GitHubActionsJwtPayload;
 }
 

@@ -765,22 +765,28 @@ function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayl
 
   // --- add artificial subjects
 
-  // repo : ref
-  // => repo:qoomon/sandbox:ref:refs/heads/main
-  subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`);
+  // Be Aware to not add artificial subjects for pull requests e.g., 'ref:refs/pull/1/head'
+  if (callerIdentity.ref.startsWith('refs/heads/') ||
+      callerIdentity.ref.startsWith('refs/tags/')) {
+    // repo : ref
+    // => repo:qoomon/sandbox:ref:refs/heads/main
+    subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`);
+  }
 
-  // repo : workflow_ref
-  // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-  subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`);
+  // Be Aware to not add artificial subjects for pull requests e.g., 'workflow_ref:...@refs/pull/1/head'
+  if (callerIdentity.workflow_ref.split('@')[1]?.startsWith('refs/heads/') ||
+      callerIdentity.workflow_ref.split('@')[1]?.startsWith('refs/tags/')) {
+    // repo : workflow_ref
+    // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+    subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`);
+  }
 
-  // repo : job_workflow_ref
-  // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-  subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
-
-  if (callerIdentity.environment) {
-    // repo : environment
-    // => repo:qoomon/sandbox:environment:production
-    subjects.push(`repo:${callerIdentity.repository}:environment:${callerIdentity.environment}`);
+  // Be Aware to not add artificial subjects for pull requests e.g., 'job_workflow_ref:...@refs/pull/1/head'
+  if (callerIdentity.job_workflow_ref.split('@')[1]?.startsWith('refs/heads/') ||
+      callerIdentity.job_workflow_ref.split('@')[1]?.startsWith('refs/tags/')) {
+    // repo : job_workflow_ref
+    // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+    subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
   }
 
   return unique(subjects);

@@ -68,9 +68,9 @@ export function appInit(prepare?: (app: Hono<{
   app.post('/access_tokens',
       githubOidcAuthenticator,
       async (context) => {
-        const requestLog = context.get('logger');
+        const requestLog = context.var.logger
 
-        const callerIdentity = context.get('token');
+        const callerIdentity = context.var.token;
         requestLog.info({
           callerIdentity: {
             workflow_ref: callerIdentity.workflow_ref,

@@ -33,8 +33,8 @@ export function errorHandler<ENV extends {
   Variables: RequestIdVariables & RequestLoggerVariables
 }>(): ErrorHandler<ENV> {
   return (err, context) => {
-    const requestId = context.get('requestId');
-    let requestLog = context.get('logger');
+    const requestId = context.var.requestId;
+    let requestLog = context.var.logger;
 
     if (!requestLog.bindings().requestId) {
       requestLog = requestLog.child({requestId});
@@ -67,7 +67,7 @@ export function errorHandler<ENV extends {
  */
 export function setRequestLogger(logger: Logger = pino()) {
   return createMiddleware<{ Variables: RequestIdVariables & RequestLoggerVariables }>(async (context, next) => {
-    const requestId = context.get('requestId');
+    const requestId = context.var.requestId;
     const requestLogger = logger.child({requestId});
     context.set('logger', requestLogger);
     await next();
@@ -82,8 +82,7 @@ export type RequestLoggerVariables = { logger: Logger }
  */
 export function debugLogger() {
   return createMiddleware<{ Variables: RequestLoggerVariables }>(async (context, next) => {
-    const debugLogger = context.get('logger');
-    debugLogger.debug({
+    context.var.logger.debug({
       path: context.req.path,
       method: context.req.method,
       query: context.req.query,
@@ -91,7 +90,7 @@ export function debugLogger() {
 
     await next();
 
-    debugLogger.debug({
+    context.var.logger.debug({
       status: context.res.status,
     }, 'Http Response');
   });
