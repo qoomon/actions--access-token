@@ -9,12 +9,13 @@ import {
   ensureHasEntries,
   escapeRegexp,
   filterObjectEntries,
+  findFirstNotNull,
   hasEntries,
   indent,
   isRecord,
   mapObjectEntries,
+  resultOf,
   retry,
-  safePromise,
   unique,
 } from './common/common-utils.js';
 import {
@@ -289,7 +290,7 @@ export async function accessTokenManager(options: {
             await Promise.all(
                 tokenRequest.repositories.map((repo) => limitRepoPermissionRequests(async () => {
                   const targetRepository = `${tokenRequest.owner}/${repo}`;
-                  const repoAccessPolicyResult = await safePromise(getRepoAccessPolicy(appInstallationClient, {
+                  const repoAccessPolicyResult = await resultOf(getRepoAccessPolicy(appInstallationClient, {
                     ...parseRepository(targetRepository),
                     paths: options.accessPolicyLocation.repo.paths,
                     strict: false, // ignore invalid access policy entries
@@ -311,7 +312,7 @@ export async function accessTokenManager(options: {
                     throw error;
                   }
 
-                  const repoAccessPolicy = repoAccessPolicyResult.data;
+                  const repoAccessPolicy = repoAccessPolicyResult.value;
                   log.debug({owner: tokenRequest.owner, repo, repoAccessPolicy},
                       'Repository access policy');
 
@@ -429,20 +430,25 @@ async function getOwnerAccessPolicy(client: Octokit, {
   paths: string[],
   strict: boolean,
 }): Promise<Omit<GitHubOwnerAccessPolicy, 'origin'>> {
-  let policyValue = null;
-  for (const path of paths) {
-    policyValue = await getRepositoryFileContent(client, {
-      owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE,
-    });
-    if (policyValue) {
-      break;
-    }
-  }
-  if (!policyValue) {
-    throw new GithubAccessPolicyError(`Access policy not found`);
-  }
+  const policy = await getAccessPolicy(client, {
+    owner, repo, paths,
+    schema: GitHubOwnerAccessPolicySchema,
+    preprocessor: (value) => {
+      value = normalizeAccessPolicyEntries(value);
+      if (!strict) {
+        value = filterValidAccessPolicyEntries(value);
+      }
+      return value;
+    },
+  });
 
-  const normalizeAccessPolicyEntries = (policy: unknown) => {
+  policy.statements?.forEach((statement) => {
+    resolveAccessPolicyStatementSubjects(statement, {owner, repo});
+  });
+
+  return policy;
+
+  function normalizeAccessPolicyEntries(policy: unknown) {
     if (isRecord(policy)) {
       if (isRecord(policy['allowed-repository-permissions'])) {
         policy['allowed-repository-permissions'] = normalizePermissionScopes(policy['allowed-repository-permissions']);
@@ -457,9 +463,9 @@ async function getOwnerAccessPolicy(client: Octokit, {
       }
     }
     return policy;
-  };
+  }
 
-  const filterInvalidAccessPolicyEntries = (policy: unknown) => {
+  function filterValidAccessPolicyEntries(policy: unknown) {
     if (isRecord(policy)) {
       if (Array.isArray(policy['allowed-subjects'])) {
         policy['allowed-subjects'] = filterValidSubjects(
@@ -475,32 +481,7 @@ async function getOwnerAccessPolicy(client: Octokit, {
       }
     }
     return policy;
-  };
-
-  const policyParseResult = YamlTransformer
-      .transform(normalizeAccessPolicyEntries)
-      .transform(strict ? (it) => it : filterInvalidAccessPolicyEntries)
-      .pipe(GitHubOwnerAccessPolicySchema)
-      .safeParse(policyValue);
-
-  if (policyParseResult.error) {
-    const issues = policyParseResult.error.issues.map(formatZodIssue);
-    throw new GithubAccessPolicyError(`Invalid access policy`, issues);
   }
-
-  const policy = policyParseResult.data;
-
-  const expectedPolicyOrigin = `${owner}/${repo}`;
-  if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
-    const issues = [`Policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`];
-    throw new GithubAccessPolicyError(`Invalid access policy`, issues);
-  }
-
-  policy.statements?.forEach((statement) => {
-    normaliseAccessPolicyStatement(statement, {owner, repo});
-  });
-
-  return policy;
 }
 
 /**
@@ -520,20 +501,25 @@ async function getRepoAccessPolicy(client: Octokit, {
   paths: string[],
   strict: boolean,
 }): Promise<Omit<GitHubRepositoryAccessPolicy, 'origin'>> {
-  let policyValue = null;
-  for (const path of paths) {
-    policyValue = await getRepositoryFileContent(client, {
-      owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE,
-    });
-    if (policyValue) {
-      break;
-    }
-  }
-  if (!policyValue) {
-    throw new GithubAccessPolicyError(`Access policy not found`);
-  }
+  const policy = await getAccessPolicy(client, {
+    owner, repo, paths,
+    schema: GitHubRepositoryAccessPolicySchema,
+    preprocessor: (value) => {
+      value = normalizeAccessPolicyEntries(value);
+      if (!strict) {
+        value = filterValidAccessPolicyEntries(value);
+      }
+      return value;
+    },
+  });
 
-  const normalizeAccessPolicyEntries = (policy: unknown) => {
+  policy.statements?.forEach((statement) => {
+    resolveAccessPolicyStatementSubjects(statement, {owner, repo});
+  });
+
+  return policy;
+
+  function normalizeAccessPolicyEntries(policy: unknown) {
     if (isRecord(policy) && Array.isArray(policy.statements)) {
       policy.statements = policy.statements.map((statement: unknown) => {
         if (isRecord(statement) && isRecord(statement.permissions)) {
@@ -543,38 +529,57 @@ async function getRepoAccessPolicy(client: Octokit, {
       });
     }
     return policy;
-  };
+  }
 
-  const filterInvalidAccessPolicyEntries = (policy: unknown) => {
+  function filterValidAccessPolicyEntries(policy: unknown) {
     if (isRecord(policy) && Array.isArray(policy.statements)) {
       policy.statements = filterValidStatements(
           policy.statements, 'repo');
     }
     return policy;
-  };
+  }
+}
+
+/**
+ * Get access policy
+ * @param client - GitHub client for target repository
+ * @param owner - repository owner
+ * @param repo - repository name
+ * @param path - file path
+ * @param schema - access policy schema
+ * @param preprocessor - preprocessor function to transform policy object
+ * @return access policy
+ */
+async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client: Octokit, {
+  owner, repo, paths, schema, preprocessor,
+}: {
+  owner: string,
+  repo: string,
+  paths: string[],
+  schema: T,
+  preprocessor: (value: unknown) => unknown,
+}): Promise<z.infer<T>> {
+  const policyValue = await findFirstNotNull(paths, (path) =>
+      getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE}));
+  if (!policyValue) {
+    throw new GithubAccessPolicyError(`Access policy not found`);
+  }
 
   const policyParseResult = YamlTransformer
-      .transform(normalizeAccessPolicyEntries)
-      .transform(strict ? (it) => it : filterInvalidAccessPolicyEntries)
-      .pipe(GitHubRepositoryAccessPolicySchema)
+      .transform(preprocessor)
+      .pipe(schema)
       .safeParse(policyValue);
-
   if (policyParseResult.error) {
     const issues = policyParseResult.error.issues.map(formatZodIssue);
     throw new GithubAccessPolicyError(`Invalid access policy`, issues);
   }
-
-  const policy = policyParseResult.data;
+  const policy: GitHubAccessPolicy = policyParseResult.data;
 
   const expectedPolicyOrigin = `${owner}/${repo}`;
   if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
     const issues = [`Policy origin '${policy.origin}' does not match repository '${expectedPolicyOrigin}'`];
     throw new GithubAccessPolicyError(`Invalid access policy`, issues);
   }
-
-  policy.statements?.forEach((statement) => {
-    normaliseAccessPolicyStatement(statement, {owner, repo});
-  });
 
   return policy;
 }
@@ -653,18 +658,18 @@ function arePermissionsEqual(permissionsA: Record<string, string>, permissionsB:
 }
 
 /**
- * Normalise access policy statement
+ * Resolves access policy statement subjects
  * @param statement - access policy statement
  * @param owner - policy owner
  * @param repo - policy repository
  * @return void
  */
-function normaliseAccessPolicyStatement(statement: { subjects: string[] }, {owner, repo}: {
+function resolveAccessPolicyStatementSubjects(statement: { subjects: string[] }, {owner, repo}: {
   owner: string,
   repo: string,
 }) {
   statement.subjects = statement.subjects
-      .map((it) => normaliseAccessPolicyStatementSubject(it, {owner, repo}));
+      .map((it) => resolveAccessPolicyStatementSubject(it, {owner, repo}));
 
   // LEGACY SUPPORT for the artificial subject pattern
   const artificialSubjects = getArtificialAccessPolicyStatementSubjects(statement.subjects, {owner, repo});
@@ -719,7 +724,7 @@ function getArtificialAccessPolicyStatementSubjects(subjects: string[], {owner, 
  * @param repo - policy repository
  * @return normalised subject
  */
-function normaliseAccessPolicyStatementSubject(subject: string, {owner, repo}: {
+function resolveAccessPolicyStatementSubject(subject: string, {owner, repo}: {
   owner: string,
   repo: string
 }): string {
@@ -1029,18 +1034,21 @@ const GitHubRepositoryAccessStatementSchema = GitHubBaseStatementSchema.merge(z.
 }));
 export type GitHubRepositoryAccessStatement = z.infer<typeof GitHubRepositoryAccessStatementSchema>;
 
-const GitHubOwnerAccessPolicySchema = z.strictObject({
-  'origin': GitHubRepositorySchema,
+const GitHubAccessPolicySchema = z.strictObject({
+  origin: GitHubRepositorySchema,
+});
+export type GitHubAccessPolicy = z.infer<typeof GitHubAccessPolicySchema>;
+
+const GitHubOwnerAccessPolicySchema = GitHubAccessPolicySchema.merge(z.strictObject({
   'allowed-subjects': z.array(GitHubSubjectClaimSchema).optional(),
   'statements': z.array(GitHubAccessStatementSchema).optional().default([]),
   'allowed-repository-permissions': GitHubAppRepositoryPermissionsSchema.optional().default({}),
-});
+}));
 export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>;
 
-const GitHubRepositoryAccessPolicySchema = z.strictObject({
-  origin: GitHubRepositorySchema,
+const GitHubRepositoryAccessPolicySchema = GitHubAccessPolicySchema.merge(z.strictObject({
   statements: z.array(GitHubRepositoryAccessStatementSchema).optional().default([]),
-});
+}));
 export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>;
 
 type GitHubAppInstallation = RestEndpointMethodTypes['apps']['getUserInstallation']['response']['data'];

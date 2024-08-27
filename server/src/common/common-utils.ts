@@ -8,17 +8,32 @@ export function hasEntries<T extends object>(obj: T): boolean {
 }
 
 /**
- * This function will return a result with promise result or error
+ * This function will return a result data or error
  * @param promise - promise
  * @return result
  */
-export function safePromise<T>(promise: Promise<T>): Promise<
-    { success: true, data: T, error?: never } |
+export async function resultOf<T>(promise: Promise<T>): Promise<
+    { success: true, value: T, error?: never } |
     { success: false, error: unknown, data?: never }
 > {
   return promise
-      .then((data) => ({success: true, data} satisfies { success: true, data: T }))
+      .then((value) => ({success: true, value} satisfies { success: true, value: T }))
       .catch((error) => ({success: false, error}));
+}
+
+/**
+ * This function will return the first non-null value from the given values
+ * @param values - input values
+ * @param fn - mapping function
+ */
+export async function findFirstNotNull<T, R>(values: T[], fn: (value: T) => Promise<R | null>): Promise<R | null> {
+  for (const inputValue of values) {
+    const outputValue = await fn(inputValue);
+    if (outputValue) {
+      return outputValue;
+    }
+  }
+  return null
 }
 
 /**

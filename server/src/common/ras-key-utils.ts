@@ -4,8 +4,8 @@
  * @return well formatted pem key
  */
 export function formatPEMKey(keyString: string): string {
-  const headerMatch = keyString.match(/^\s*-----BEGIN [\w\d\s]+ KEY-----/g);
-  const footerMatch = keyString.match(/-----END [\w\d\s]+ KEY-----\s*$/g);
+  const headerMatch = keyString.match(/^\s*-----BEGIN [\w\s]+ KEY-----/g);
+  const footerMatch = keyString.match(/-----END [\w\s]+ KEY-----\s*$/g);
   if (!headerMatch || !footerMatch) throw Error('Invalid key format');
 
   const key = keyString
