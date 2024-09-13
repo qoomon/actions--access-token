@@ -17,7 +17,7 @@
     "@aws-sdk/credential-providers": "^3.645.0",
     "@smithy/signature-v4": "^4.0.0",
     "ts-node": "^10.9.2",
-    "yaml": "^2.5.0",
+    "yaml": "^2.5.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
