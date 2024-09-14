@@ -35,21 +35,20 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 > [!TIP]
 > **For organizations on GitHub Enterprise plan** it is possible to restrict `write` access to `.github/access-token.yaml` to repository admins only by using a [push ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets#push-rulesets)
 <details><summary>Protect access token policy ruleset</summary>
-  
-  - [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
+
+- [Create a new push ruleset](https://github.com/organizations/YOUR-ORGANIZATION/settings/rules/new?target=push)
 - Set `Ruleset Name` to `Protect access token policy`
 - Set `Enforcement status` to `Active`
 - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
 - Set `Target repositories` to `All repositories`
 - Enable `Restrict file paths`
   - Click `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
-    - Also add file path `.github/access-token.yml` 
+    - Also add file path `.github/access-token.yml`
 - Hit `Create` button
 
 </details>
 
 ### 2. Create and Configure Owner Policy
-<details><summary>Click me</summary>
 
 Create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/action/docs/access-token.owner-template.yaml)
 
@@ -57,27 +56,20 @@ With this owner policy you can configure wich permissions can be manged or grant
 
 You can also grant owner specific or owner wide permission.
 
-</details>
-
 ## Grant Repository Permissions
 
 > [!IMPORTANT]
-> Ensure repository permissions have been granted within owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
-
-> [!Note]
-> You can also grant repository permissions within owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
-
-<details><summary>Click me</summary>
+> Ensure repository permissions have been granted (`allowed-repository-permissions`) within the owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
 
 To grant repository permission create an `access-token.yaml` file within the `.github/` directory of the target repository with [this template content](/action/docs/access-token.repo-template.yaml)
 
-</details>
+> [!Note]
+> You can also grant permissions to all organization repositories within the owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
+
 
 ## Example Use Cases
 
 #### Update Secrets
-<details><summary>Click me</summary>
-
 ```yaml
 on:
   workflow_dispatch:
@@ -89,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      
+
     steps:
       - uses: qoomon/actions--access-token@v3
         id: access-token
@@ -98,10 +90,10 @@ jobs:
               secrets: write
 
       - name: Update secret
-        run: >- 
-          gh secret 
-          set 'API_KEY' 
-          --body "$(date +%s)" 
+        run: >-
+          gh secret
+          set 'API_KEY'
+          --body "$(date +%s)"
           --repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ steps.access-token.outputs.token }}
@@ -113,11 +105,7 @@ jobs:
       - run: echo ${{ secrets.API_KEY }}
 ```
 
- </details>
-
 #### Clone an Internal or Private Repository
-<details><summary>Click me</summary>
-
 ```yaml
 name: GitHub Actions Access Manager Example
 on:
@@ -147,11 +135,7 @@ jobs:
           token: ${{ steps.access-token.outputs.token }}
 ```
 
- </details>
-
 #### Trigger a Workflow
-<details><summary>Click me</summary>
-
 ```yaml
 on:
 workflow_dispatch:
@@ -171,18 +155,16 @@ build:
       with:
         permissions: |
           actions: write
-          
+
     - name: Trigger workflow
       run: >-
-        gh workflow 
+        gh workflow
         run [target workflow].yml
         --field logLevel=debug
       env:
         GITHUB_TOKEN: ${{steps.access-token.outputs.token}}
     # ...
 ```
-
-</details>
 
 ---
 
