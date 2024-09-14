@@ -50,11 +50,7 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
 ### 2. Create and Configure Owner Policy
 
-Create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/action/docs/access-token.owner-template.yaml)
-
-With this owner policy you can configure wich permissions can be manged or granted by repository token policies (`allowed-repository-permissions:`).
-
-You can also grant owner specific or owner wide permission.
+Create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at the root directory of the repository based on [this policy template](/action/docs/access-token.owner-template.yaml)
 
 ## Grant Repository Permissions
 
