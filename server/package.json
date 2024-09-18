@@ -16,7 +16,7 @@
     "@hono/node-server": "^1.12.1",
     "@octokit/auth-app": "^7.1.0",
     "@octokit/rest": "^21.0.1",
-    "fast-jwt": "^4.0.1",
+    "fast-jwt": "^4.0.5",
     "get-jwks": "^9.0.1",
     "hono": "^4.5.9",
     "pino": "^9.1.0",
