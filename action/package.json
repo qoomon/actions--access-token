@@ -10,7 +10,7 @@
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@actions/core": "^1.10.1",
+    "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0",
     "@actions/http-client": "^2.2.1",
     "@aws-crypto/sha256-js": "^5.2.0",
