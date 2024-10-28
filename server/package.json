@@ -30,7 +30,7 @@
     "@octokit/types": "^13.6.1",
     "@types/aws-lambda": "^8.10.131",
     "@types/content-type": "^1.1.8",
-    "@types/jest": "^29.5.13",
+    "@types/jest": "^29.5.14",
     "typescript-eslint": "^8.1.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.10.0",
