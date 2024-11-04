@@ -1,3 +1,7 @@
+# Setup
+# - Settings > Actions > General > Check "Allow GitHub Actions to create and approve pull requests"
+# - Settings > General > Check "Allow auto-merge Loading"
+
 name: Dependabot auto-merge
 on: pull_request
 
