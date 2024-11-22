@@ -1,6 +1,8 @@
-import {Octokit, RestEndpointMethodTypes} from '@octokit/rest';
+import {Octokit as OctokitCore} from '@octokit/core';
+import {paginateRest} from "@octokit/plugin-paginate-rest";
+import {restEndpointMethods} from "@octokit/plugin-rest-endpoint-methods";
 import {z, ZodSchema} from 'zod';
-import {components} from '@octokit/openapi-types';
+import type {components} from '@octokit/openapi-types';
 import {createAppAuth} from '@octokit/auth-app';
 import limit from 'p-limit';
 import {formatZodIssue, YamlTransformer} from './common/zod-utils.js';
@@ -34,6 +36,10 @@ import {
 } from './common/github-utils.js';
 import {Status} from './common/http-utils.js';
 import {logger as log} from './logger.js';
+import {RestEndpointMethodTypes} from '@octokit/rest';
+
+const Octokit = OctokitCore
+    .plugin(restEndpointMethods).plugin(paginateRest);
 
 const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
 
@@ -54,8 +60,11 @@ export async function accessTokenManager(options: {
   }
 }) {
   log.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
-  const GITHUB_APP_CLIENT = new Octokit({authStrategy: createAppAuth, auth: options.githubAppAuth});
-  const GITHUB_APP = await GITHUB_APP_CLIENT.apps.getAuthenticated()
+  const GITHUB_APP_CLIENT = new Octokit({
+    authStrategy: createAppAuth,
+    auth: options.githubAppAuth,
+  });
+  const GITHUB_APP = await GITHUB_APP_CLIENT.rest.apps.getAuthenticated()
       .then((res) => res.data ?? _throw(new Error('GitHub app not found')));
 
   /**
@@ -853,7 +862,7 @@ async function getAppInstallation(client: Octokit, {owner}: {
   // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
   // therefore, we retry on any error
   return retry(
-      async () => client.apps.getUserInstallation({username: owner})
+      async () => client.rest.apps.getUserInstallation({username: owner})
           .then((res) => res.data)
           .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error))),
       {
@@ -878,7 +887,7 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
   permissions: GitHubAppPermissions
 }): Promise<GitHubAppInstallationAccessToken> {
   // noinspection TypeScriptValidateJSTypes
-  return client.apps.createInstallationAccessToken({
+  return client.rest.apps.createInstallationAccessToken({
     installation_id: installation.id,
     // BE AWARE that an empty object will result in a token with all app installation permissions
     permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
@@ -924,7 +933,7 @@ async function getRepositoryFileContent(client: Octokit, {
   path: string,
   maxSize?: number
 }): Promise<string | null> {
-  return client.repos.getContent({owner, repo, path})
+  return client.rest.repos.getContent({owner, repo, path})
       .then((res) => {
         if ('type' in res.data && res.data.type === 'file') {
           if (maxSize !== undefined && res.data.size > maxSize) {
@@ -1050,6 +1059,9 @@ const GitHubRepositoryAccessPolicySchema = GitHubAccessPolicySchema.merge(z.stri
   statements: z.array(GitHubRepositoryAccessStatementSchema).optional().default([]),
 }));
 export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>;
+
+
+type Octokit = InstanceType<typeof Octokit>;
 
 type GitHubAppInstallation = RestEndpointMethodTypes['apps']['getUserInstallation']['response']['data'];
 // eslint-disable-next-line max-len

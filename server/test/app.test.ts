@@ -1367,97 +1367,109 @@ function mockGithub() {
     appInstallations: {},
   };
 
-  jest.unstable_mockModule('@octokit/rest', () => ({
-    Octokit: jest.fn().mockImplementation((paramsOctokit: any) => {
-      // GitHub app
-      if (paramsOctokit.auth.appId) {
-        return {
-          apps: {
-            getAuthenticated: jest.fn().mockReturnValue(Promise.resolve({
-              data: {
-                name: 'GitHub Actions Access Manager',
-                html_url: 'https://example.org',
-              },
-            })),
-            getUserInstallation: jest.fn().mockImplementation(async (params: any) => {
-              const installation = mock.appInstallations[params.username];
-              if (installation) return {data: installation};
-              throw new RequestError('Not Found', Status.NOT_FOUND, {
-                request: {headers: {}, url: 'http://localhost/tests'} as any,
-              });
-            }),
-            createInstallationAccessToken: jest.fn().mockImplementation(async (params: any) => {
-              const installation = Object.values(mock.appInstallations)
-                  .find((installation) => installation.id === params.installation_id);
-              if (installation) {
-                Object.entries(params.permissions).forEach(([scope, permission]) => {
-                  if (!verifyPermission({
-                    requested: permission as string,
-                    granted: installation.permissions[scope],
-                  })) {
-                    console.error(`Invalid permission: ${scope}` +
-                        ` requested=${permission}` +
-                        ` granted=${installation.permissions[scope]}`);
-                    throw new RequestError('Unprocessable Entity', Status.UNPROCESSABLE_ENTITY, {
-                      request: {headers: {}, url: 'http://localhost/tests'} as any,
-                    });
-                  }
-                });
+  const Octokit = Object.assign(
+      jest.fn().mockImplementation((paramsOctokit: any) => {
 
-                return {
-                  data: {
-                    token: `INSTALLATION_ACCESS_TOKEN@${installation.id}`,
-                    expires_at: dateIn({hour: +1}).toISOString(),
-                    permissions: params.permissions,
-                    repositories: params.repositories?.map((it: string) => ({
-                      name: it,
-                      full_name: `${installation.owner}/${it}`,
-                    })),
-                  },
-                };
-              }
-
-              throw new Error('Not Implemented');
-            }),
-          },
-        };
-      }
-
-      // GitHub app installation
-      if (typeof paramsOctokit.auth === 'string') {
-        const installation = Object.values(mock.appInstallations)
-            .find((installation) => installation.id === parseInt(paramsOctokit.auth.split('@')[1]));
-        if (installation) {
+        // GitHub app
+        if (paramsOctokit.auth.appId) {
           return {
-            repos: {
-              getContent: jest.fn().mockImplementation(async (params: any) => {
-                if (params.owner !== installation.owner) {
-                  throw new Error('Access Denied');
-                }
+            rest: {
+              apps: {
+                getAuthenticated: jest.fn().mockReturnValue(Promise.resolve({
+                  data: {
+                    name: 'GitHub Actions Access Manager',
+                    html_url: 'https://example.org',
+                  },
+                })),
+                getUserInstallation: jest.fn().mockImplementation(async (params: any) => {
+                  const installation = mock.appInstallations[params.username];
+                  if (installation) return {data: installation};
+                  throw new RequestError('Not Found', Status.NOT_FOUND, {
+                    request: {headers: {}, url: 'http://localhost/tests'} as any,
+                  });
+                }),
+                createInstallationAccessToken: jest.fn().mockImplementation(async (params: any) => {
+                  const installation = Object.values(mock.appInstallations)
+                      .find((installation) => installation.id === params.installation_id);
+                  if (installation) {
+                    Object.entries(params.permissions).forEach(([scope, permission]) => {
+                      if (!verifyPermission({
+                        requested: permission as string,
+                        granted: installation.permissions[scope],
+                      })) {
+                        console.error(`Invalid permission: ${scope}` +
+                            ` requested=${permission}` +
+                            ` granted=${installation.permissions[scope]}`);
+                        throw new RequestError('Unprocessable Entity', Status.UNPROCESSABLE_ENTITY, {
+                          request: {headers: {}, url: 'http://localhost/tests'} as any,
+                        });
+                      }
+                    });
 
-                const repository = mock.repositories[`${params.owner}/${params.repo}`];
+                    return {
+                      data: {
+                        token: `INSTALLATION_ACCESS_TOKEN@${installation.id}`,
+                        expires_at: dateIn({hour: +1}).toISOString(),
+                        permissions: params.permissions,
+                        repositories: params.repositories?.map((it: string) => ({
+                          name: it,
+                          full_name: `${installation.owner}/${it}`,
+                        })),
+                      },
+                    };
+                  }
 
-                if (repository?.accessPolicy && config.accessPolicyLocation.repo.paths.includes(params.path)) {
-                  const contentString = YAML.stringify(repository.accessPolicy);
-                  return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
-                }
-
-                if (repository?.ownerAccessPolicy && config.accessPolicyLocation.owner.paths.includes(params.path)) {
-                  const contentString = YAML.stringify(repository.ownerAccessPolicy);
-                  return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
-                }
-
-                throw new RequestError('Not Found', Status.NOT_FOUND, {
-                  request: {headers: {}, url: 'http://localhost/tests'} as any,
-                });
-              }),
+                  throw new Error('Not Implemented');
+                }),
+              },
             },
           };
         }
-      }
 
-      throw new Error('Not Implemented');
-    }),
+        // GitHub app installation
+        if (typeof paramsOctokit.auth === 'string') {
+          const installation = Object.values(mock.appInstallations)
+              .find((installation) => installation.id === parseInt(paramsOctokit.auth.split('@')[1]));
+
+          if (installation) {
+            return {
+              rest: {
+                repos: {
+                  getContent: jest.fn().mockImplementation(async (params: any) => {
+                    if (params.owner !== installation.owner) {
+                      throw new Error('Access Denied');
+                    }
+
+                    const repository = mock.repositories[`${params.owner}/${params.repo}`];
+
+                    if (repository?.accessPolicy
+                        && config.accessPolicyLocation.repo.paths.includes(params.path)) {
+                      const contentString = YAML.stringify(repository.accessPolicy);
+                      return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
+                    }
+
+                    if (repository?.ownerAccessPolicy &&
+                        config.accessPolicyLocation.owner.paths.includes(params.path)) {
+                      const contentString = YAML.stringify(repository.ownerAccessPolicy);
+                      return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
+                    }
+
+                    throw new RequestError('Not Found', Status.NOT_FOUND, {
+                      request: {headers: {}, url: 'http://localhost/tests'} as any,
+                    });
+                  }),
+                },
+              }
+            };
+          }
+        }
+
+        throw new Error('Not Implemented');
+      }), {
+        plugin: () => Octokit,
+      });
+  jest.unstable_mockModule('@octokit/core', () => ({
+    Octokit
   }));
 
   return {
