@@ -1,6 +1,6 @@
 export const config : Config = {
   api: {
-    url: new URL('https://github-actions-access-token.vercel.app'),
+    url: new URL('https://github-actions-access-token.netlify.app'),
     // auth: {
     //   aws: {
     //     roleArn: 'arn:aws:iam::123456789012:role/github-actions-access-token-api-access',
@@ -23,5 +23,3 @@ interface Config {
     }
   }
 }
-
-

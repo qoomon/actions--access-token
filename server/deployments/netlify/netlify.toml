@@ -1,0 +1,16 @@
+[build]
+  command = "npm ci"
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  directory = "functions/"
+
+[[redirects]]
+    from = "/access_tokens"
+    to = "/.netlify/functions/index"
+    status = 200 # By assigning the status code 200, the redirect becomes a rewrite
+
+[[redirects]]
+    from = "/"
+    to = "https://github.com/qoomon/actions--access-token"

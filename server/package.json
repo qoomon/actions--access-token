@@ -7,6 +7,7 @@
     "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts ",
     "build:docker-container": "docker build -t localhost/github-access-token-server:latest .",
     "build:vercel-function": "ncc build deployments/vercel/api/index.ts",
+    "build:netlify-function": "ncc build deployments/netlify/api/access_tokens.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
     "start": "ncc run src/server.ts"
   },
@@ -17,7 +18,7 @@
     "@octokit/auth-app": "^7.1.3",
     "@octokit/rest": "^21.0.1",
     "fast-jwt": "^5.0.0",
-    "get-jwks": "^9.0.1",
+    "get-jwks": "^10.0.0",
     "hono": "^4.6.12",
     "pino": "^9.5.0",
     "yaml": "^2.6.1",

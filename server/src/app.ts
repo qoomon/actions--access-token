@@ -1,6 +1,5 @@
 import {Hono} from 'hono';
-import type {RequestIdVariables} from 'hono/request-id'
-import {requestId} from 'hono/request-id'
+import {requestId, RequestIdVariables} from 'hono/request-id'
 import {prettyJSON} from 'hono/pretty-json';
 import {HTTPException} from 'hono/http-exception';
 import {bodyLimit} from 'hono/body-limit';
