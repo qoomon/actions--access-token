@@ -137,9 +137,9 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 ### AWS Lambda
 
 > [!NOTE]
-> This deployment will add extra layer of security by using IAM authenticator for AWS Lambda.
-> All requests to the server need to be signed with AWS Signature Version 4
-> and therefore the server is secured by AWS identity and access management.
+> This deployment will add extra layer of security by using IAM authenticator in front of the AWS Lambda,
+> therefore the endpoint is secured by AWS identity and access management.
+> All requests to the server are signed with AWS Signature Version 4.
 
 <details><summary>Click me</summary>
 
@@ -172,6 +172,17 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
        },
    }
    ```
+
+</details>
+
+
+### Netlify
+
+<details><summary>Click me</summary>
+
+1. **Fork this repository**
+
+2. **TODO**
 
 </details>
 
