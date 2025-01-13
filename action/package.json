@@ -28,7 +28,7 @@
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.19.1",
     "@vercel/ncc": "^0.38.3",
-    "eslint": "^9.17.0",
+    "eslint": "^9.18.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-jest": "^28.10.0",
     "eslint-plugin-node": "^11.1.0",
