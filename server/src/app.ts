@@ -26,31 +26,35 @@ import {
   errorHandler,
   notFoundHandler,
   parseJsonBody,
-  RequestLoggerVariables,
-  setRequestLogger,
   tokenAuthenticator,
 } from './common/hono-utils.js';
 import {Status} from './common/http-utils.js';
 import {accessTokenManager, GitHubAccessTokenError} from './access-token-manager.js';
-import {logger as log} from './logger.js';
+import {logger, setAsyncLoggerBindings, deleteAsyncLoggerBindings} from './logger.js';
 import {config} from './config.js';
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
 
 export function appInit(prepare?: (app: Hono<{
-  Variables: RequestIdVariables & RequestLoggerVariables
+  Variables: RequestIdVariables
 }>) => void) {
   const app = new Hono<{
-    Variables: RequestIdVariables & RequestLoggerVariables
+    Variables: RequestIdVariables
   }>();
   if (prepare) {
     prepare(app);
   }
   app.use(requestId({headerName: process.env.REQUEST_ID_HEADER ?? 'X-Request-Id'}));
-  app.use(setRequestLogger(log));
-  app.use(debugLogger());
-  app.onError(errorHandler());
+  app.use(async (context, next) => {
+    const asyncLoggerBindingsId = setAsyncLoggerBindings({
+      requestId: context.var.requestId,
+    });
+    await next();
+    deleteAsyncLoggerBindings(asyncLoggerBindingsId);
+  });
+  app.use(debugLogger(logger));
+  app.onError(errorHandler(logger));
   app.notFound(notFoundHandler());
 
   app.use(bodyLimit({maxSize: 100 * 1024})); // 100kb
@@ -67,10 +71,8 @@ export function appInit(prepare?: (app: Hono<{
   app.post('/access_tokens',
       githubOidcAuthenticator,
       async (context) => {
-        const requestLog = context.var.logger
-
         const callerIdentity = context.var.token;
-        requestLog.info({
+        logger.info({
           callerIdentity: {
             workflow_ref: callerIdentity.workflow_ref,
             job_workflow_ref: callerIdentity.job_workflow_ref,
@@ -82,13 +84,13 @@ export function appInit(prepare?: (app: Hono<{
 
         const accessTokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
             .then((it) => normalizeAccessTokenRequestBody(it, callerIdentity));
-        requestLog.info({accessTokenRequest}, 'Access Token Request');
+        logger.info({accessTokenRequest}, 'Access Token Request');
 
         const githubActionsAccessToken = await GITHUB_ACTIONS_ACCESS_MANAGER
             .createAccessToken(callerIdentity, accessTokenRequest)
             .catch((error) => {
               if (error instanceof GitHubAccessTokenError) {
-                requestLog.info('Access Token - Denied');
+                logger.info('Access Token - Denied');
                 throw new HTTPException(Status.FORBIDDEN, {message: error.message});
               }
               throw error;
@@ -106,7 +108,7 @@ export function appInit(prepare?: (app: Hono<{
         };
 
         // BE AWARE: do not log the access token
-        requestLog.info({accessToken: {...tokenResponseBody, token: undefined}}, 'Access Token');
+        logger.info({accessToken: {...tokenResponseBody, token: undefined}}, 'Access Token');
 
         return context.json(tokenResponseBody);
       },

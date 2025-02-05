@@ -35,7 +35,7 @@ import {
   verifyRepositoryPermissions,
 } from './common/github-utils.js';
 import {Status} from './common/http-utils.js';
-import {logger as log} from './logger.js';
+import {logger} from './logger.js';
 import {RestEndpointMethodTypes} from '@octokit/rest';
 
 const Octokit = OctokitCore
@@ -59,7 +59,7 @@ export async function accessTokenManager(options: {
     repo: { paths: string[] }
   }
 }) {
-  log.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
+  logger.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
   const GITHUB_APP_CLIENT = new Octokit({
     authStrategy: createAppAuth,
     auth: options.githubAppAuth,
@@ -87,7 +87,7 @@ export async function accessTokenManager(options: {
     });
     {
       if (!appInstallation) {
-        log.info({owner: tokenRequest.owner},
+        logger.info({owner: tokenRequest.owner},
             `'${GITHUB_APP.name}' has not been installed`);
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
@@ -97,14 +97,14 @@ export async function accessTokenManager(options: {
               [NOT_AUTHORIZED_MESSAGE],
         }], effectiveCallerIdentitySubjects);
       }
-      log.debug({appInstallation}, 'App installation');
+      logger.debug({appInstallation}, 'App installation');
 
       const accessPolicyPaths = [
         ...options.accessPolicyLocation.owner.paths,
         ...options.accessPolicyLocation.repo.paths,
       ];
       if (!accessPolicyPaths.every((path) => appInstallation.single_file_paths?.includes(path))) {
-        log.info({owner: tokenRequest.owner, required: accessPolicyPaths, actual: appInstallation.single_file_paths},
+        logger.info({owner: tokenRequest.owner, required: accessPolicyPaths, actual: appInstallation.single_file_paths},
             `'${GITHUB_APP.name}' is not authorized to read all access policy file(s) by 'single_file' permission`);
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
@@ -129,7 +129,7 @@ export async function accessTokenManager(options: {
       });
 
       if (requestedAppInstallationPermissions.denied.length > 0) {
-        log.info({owner: tokenRequest.owner, denied: requestedAppInstallationPermissions.denied},
+        logger.info({owner: tokenRequest.owner, denied: requestedAppInstallationPermissions.denied},
             `App installation is not authorized`);
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
@@ -152,7 +152,7 @@ export async function accessTokenManager(options: {
       strict: false, // ignore invalid access policy entries
     }).catch((error) => {
       if (error instanceof GithubAccessPolicyError) {
-        log.info({owner: tokenRequest.owner, issues: error.issues},
+        logger.info({owner: tokenRequest.owner, issues: error.issues},
             'Owner access policy - invalid');
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
@@ -166,7 +166,7 @@ export async function accessTokenManager(options: {
       }
       throw error;
     });
-    log.debug({owner: tokenRequest.owner, ownerAccessPolicy}, 'Owner access policy');
+    logger.debug({owner: tokenRequest.owner, ownerAccessPolicy}, 'Owner access policy');
 
     // === verify allowed caller identities ============================================================================
     {
@@ -175,7 +175,7 @@ export async function accessTokenManager(options: {
           [`repo:${tokenRequest.owner}/*:**`]; // e.g., ['repo:qoomon/*:**' ]
 
       if (!matchSubject(allowedSubjects, effectiveCallerIdentitySubjects)) {
-        log.info({owner: tokenRequest.owner},
+        logger.info({owner: tokenRequest.owner},
             'OIDC token subject is not allowed by owner access policy');
         throw new GitHubAccessTokenError([{
           owner: tokenRequest.owner,
@@ -199,7 +199,7 @@ export async function accessTokenManager(options: {
           // === verify requested permissions against OWNER access policy ================================================
 
           if (!hasEntries(ownerGrantedPermissions)) {
-            log.info({owner: tokenRequest.owner},
+            logger.info({owner: tokenRequest.owner},
                 'Owner access policy - no permissions granted');
             throw new GitHubAccessTokenError([{
               owner: tokenRequest.owner,
@@ -215,7 +215,7 @@ export async function accessTokenManager(options: {
 
           // -- deny permissions
           if (requestedOwnerPermissions.denied.length > 0) {
-            log.info({owner: tokenRequest.owner, denied: requestedOwnerPermissions.denied},
+            logger.info({owner: tokenRequest.owner, denied: requestedOwnerPermissions.denied},
                 'Owner access policy - permission(s) not granted');
             throw new GitHubAccessTokenError([{
               owner: tokenRequest.owner,
@@ -264,7 +264,7 @@ export async function accessTokenManager(options: {
 
               // -- deny permissions
               if (requestedRepositoryPermissions.denied.length > 0) {
-                log.info({owner: tokenRequest.owner, denied: requestedRepositoryPermissions.denied},
+                logger.info({owner: tokenRequest.owner, denied: requestedRepositoryPermissions.denied},
                     'Owner access policy - repository permission(s) allowed');
                 throw new GitHubAccessTokenError([{
                   owner: tokenRequest.owner,
@@ -308,7 +308,7 @@ export async function accessTokenManager(options: {
                   if (!repoAccessPolicyResult.success) {
                     const error = repoAccessPolicyResult.error;
                     if (error instanceof GithubAccessPolicyError) {
-                      log.info({owner: tokenRequest.owner, repo, issues: error.issues},
+                      logger.info({owner: tokenRequest.owner, repo, issues: error.issues},
                           'Repository access policy - invalid');
                       requestedTokenIssues.push({
                         owner: tokenRequest.owner, repo,
@@ -322,7 +322,7 @@ export async function accessTokenManager(options: {
                   }
 
                   const repoAccessPolicy = repoAccessPolicyResult.value;
-                  log.debug({owner: tokenRequest.owner, repo, repoAccessPolicy},
+                  logger.debug({owner: tokenRequest.owner, repo, repoAccessPolicy},
                       'Repository access policy');
 
                   const repoGrantedPermissions = evaluateGrantedPermissions({
@@ -330,7 +330,7 @@ export async function accessTokenManager(options: {
                     callerIdentitySubjects: effectiveCallerIdentitySubjects,
                   });
                   if (!hasEntries(repoGrantedPermissions)) {
-                    log.info({owner: tokenRequest.owner, repo},
+                    logger.info({owner: tokenRequest.owner, repo},
                         'Repository access policy - no permissions granted');
                     requestedTokenIssues.push({
                       owner: tokenRequest.owner, repo,

@@ -1,5 +1,5 @@
 import {ErrorHandler, HonoRequest, NotFoundHandler,} from 'hono';
-import pino, {Logger} from 'pino';
+import {Logger} from 'pino';
 import {HTTPException} from 'hono/http-exception';
 import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status';
 import {createMiddleware} from 'hono/factory';
@@ -30,18 +30,13 @@ export function notFoundHandler(): NotFoundHandler {
  * @return ErrorHandler
  */
 export function errorHandler<ENV extends {
-  Variables: RequestIdVariables & RequestLoggerVariables
-}>(): ErrorHandler<ENV> {
+  Variables: RequestIdVariables
+}>(logger: Logger): ErrorHandler<ENV> {
   return (err, context) => {
     const requestId = context.var.requestId;
-    let requestLog = context.var.logger;
-
-    if (!requestLog.bindings().requestId) {
-      requestLog = requestLog.child({requestId});
-    }
 
     if (err instanceof HTTPException && err.status < Status.INTERNAL_SERVER_ERROR) {
-      requestLog.debug({err}, 'Http Request Client Error');
+      logger.debug({err}, 'Http Request Client Error');
       context.status(err.status);
       return context.json({
         requestId,
@@ -50,7 +45,7 @@ export function errorHandler<ENV extends {
         message: err.message,
       });
     }
-    requestLog.error({err}, 'Http Request Internal Server Error');
+    logger.error({err}, 'Http Request Internal Server Error');
     context.status(Status.INTERNAL_SERVER_ERROR);
     return context.json({
       requestId,
@@ -61,28 +56,12 @@ export function errorHandler<ENV extends {
 }
 
 /**
- * Creates a middleware that generates and sets a request logger
- * @param logger - logger
- * @return middleware
- */
-export function setRequestLogger(logger: Logger = pino()) {
-  return createMiddleware<{ Variables: RequestIdVariables & RequestLoggerVariables }>(async (context, next) => {
-    const requestId = context.var.requestId;
-    const requestLogger = logger.child({requestId});
-    context.set('logger', requestLogger);
-    await next();
-  });
-}
-
-export type RequestLoggerVariables = { logger: Logger }
-
-/**
  * Creates a middleware to log http requests and responses
  * @return middleware
  */
-export function debugLogger() {
-  return createMiddleware<{ Variables: RequestLoggerVariables }>(async (context, next) => {
-    context.var.logger.debug({
+export function debugLogger(logger: Logger) {
+  return createMiddleware(async (context, next) => {
+    logger.debug({
       path: context.req.path,
       method: context.req.method,
       query: context.req.query,
@@ -90,7 +69,7 @@ export function debugLogger() {
 
     await next();
 
-    context.var.logger.debug({
+    logger.debug({
       status: context.res.status,
     }, 'Http Response');
   });
