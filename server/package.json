@@ -12,7 +12,7 @@
     "start": "ncc run src/server.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.738.0",
+    "@aws-sdk/client-lambda": "^3.744.0",
     "@aws-sdk/client-secrets-manager": "^3.744.0",
     "@hono/node-server": "^1.13.8",
     "@octokit/auth-app": "^7.1.4",
