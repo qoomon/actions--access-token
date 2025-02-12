@@ -216,12 +216,14 @@ export async function accessTokenManager(options: {
           // -- deny permissions
           if (requestedOwnerPermissions.denied.length > 0) {
             logger.info({owner: tokenRequest.owner, denied: requestedOwnerPermissions.denied},
-                'Owner access policy - permission(s) not granted');
+                'Owner access policy - owner permission(s) not allowed');
             throw new GitHubAccessTokenError([{
               owner: tokenRequest.owner,
               issues: requestedOwnerPermissions.denied.map(({scope, permission}) => ({
                 scope, permission,
-                message: NOT_AUTHORIZED_MESSAGE,
+                message: callerIdentity.repository_owner === tokenRequest.owner ?
+                        'Not allowed by owner access policy' :
+                        NOT_AUTHORIZED_MESSAGE,
               })),
             }], effectiveCallerIdentitySubjects);
           }
@@ -265,7 +267,7 @@ export async function accessTokenManager(options: {
               // -- deny permissions
               if (requestedRepositoryPermissions.denied.length > 0) {
                 logger.info({owner: tokenRequest.owner, denied: requestedRepositoryPermissions.denied},
-                    'Owner access policy - repository permission(s) allowed');
+                    'Owner access policy - repository permission(s) not allowed');
                 throw new GitHubAccessTokenError([{
                   owner: tokenRequest.owner,
                   issues: requestedRepositoryPermissions.denied.map(({scope, permission}) => ({
