@@ -39,6 +39,15 @@ export function deleteAsyncLoggerBindings(id: string) {
   store.bindings = buildBindings(store.bindingsSources);
 }
 
+export function withAsyncLoggerBindings<T>(bindings: Bindings, fn: () => T): T {
+  const asyncLoggerBindingsId = setAsyncLoggerBindings(bindings);
+  try {
+    return fn();
+  } finally {
+    deleteAsyncLoggerBindings(asyncLoggerBindingsId);
+  }
+}
+
 function buildBindings(bindingsSources: Map<string, Bindings>){
   return [...bindingsSources.values()]
     .reduce((acc, val) => ({ ...acc, ...val }),{});

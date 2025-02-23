@@ -21,16 +21,10 @@ import {
   parseRepository,
   verifyRepositoryPermissions,
 } from './common/github-utils.js';
-import {
-  debugLogger,
-  errorHandler,
-  notFoundHandler,
-  parseJsonBody,
-  tokenAuthenticator,
-} from './common/hono-utils.js';
+import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, tokenAuthenticator,} from './common/hono-utils.js';
 import {Status} from './common/http-utils.js';
 import {accessTokenManager, GitHubAccessTokenError} from './access-token-manager.js';
-import {logger, setAsyncLoggerBindings, deleteAsyncLoggerBindings} from './logger.js';
+import {logger, withAsyncLoggerBindings} from './logger.js';
 import {config} from './config.js';
 
 // --- Initialization ------------------------------------------------------------------------------------------------
@@ -46,13 +40,8 @@ export function appInit(prepare?: (app: Hono<{
     prepare(app);
   }
   app.use(requestId({headerName: process.env.REQUEST_ID_HEADER ?? 'X-Request-Id'}));
-  app.use(async (context, next) => {
-    const asyncLoggerBindingsId = setAsyncLoggerBindings({
-      requestId: context.var.requestId,
-    });
-    await next();
-    deleteAsyncLoggerBindings(asyncLoggerBindingsId);
-  });
+  app.use((context, next) =>
+      withAsyncLoggerBindings({requestId: context.var.requestId}, next));
   app.use(debugLogger(logger));
   app.onError(errorHandler(logger));
   app.notFound(notFoundHandler());
