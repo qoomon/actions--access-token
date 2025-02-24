@@ -107,10 +107,7 @@ export function tokenAuthenticator<T extends object>(
   const verifier = createVerifier(options);
 
   return createMiddleware<{ Variables: { token: T } }>(async (context, next) => {
-    // In addition to Authorization header, the X-Authorization header can be used for situations,
-    // where the Authorization header cannot be used
-    // (e.g., when using an AWS IAM authorizer (SignatureV4) in front of this endpoint)
-    const authorizationHeaderValue = context.req.header()['x-authorization'] || context.req.header().authorization;
+    const authorizationHeaderValue = context.req.header().authorization;
     if (!authorizationHeaderValue) {
       throw new HTTPException(Status.UNAUTHORIZED, {
         message: 'Missing authorization header',

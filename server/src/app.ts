@@ -39,7 +39,7 @@ export function appInit(prepare?: (app: Hono<{
   if (prepare) {
     prepare(app);
   }
-  app.use(requestId({headerName: process.env.REQUEST_ID_HEADER ?? 'X-Request-Id'}));
+  app.use(requestId({headerName: process.env.REQUEST_ID_HEADER}));
   app.use((context, next) =>
       withAsyncLoggerBindings({requestId: context.var.requestId}, next));
   app.use(debugLogger(logger));
@@ -49,16 +49,13 @@ export function appInit(prepare?: (app: Hono<{
   app.use(bodyLimit({maxSize: 100 * 1024})); // 100kb
   app.use(prettyJSON());
 
-  const githubOidcAuthenticator = tokenAuthenticator<GitHubActionsJwtPayload>({
-    allowedIss: 'https://token.actions.githubusercontent.com',
-    allowedAud: config.githubActionsTokenVerifier.allowedAud,
-    allowedSub: config.githubActionsTokenVerifier.allowedSub,
-    key: buildJwksKeyFetcher({providerDiscovery: true}),
-  });
-
   // --- handle access token request -----------------------------------------------------------------------------------
   app.post('/access_tokens',
-      githubOidcAuthenticator,
+      tokenAuthenticator<GitHubActionsJwtPayload>({
+        allowedIss: 'https://token.actions.githubusercontent.com',
+        allowedAud: config.githubActionsTokenVerifier.allowedAud,
+        allowedSub: config.githubActionsTokenVerifier.allowedSub,
+      }),
       async (context) => {
         const callerIdentity = context.var.token;
         logger.info({
