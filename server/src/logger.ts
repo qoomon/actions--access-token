@@ -39,13 +39,9 @@ export function deleteAsyncLoggerBindings(id: string) {
   store.bindings = buildBindings(store.bindingsSources);
 }
 
-export function withAsyncLoggerBindings<T>(bindings: Bindings, fn: () => T): T {
+export async function withAsyncLoggerBindings<T>(bindings: Bindings, fn: () => Promise<T>): Promise<T> {
   const asyncLoggerBindingsId = setAsyncLoggerBindings(bindings);
-  try {
-    return fn();
-  } finally {
-    deleteAsyncLoggerBindings(asyncLoggerBindingsId);
-  }
+  return await fn().finally(() => deleteAsyncLoggerBindings(asyncLoggerBindingsId));
 }
 
 function buildBindings(bindingsSources: Map<string, Bindings>){
