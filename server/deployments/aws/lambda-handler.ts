@@ -1,4 +1,4 @@
-import {handle, LambdaContext, LambdaEvent} from 'hono/aws-lambda';
+import {handle, LambdaContext} from 'hono/aws-lambda';
 import process from 'process';
 import {GetFunctionUrlConfigCommand, LambdaClient} from '@aws-sdk/client-lambda';
 import {GetSecretValueCommand, SecretsManager} from '@aws-sdk/client-secrets-manager';

@@ -1,5 +1,5 @@
 import {Hono} from 'hono';
-import {requestId, RequestIdVariables} from 'hono/request-id'
+import {requestId} from 'hono/request-id'
 import {prettyJSON} from 'hono/pretty-json';
 import {HTTPException} from 'hono/http-exception';
 import {bodyLimit} from 'hono/body-limit';
@@ -7,7 +7,6 @@ import {sha256} from 'hono/utils/crypto';
 import {z} from 'zod';
 import process from 'process';
 import {hasEntries, toBase64} from './common/common-utils.js';
-import {buildJwksKeyFetcher} from './common/jwt-utils.js';
 import {
   buildWorkflowRunUrl,
   GitHubActionsJwtPayload,
@@ -30,18 +29,18 @@ import {config} from './config.js';
 // --- Initialization ------------------------------------------------------------------------------------------------
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
 
-export function appInit(prepare?: (app: Hono<{
-  Variables: RequestIdVariables
-}>) => void) {
-  const app = new Hono<{
-    Variables: RequestIdVariables
-  }>();
-  if (prepare) {
-    prepare(app);
-  }
-  app.use(requestId({headerName: process.env.REQUEST_ID_HEADER}));
-  app.use((context, next) =>
-      withAsyncLoggerBindings({requestId: context.var.requestId}, next));
+export function appInit(prepare?: (app: Hono) => void) {
+  const app = new Hono();
+  prepare?.(app);
+
+  app.use(requestId({
+    headerName: process.env.REQUEST_ID_HEADER ?? 'X-Request-Id',
+    limitLength: 255,
+    generator: () => crypto.randomUUID(),
+  }));
+  app.use((context, next) =>  withAsyncLoggerBindings({
+    requestId: context.var.requestId ?? 'unknown',
+  }, next));
   app.use(debugLogger(logger));
   app.onError(errorHandler(logger));
   app.notFound(notFoundHandler());

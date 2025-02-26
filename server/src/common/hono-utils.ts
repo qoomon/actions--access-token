@@ -9,7 +9,6 @@ import {formatZodIssue, JsonTransformer} from './zod-utils.js';
 import {Status, StatusPhrases} from './http-utils.js';
 import {buildJwksKeyFetcher} from './jwt-utils.js';
 import {indent} from './common-utils.js';
-import {RequestIdVariables} from 'hono/request-id';
 
 /**
  * Creates a NotFoundHandler that responses with JSON
@@ -29,9 +28,7 @@ export function notFoundHandler(): NotFoundHandler {
  * Creates an ErrorHandler that response with JSON
  * @return ErrorHandler
  */
-export function errorHandler<ENV extends {
-  Variables: RequestIdVariables
-}>(logger: Logger): ErrorHandler<ENV> {
+export function errorHandler(logger: Logger): ErrorHandler {
   return (err, context) => {
     const requestId = context.var.requestId;
 

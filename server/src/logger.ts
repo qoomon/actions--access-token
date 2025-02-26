@@ -34,7 +34,7 @@ export function setAsyncLoggerBindings(bindings : Bindings) {
 
 export function deleteAsyncLoggerBindings(id: string) {
   const store = asyncBindings.getStore();
-  if (!store || !store.bindingsSources.has(id)) throw new Error("Unkown async logger bindings id");
+  if (!store || !store.bindingsSources.has(id)) throw new Error("Unknown async logger bindings id");
   store.bindingsSources.delete(id);
   store.bindings = buildBindings(store.bindingsSources);
 }
