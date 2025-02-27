@@ -23,7 +23,7 @@ import {
 import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, tokenAuthenticator,} from './common/hono-utils.js';
 import {Status} from './common/http-utils.js';
 import {accessTokenManager, GitHubAccessTokenError} from './access-token-manager.js';
-import {logger, withAsyncLoggerBindings} from './logger.js';
+import {logger} from './logger.js';
 import {config} from './config.js';
 
 // --- Initialization ------------------------------------------------------------------------------------------------
@@ -38,8 +38,8 @@ export function appInit(prepare?: (app: Hono) => void) {
     limitLength: 255,
     generator: () => crypto.randomUUID(),
   }));
-  app.use((context, next) =>  withAsyncLoggerBindings({
-    requestId: context.var.requestId ?? 'unknown',
+  app.use((context, next) => logger.withAsyncBindings({
+    requestId: context.var.requestId,
   }, next));
   app.use(debugLogger(logger));
   app.onError(errorHandler(logger));
