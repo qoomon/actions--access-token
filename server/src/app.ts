@@ -93,7 +93,7 @@ export function appInit(prepare?: (app: Hono) => void) {
         };
 
         // BE AWARE: do not log the access token
-        logger.info({accessToken: {...tokenResponseBody, token: undefined}}, 'Access Token');
+        logger.info({accessToken: {...tokenResponseBody, token: undefined}}, 'Access Token Response');
 
         return context.json(tokenResponseBody);
       },
