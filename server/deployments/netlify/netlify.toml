@@ -1,5 +1,5 @@
 [build]
-  command = "npm ci"
+  command = "npm ci && touch .netlify"
 [build.environment]
   NODE_VERSION = "20"
 
