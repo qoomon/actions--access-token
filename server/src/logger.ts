@@ -17,7 +17,7 @@ const _logger = pino({
   formatters: {
     level: (label) => ({level: label.toUpperCase()}),
   },
-  mixin: () => asyncBindings.getStore()?.bindings ?? {},
+  mixin: () => ({...asyncBindings.getStore()?.bindings}),
   hooks: {
     logMethod(inputArgs, method) {
       if (typeof inputArgs[0] === 'object' && typeof inputArgs[1] === 'string') {
@@ -57,7 +57,6 @@ function setAsyncBindings(bindings: Bindings) {
   store.bindings = buildBindings(store.bindingsSources);
 
   asyncBindings.enterWith(store);
-
   return bindingsId;
 }
 
@@ -70,7 +69,8 @@ function deleteAsyncBindings(id: string) {
 
 async function withAsyncBindings<T>(bindings: Bindings, fn: () => Promise<T>): Promise<T> {
   const asyncLoggerBindingsId = setAsyncBindings(bindings);
-  return fn().finally(() => deleteAsyncBindings(asyncLoggerBindingsId));
+  return fn()
+      .finally(() => deleteAsyncBindings(asyncLoggerBindingsId));
 }
 
 function buildBindings(bindingsSources: Map<string, Bindings>) {
