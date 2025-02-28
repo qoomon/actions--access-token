@@ -33,11 +33,7 @@ export function appInit(prepare?: (app: Hono) => void) {
   const app = new Hono();
   prepare?.(app);
 
-  app.use(requestId({
-    headerName: process.env.REQUEST_ID_HEADER ?? 'X-Request-Id',
-    limitLength: 255,
-    generator: () => crypto.randomUUID(),
-  }));
+  app.use(requestId({headerName: process.env.REQUEST_ID_HEADER}));
   app.use((context, next) => logger.withAsyncBindings({
     requestId: context.var.requestId,
   }, next));
@@ -58,24 +54,28 @@ export function appInit(prepare?: (app: Hono) => void) {
       async (context) => {
         const callerIdentity = context.var.token;
         logger.info({
-          callerIdentity: {
+          identity: {
             workflow_ref: callerIdentity.workflow_ref,
             job_workflow_ref: callerIdentity.job_workflow_ref,
             run_id: callerIdentity.run_id,
             attempts: callerIdentity.attempts,
           },
-          workflowRunUrl: buildWorkflowRunUrl(callerIdentity),
+          workflow_run_url: buildWorkflowRunUrl(callerIdentity),
         }, 'Caller Identity');
 
         const accessTokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
             .then((it) => normalizeAccessTokenRequestBody(it, callerIdentity));
-        logger.info({accessTokenRequest}, 'Access Token Request');
+        logger.info({
+          request: accessTokenRequest
+        }, 'Access Token Request');
 
         const githubActionsAccessToken = await GITHUB_ACTIONS_ACCESS_MANAGER
             .createAccessToken(callerIdentity, accessTokenRequest)
             .catch((error) => {
               if (error instanceof GitHubAccessTokenError) {
-                logger.info('Access Token - Denied');
+                logger.info({
+                  reason: error.message,
+                }, 'Access Token Denied');
                 throw new HTTPException(Status.FORBIDDEN, {message: error.message});
               }
               throw error;
@@ -93,7 +93,13 @@ export function appInit(prepare?: (app: Hono) => void) {
         };
 
         // BE AWARE: do not log the access token
-        logger.info({accessToken: {...tokenResponseBody, token: undefined}}, 'Access Token Response');
+        logger.info({
+          response: {
+            ...tokenResponseBody,
+            // retract token
+            token: undefined,
+          }
+        }, 'Access Token Response');
 
         return context.json(tokenResponseBody);
       },
