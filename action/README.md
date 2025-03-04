@@ -112,7 +112,7 @@ jobs:
 
 #### Clone an Internal or Private Repository
 <details><summary>Click me</summary>
- 
+
 ```yaml
 name: GitHub Actions Access Manager Example
 on:
