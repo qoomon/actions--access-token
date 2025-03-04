@@ -142,10 +142,10 @@ jobs:
           token: ${{ steps.access-token.outputs.token }}
 ```
 </details>
- 
+
 #### Trigger a Workflow
 <details><summary>Click me</summary>
-  
+
 ```yaml
 on:
 workflow_dispatch:
