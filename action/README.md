@@ -73,7 +73,7 @@ To grant owner specific or owner wide permission create a `OWNER/.github-access-
 
 #### Update Secrets
 <details><summary>Click me</summary>
-  
+
 ```yaml
 on:
   workflow_dispatch:
