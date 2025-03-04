@@ -201,9 +201,6 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 
 - extract policy and permission evaluation to separate lib file
 
-- review error messages and improve them
-    - add artificial subjects to error messages
-
 - ownerAccessPolicy
   - statements[].repositories
     - variable ${subject.repository} e.g. `repositories: [ "${subject.repo}" ]`
