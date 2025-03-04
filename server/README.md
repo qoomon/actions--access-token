@@ -186,6 +186,8 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 
 </details>
 
+---
+
 ## Development
 ### Start Server
   ```shell
