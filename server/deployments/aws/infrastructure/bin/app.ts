@@ -4,4 +4,4 @@ import {DeploymentStack} from '../lib/deployment-stack';
 
 const app = new cdk.App()
 const appStack = new AppStack(app, 'GitHubActionsAccessTokens')
-// new DeploymentStack(app, appStack.stackName + '-Deployment')
+new DeploymentStack(app, appStack.stackName + '-Deployment')
