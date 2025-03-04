@@ -51,22 +51,29 @@ Install [Access Tokens for GitHub Actions from **Marketplace**](https://github.c
 
 ### 2. Create and Configure Owner Policy
 
-Create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at the root directory of the repository based on [this policy template](/action/docs/access-token.owner-template.yaml)
+Create a `OWNER/.github-access-token` repository and create an [owner `access-token.yaml`](/action/docs/access-token.owner-template.yaml) policy file at the root directory of the repository.
 
-## Grant Repository Permissions
+## Grant Permissions to Workflow Run
+
+### Grant Repository Permissions
+
+To grant repository permission create an [repository `access-token.yaml`](/action/docs/access-token.repo-template.yaml) policy file within the `.github/` directory of the target repository.
 
 > [!IMPORTANT]
 > Ensure repository permissions have been granted (`allowed-repository-permissions`) within the owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
 
-To grant repository permission create an `access-token.yaml` file within the `.github/` directory of the target repository with [this template content](/action/docs/access-token.repo-template.yaml)
-
 > [!Note]
-> You can also grant permissions to all organization repositories within the owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
+> You can also grant repository permissions to all organization repositories within the owner access policy file see [Create and Configure Owner Policy](#2-create-and-configure-owner-policy)
 
+### Grant Owner Permissions
+
+To grant owner specific or owner wide permission create a `OWNER/.github-access-token` repository and create an `access-token.yaml` file at root of the repository with [this template content](/action/docs/access-token.owner-template.yaml)
 
 ## Example Use Cases
 
 #### Update Secrets
+<details><summary>Click me</summary>
+  
 ```yaml
 on:
   workflow_dispatch:
@@ -101,8 +108,11 @@ jobs:
     steps:
       - run: echo ${{ secrets.API_KEY }}
 ```
+</details>
 
 #### Clone an Internal or Private Repository
+<details><summary>Click me</summary>
+ 
 ```yaml
 name: GitHub Actions Access Manager Example
 on:
@@ -131,8 +141,11 @@ jobs:
           repository: [target repository]
           token: ${{ steps.access-token.outputs.token }}
 ```
-
+</details>
+ 
 #### Trigger a Workflow
+<details><summary>Click me</summary>
+  
 ```yaml
 on:
 workflow_dispatch:
@@ -162,7 +175,7 @@ build:
         GITHUB_TOKEN: ${{steps.access-token.outputs.token}}
     # ...
 ```
-
+</details>
 ---
 
 ## Development
