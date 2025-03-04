@@ -31,7 +31,7 @@ jobs:
         with:
           permissions: |
             secrets: write
-            
+
       - run: >-
           gh secret set RAINBOW_API_KEY
           --body "Unicorn-$(date +%s)"
