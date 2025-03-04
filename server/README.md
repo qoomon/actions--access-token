@@ -9,9 +9,9 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > Keep GitHub App credentials as secret as possible.
 
 1. **Create a GitHub App**
-   
+
 <details><summary>Click me</summary>
-  
+
 - Create a new GitHub App ([User Scope](https://github.com/settings/apps/new)
   or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps/new))
     - Fill out mandatory fields
@@ -34,9 +34,9 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > [!IMPORTANT]
 > Ensure that this repository is present before installing the GitHub App
 > Otherwise someone else could create this repo and effectively take over the owner access token policy configuration.
-    
+
 <details><summary>Click me</summary>
-  
+
 - Create a new private repository named `.github-access-token`
 - Ensure only owner admins have access to this repository
     - Create owner `access-token.yaml` file at root of the repository with [this template content](/actions/docs/access-token.owner-template.yaml)
@@ -56,12 +56,12 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 > - Hit `Add bypass`, select `Repository admin` and hit `Add selected`
 > - Set `Target repositories` to `All repositories`
 > - Enable `Restrict file paths`
->   - Click `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path` 
+>   - Click `Add file path`, set `File path` to `.github/access-token.yaml` and hit `Add file path`
 >     - Also add file path `.github/access-token.yml`
 > - Hit `Create` button
 
 <details><summary>Click me</summary>
-  
+
 - Go to GitHub Apps ([User Scope](https://github.com/settings/apps)
   or [Organizations Scope](https://github.com/organizations/YOUR_ORGANIZATION/settings/apps))
 - Hit `Edit` button of your access token app
@@ -194,7 +194,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
   GITHUB_APP_ID=[YOUR_GITHUB_APP_ID] \
   GITHUB_APP_PRIVATE_KEY=$(cat [YOUR_GITHUB_APP.pem]) \
   GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE=... \
-    npm start 
+    npm start
   ```
 
 ## TODOs
