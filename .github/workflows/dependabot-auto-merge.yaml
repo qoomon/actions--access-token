@@ -22,9 +22,7 @@ jobs:
         id: metadata
       
       # possible update-type values :version-update:semver-major, version-update:semver-minor, and version-update:semver-patch
-      - if: >-
-          steps.metadata.outputs.update-type == 'version-update:semver-minor' || 
-          steps.metadata.outputs.update-type == 'version-update:semver-patch'
+      - if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
         name: Auto-merge changes from Dependabot
         uses: actions/github-script@v7
         with:
@@ -34,7 +32,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: '@dependabot squash and merge',
-            })
+            });
         # run: |
         #   retry=3; delay=10; while ! (
         #     gh pr merge --auto --squash "$PR_URL"
