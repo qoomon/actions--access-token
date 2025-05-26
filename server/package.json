@@ -18,7 +18,7 @@
     "@octokit/auth-app": "^7.2.1",
     "@octokit/rest": "^21.1.1",
     "fast-jwt": "^6.0.1",
-    "get-jwks": "^11.0.0",
+    "get-jwks": "^11.0.1",
     "hono": "^4.7.10",
     "pino": "^9.7.0",
     "yaml": "^2.8.0",
