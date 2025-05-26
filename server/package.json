@@ -16,7 +16,7 @@
     "@aws-sdk/client-secrets-manager": "^3.812.0",
     "@hono/node-server": "^1.14.2",
     "@octokit/auth-app": "^7.2.1",
-    "@octokit/rest": "^21.1.1",
+    "@octokit/rest": "^22.0.0",
     "fast-jwt": "^6.0.1",
     "get-jwks": "^11.0.0",
     "hono": "^4.7.10",
