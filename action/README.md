@@ -177,6 +177,41 @@ build:
 ```
 </details>
 
+#### Pass configuration through action
+<details><summary>Click me</summary>
+
+In some cases, you want to be able to modify the URL or other parameters of the action. For instance, if you have a test server and a production server. For those purposes you can pass config in the action.
+
+```yaml
+on:
+workflow_dispatch:
+push:
+  branches:
+    - main
+
+permissions:
+id-token: write
+
+jobs:
+build:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: qoomon/actions--access-token@v3
+      id: access-token
+      with:
+        permissions: |
+          actions: write
+        config: |
+          api:
+          url: https://mycustomendpoint.com
+          auth: 
+            aws :
+              roleArn: arn:aws:iam::123456789012:role/github-actions-access-token-api-access
+              region: eu-central-1
+              service: lambda
+    # ...
+```
+</details>
 ---
 
 ## Development
