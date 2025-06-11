@@ -13,7 +13,7 @@ inputs:
       If you want to request owner wide permissions, you need to set the scope to 'owner'
   permissions:
     description: |
-      Permissions to request as YAML object string, e.g. 
+      Permissions to request as YAML object string, e.g.
       permissions: |
         secrets: write
     required: true
@@ -24,14 +24,17 @@ inputs:
       Defaults to OIDC token repository, only if inputs.owner is equal to OIDC token repository owner
   repositories:
     description: |
-      Target repositories as YAML array string, e.g. 
-      repositories: |  
+      Target repositories as YAML array string, e.g.
+      repositories: |
         - playground
         - shop
   owner:
     description: |
       Target owner e.g. octocat
       Defaults to OIDC token repository owner
+  config:
+    description: |
+      Configuration of the action : URL, roleArn, region and service
 
 outputs:
   token:
