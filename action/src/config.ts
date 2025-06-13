@@ -1,62 +1,62 @@
 import {getYamlInput} from './github-actions-utils.js';
 
-// Type definitions for the configuration
-type ConfigYaml = {
-  api?: {
-    url?: string;
-    auth?: {
-      aws?: {
-        roleArn: string;
-        region: string;
-        service: AllowedService;
-      }
-    }
-  }
+export const config : Config = {
+  appServer: {
+    url: new URL('https://github-actions-access-token.netlify.app'),
+  },
 };
 
 interface Config {
-  api: {
+  appServer: {
     url: URL
     auth?: {
-      aws?: {
-        roleArn: string
-        region: string
-        service: AllowedService
-      }
+      type: 'aws'
+      roleArn: string // e.g. 'arn:aws:iam::123456789012:role/github-actions-access-token-api-access'
+      region: string // e.g. 'eu-central-1'
+      service: 'lambda' | 'execute-api'
     }
   }
 }
 
-// Only allow 'lambda' or 'execute-api' as valid service values.
-const allowedServices = ['lambda', 'execute-api'] as const;
-type AllowedService = typeof allowedServices[number];
+const appServerInput = getYamlInput('app-sever') ;
+if(appServerInput) {
+  if(typeof appServerInput !== 'object') {
+    throw new Error('input app-server must be an object');
+  }
 
-export const defaultConfig : Config = {
-  api: {
-    url: new URL('https://github-actions-access-token.netlify.app'),
-    // auth: {
-    //   aws: {
-    //     roleArn: 'arn:aws:iam::123456789012:role/github-actions-access-token-api-access',
-    //     region: 'eu-central-1',
-    //     service: 'lambda',
-    //   },
-    // },
-  },
-};
+  if (!('url' in appServerInput)) {
+    throw new Error('input app-server.url is required');
+  }
+  appServerInput.url = new URL(appServerInput.url as string);
 
-export const configYaml: ConfigYaml = getYamlInput('config') || {};
-export const url = new URL(configYaml.api?.url || defaultConfig.api.url.toString());
-export const auth = configYaml.api?.auth || defaultConfig.api.auth;
 
-// Validate service value if present
-const service = auth?.aws?.service;
-if (service && !allowedServices.includes(service)) {
-  throw new Error(`Invalid service: ${service}. Allowed values are: ${allowedServices.join(', ')}`);
+  if ('auth' in appServerInput && appServerInput.auth !== null) {
+    if (typeof appServerInput.auth !== 'object') {
+      throw new Error('input app-server.auth must be an object');
+    }
+    if (!('type' in appServerInput.auth)) {
+      throw new Error('input app-server.auth.type is required');
+    }
+    if(appServerInput.auth.type === 'aws') {
+      if (!('roleArn' in appServerInput.auth)) {
+        throw new Error('input app-server.auth.roleArn is required for auth type aws');
+      }
+
+      if (!('region' in appServerInput.auth)) {
+        throw new Error('input app-server.auth.region is required for auth type aws');
+      }
+
+      if (!('service' in appServerInput.auth)) {
+        throw new Error('input app-server.auth.service is required for auth type aws');
+      }
+      if (appServerInput.auth.service !== 'lambda' && appServerInput.auth.service !== 'execute-api') {
+        throw new Error(`input app-server.auth.service must be 'lambda' or 'execute-api',` +
+            ` got '${appServerInput.auth.service}'`);
+      }
+    } else {
+      throw new Error(`input app-server.auth.type must be 'aws', got '${appServerInput.auth.type}'`);
+    }
+  }
+
+  config.appServer =  appServerInput as Config['appServer'];
 }
-// final configuration object
-export const config: Config = {
-  api: {
-    url,
-    auth: auth,
-  },
-};

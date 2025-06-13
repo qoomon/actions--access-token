@@ -32,9 +32,9 @@ inputs:
     description: |
       Target owner e.g. octocat
       Defaults to OIDC token repository owner
-  config:
+  app-server:
     description: |
-      Configuration of the action : URL, roleArn, region and service
+      Configuration of the app server.
 
 outputs:
   token:
