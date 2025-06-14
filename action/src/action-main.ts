@@ -73,19 +73,21 @@ async function getAccessToken(tokenRequest: {
       });
 
   let requestSigner;
-  if (config.appServer.auth?.type === 'aws') {
-    requestSigner = new SignatureV4({
-      sha256: Sha256,
-      service: config.appServer.auth.service,
-      region: config.appServer.auth.region,
-      credentials: fromWebToken({
-        webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
-        roleArn: config.appServer.auth.roleArn,
-        durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
-      }),
-    });
-  } else {
-    throw new Error(`Unsupported app server auth type: ${config.appServer.auth?.type}`);
+  if (config.appServer.auth) {
+    if (config.appServer.auth.type === 'aws') {
+      requestSigner = new SignatureV4({
+        sha256: Sha256,
+        service: config.appServer.auth.service,
+        region: config.appServer.auth.region,
+        credentials: fromWebToken({
+          webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
+          roleArn: config.appServer.auth.roleArn,
+          durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
+        }),
+      });
+    } else {
+      throw new Error(`Unsupported app server auth type: ${config.appServer.auth?.type}`);
+    }
   }
 
   return await httpRequest({

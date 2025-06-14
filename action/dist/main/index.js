@@ -66263,20 +66263,22 @@ async function getAccessToken(tokenRequest) {
         throw error;
     });
     let requestSigner;
-    if (config.appServer.auth?.type === 'aws') {
-        requestSigner = new dist_cjs.SignatureV4({
-            sha256: main.Sha256,
-            service: config.appServer.auth.service,
-            region: config.appServer.auth.region,
-            credentials: (0,credential_providers_dist_cjs.fromWebToken)({
-                webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
-                roleArn: config.appServer.auth.roleArn,
-                durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
-            }),
-        });
-    }
-    else {
-        throw new Error(`Unsupported app server auth type: ${config.appServer.auth?.type}`);
+    if (config.appServer.auth) {
+        if (config.appServer.auth.type === 'aws') {
+            requestSigner = new dist_cjs.SignatureV4({
+                sha256: main.Sha256,
+                service: config.appServer.auth.service,
+                region: config.appServer.auth.region,
+                credentials: (0,credential_providers_dist_cjs.fromWebToken)({
+                    webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
+                    roleArn: config.appServer.auth.roleArn,
+                    durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
+                }),
+            });
+        }
+        else {
+            throw new Error(`Unsupported app server auth type: ${config.appServer.auth?.type}`);
+        }
     }
     return await httpRequest({
         method: 'POST', requestUrl: new URL('/access_tokens', config.appServer.url).href,
