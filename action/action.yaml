@@ -34,7 +34,7 @@ inputs:
       Defaults to OIDC token repository owner
   app-server:
     description: |
-      Configuration of the app server.
+      Configuration of the app server endpoint.
 
 outputs:
   token:
