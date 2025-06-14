@@ -91,7 +91,7 @@ jobs:
         id: access-token
         with:
           permissions: |
-              secrets: write
+            secrets: write
 
       - name: Update secret
         run: >-
@@ -181,18 +181,40 @@ build:
 <details><summary>Click me</summary>
 
 ```yaml
-- uses: qoomon/actions--access-token@v3
-  id: access-token
-  with:
-    permissions: |
-      actions: write
-    app-server: |
-      url: https://app-server.example.com
-      # auth:
-      #   type: aws
-      #   roleArn: arn:aws:iam::123456789012:role/# github-actions-access-token-api-access
-      #   region: eu-central-1
-      #   service: lambda
+on:
+workflow_dispatch:
+push:
+  branches:
+    - main
+
+permissions:
+id-token: write
+
+jobs:
+build:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: qoomon/actions--access-token@v3
+      id: access-token
+      with:
+        permissions: |
+          actions: write
+        app-server: |
+          url: https://app-server.example.com
+          # auth:
+          #   type: aws
+          #   roleArn: arn:aws:iam::123456789012:role/# github-actions-access-token-api-access
+          #   region: eu-central-1
+          #   service: lambda
+
+    - name: Trigger workflow
+      run: >-
+        gh workflow
+        run [target workflow].yml
+        --field logLevel=debug
+      env:
+        GITHUB_TOKEN: ${{steps.access-token.outputs.token}}
+    # ...
 ```
 </details>
 
