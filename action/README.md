@@ -177,6 +177,25 @@ build:
 ```
 </details>
 
+#### Configure Custom App Server Endpoint
+<details><summary>Click me</summary>
+
+```yaml
+- uses: qoomon/actions--access-token@v3
+  id: access-token
+  with:
+    permissions: |
+      actions: write
+    app-server: |
+      url: https://app-server.example.com
+      # auth:
+      #   type: aws
+      #   roleArn: arn:aws:iam::123456789012:role/# github-actions-access-token-api-access
+      #   region: eu-central-1
+      #   service: lambda
+```
+</details>
+
 ---
 
 ## Development

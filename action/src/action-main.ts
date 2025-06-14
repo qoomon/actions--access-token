@@ -64,7 +64,7 @@ async function getAccessToken(tokenRequest: {
   repositories: string[] | undefined
   owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
-  const idTokenForAccessManager = await core.getIDToken(config.api.url.hostname)
+  const idTokenForAccessManager = await core.getIDToken(config.appServer.url.hostname)
       .catch((error) => {
         if (error.message === 'Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable') {
           throw new Error(error.message + ' Probably job permission `id-token: write` is missing');
@@ -73,21 +73,23 @@ async function getAccessToken(tokenRequest: {
       });
 
   let requestSigner;
-  if (config.api.auth?.aws) {
+  if (config.appServer.auth?.type === 'aws') {
     requestSigner = new SignatureV4({
       sha256: Sha256,
-      service: config.api.auth.aws.service,
-      region: config.api.auth.aws.region,
+      service: config.appServer.auth.service,
+      region: config.appServer.auth.region,
       credentials: fromWebToken({
         webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
-        roleArn: config.api.auth.aws.roleArn,
+        roleArn: config.appServer.auth.roleArn,
         durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
       }),
     });
+  } else {
+    throw new Error(`Unsupported app server auth type: ${config.appServer.auth?.type}`);
   }
 
   return await httpRequest({
-    method: 'POST', requestUrl: new URL('/access_tokens', config.api.url).href,
+    method: 'POST', requestUrl: new URL('/access_tokens', config.appServer.url).href,
     data: JSON.stringify(tokenRequest),
     additionalHeaders: {
       'authorization': 'Bearer ' + idTokenForAccessManager,
