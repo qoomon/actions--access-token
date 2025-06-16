@@ -66167,7 +66167,7 @@ const config = {
         url: new URL('https://github-actions-access-token.netlify.app'),
     },
 };
-const appServerInput = getYamlInput('app-sever');
+const appServerInput = getYamlInput('app-server');
 if (appServerInput) {
     if (typeof appServerInput !== 'object') {
         throw new Error('input app-server must be an object');
