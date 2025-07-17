@@ -1,7 +1,6 @@
 import {components} from '@octokit/openapi-types';
 import {z} from 'zod';
 import {mapObjectEntries, tuplesOf} from './common-utils.js';
-import {zStringRegex} from './zod-utils.js';
 
 // --- Functions -------------------------------------------------------------------------------------------------------
 
@@ -150,16 +149,16 @@ export function buildWorkflowRunUrl(token: GitHubActionsJwtPayload) {
 // --- Schemas ---------------------------------------------------------------------------------------------------------
 
 const GitHubRepositoryOwnerRegex = /^[a-z\d](-?[a-z\d])+$/i;
-export const GitHubRepositoryOwnerSchema = zStringRegex(GitHubRepositoryOwnerRegex);
+export const GitHubRepositoryOwnerSchema = z.string().regex(GitHubRepositoryOwnerRegex);
 const GitHubRepositoryNameRegex = /^[a-z\d-._]+$/i;
-export const GitHubRepositoryNameSchema = zStringRegex(GitHubRepositoryNameRegex);
+export const GitHubRepositoryNameSchema = z.string().regex(GitHubRepositoryNameRegex);
 
-export const GitHubRepositorySchema = zStringRegex(
+export const GitHubRepositorySchema = z.string().regex(
     new RegExp(`^${GitHubRepositoryOwnerRegex.source.replace(/^\^|\$$/g, '')}` +
         `/${GitHubRepositoryNameRegex.source.replace(/^\^|\$$/g, '')}$`, 'i'),
 );
 
-export const GitHubAppPermissionsSchema = z.strictObject({
+export const GitHubAppRepositoryPermissionsSchema = z.strictObject({
   // ---- Repository Permissions ----
   'actions': z.enum(['read', 'write']),
   'actions-variables': z.enum(['read', 'write']),
@@ -193,6 +192,10 @@ export const GitHubAppPermissionsSchema = z.strictObject({
   'team-discussions': z.enum(['read', 'write']),
   'vulnerability-alerts': z.enum(['read', 'write']),
   'workflows': z.enum(['write']),
+}).partial();
+export type GitHubAppRepositoryPermissions = z.infer<typeof GitHubAppRepositoryPermissionsSchema>;
+
+export const GitHubAppOrganizationPermissionsSchema = z.strictObject({
   // ---- Organization Permissions ----
   'members': z.enum(['read', 'write']),
   'organization-actions-variables': z.enum(['read', 'write']),
@@ -216,49 +219,13 @@ export const GitHubAppPermissionsSchema = z.strictObject({
   'organization-self-hosted-runners': z.enum(['read', 'write']),
   'organization-user-blocking': z.enum(['read', 'write']),
 }).partial();
-export type GitHubAppPermissions = z.infer<typeof GitHubAppPermissionsSchema>;
+export type GitHubAppOrganizationPermissions = z.infer<typeof GitHubAppOrganizationPermissionsSchema>;
 
-/**
- * === BE AWARE ===
- * - 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
- * - repository scopes do not start with 'organization-'
- * - 'member' scope is an organization scope
- */
-export const GitHubAppRepositoryPermissionsSchema = GitHubAppPermissionsSchema.pick({
-  'actions': true,
-  'actions-variables': true,
-  'administration': true,
-  'checks': true,
-  'codespaces': true,
-  'codespaces-lifecycle-admin': true,
-  'codespaces-metadata': true,
-  'codespaces-secrets': true,
-  'contents': true,
-  'custom-properties': true,
-  'dependabot-secrets': true,
-  'deployments': true,
-  'discussions': true,
-  'environments': true,
-  'issues': true,
-  'merge-queues': true,
-  'metadata': true,
-  'packages': true,
-  'pages': true,
-  'projects': true,
-  'pull-requests': true,
-  'repository-advisories': true,
-  'repository-hooks': true,
-  'repository-projects': true,
-  'secret-scanning-alerts': true,
-  'secrets': true,
-  'security-events': true,
-  'single-file': true,
-  'statuses': true,
-  'team-discussions': true,
-  'vulnerability-alerts': true,
-  'workflows': true,
-});
-export type GitHubAppRepositoryPermissions = z.infer<typeof GitHubAppRepositoryPermissionsSchema>;
+export const GitHubAppPermissionsSchema = z.strictObject({
+  ...GitHubAppRepositoryPermissionsSchema.shape,
+  ...GitHubAppOrganizationPermissionsSchema.shape,
+}).partial();
+export type GitHubAppPermissions = z.infer<typeof GitHubAppPermissionsSchema>;
 
 // --- Types -----------------------------------------------------------------------------------------------------------
 

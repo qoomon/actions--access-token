@@ -116,11 +116,6 @@ export async function accessTokenManager(options: {
       }
     }
 
-    const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
-      // single_file to read access policy files
-      permissions: {single_file: 'read'},
-    });
-
     // === verify requested token permissions against app installation permissions =====================================
     {
       const requestedAppInstallationPermissions = verifyPermissions({
@@ -143,6 +138,11 @@ export async function accessTokenManager(options: {
         }], effectiveCallerIdentitySubjects);
       }
     }
+
+    const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
+      // single_file to read access policy files
+      permissions: {single_file: 'read'},
+    });
 
     // --- load owner access policy ----------------------------------------------------------------------------------
     const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
@@ -584,7 +584,7 @@ async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client
     const issues = policyParseResult.error.issues.map(formatZodIssue);
     throw new GithubAccessPolicyError(`Invalid access policy`, issues);
   }
-  const policy: GitHubAccessPolicy = policyParseResult.data;
+  const policy = policyParseResult.data;
 
   const expectedPolicyOrigin = `${owner}/${repo}`;
   if (policy.origin.toLowerCase() !== expectedPolicyOrigin.toLowerCase()) {
@@ -1035,14 +1035,16 @@ const GitHubBaseStatementSchema = z.strictObject({
   subjects: z.array(GitHubSubjectClaimSchema),
 });
 
-const GitHubAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
+const GitHubAccessStatementSchema = z.strictObject({
+  ...GitHubBaseStatementSchema.shape,
   permissions: GitHubAppPermissionsSchema,
-}));
+});
 type GitHubAccessStatement = z.infer<typeof GitHubAccessStatementSchema>;
 
-const GitHubRepositoryAccessStatementSchema = GitHubBaseStatementSchema.merge(z.strictObject({
+const GitHubRepositoryAccessStatementSchema = z.strictObject({
+  ...GitHubBaseStatementSchema.shape,
   permissions: GitHubAppRepositoryPermissionsSchema,
-}));
+});
 export type GitHubRepositoryAccessStatement = z.infer<typeof GitHubRepositoryAccessStatementSchema>;
 
 const GitHubAccessPolicySchema = z.strictObject({
@@ -1050,16 +1052,18 @@ const GitHubAccessPolicySchema = z.strictObject({
 });
 export type GitHubAccessPolicy = z.infer<typeof GitHubAccessPolicySchema>;
 
-const GitHubOwnerAccessPolicySchema = GitHubAccessPolicySchema.merge(z.strictObject({
+const GitHubOwnerAccessPolicySchema = z.strictObject({
+  ...GitHubAccessPolicySchema.shape,
   'allowed-subjects': z.array(GitHubSubjectClaimSchema).optional(),
   'statements': z.array(GitHubAccessStatementSchema).optional().default([]),
   'allowed-repository-permissions': GitHubAppRepositoryPermissionsSchema.optional().default({}),
-}));
+});
 export type GitHubOwnerAccessPolicy = z.infer<typeof GitHubOwnerAccessPolicySchema>;
 
-const GitHubRepositoryAccessPolicySchema = GitHubAccessPolicySchema.merge(z.strictObject({
+const GitHubRepositoryAccessPolicySchema = z.strictObject({
+  ...GitHubAccessPolicySchema.shape,
   statements: z.array(GitHubRepositoryAccessStatementSchema).optional().default([]),
-}));
+});
 export type GitHubRepositoryAccessPolicy = z.infer<typeof GitHubRepositoryAccessPolicySchema>;
 
 

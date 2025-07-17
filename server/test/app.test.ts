@@ -207,7 +207,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body.\n/,
-            /- scope: Invalid enum value\..*$/,
+            /- scope: Invalid option: expected one of .*$/,
           ])),
         });
       });
@@ -256,7 +256,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body:\n/,
-            /- permissions: Unrecognized key\(s\) in object: 'unexpected'$/,
+            /- permissions: Unrecognized key: "unexpected"$/,
           ])),
         });
       });
@@ -281,8 +281,8 @@ describe('App path /access_tokens', () => {
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
-            /^Invalid request body.\n/,
-            /- permissions.secrets: Invalid enum value\..*$/,
+            /^Invalid request body:\n/,
+            /- permissions.secrets: Invalid option: expected one of .*$/,
           ])),
         });
       });
@@ -308,8 +308,8 @@ describe('App path /access_tokens', () => {
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
-            /^Invalid request body.\n/,
-            /- repositories.0: String must match regex pattern.*$/,
+            /^Invalid request body:\n/,
+            /- repositories.0: Invalid repository$/,
           ])),
         });
       });
@@ -336,7 +336,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body.\n/,
-            /- owner: String must match regex pattern.*$/,
+            /- owner: Invalid string: must match pattern .*$/,
           ])),
         });
       });

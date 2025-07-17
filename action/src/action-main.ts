@@ -16,7 +16,7 @@ runAction(async () => {
   const input = {
     scope: z.enum(['repos', 'owner'])
         .parse(getInput('scope')),
-    permissions: z.record(z.string())
+    permissions: z.record(z.string(), z.string())
         .parse(getYamlInput('permissions', {required: true})),
     repository: getInput('repository'),
     repositories: z.array(z.string()).default([])

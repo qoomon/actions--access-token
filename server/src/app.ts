@@ -188,6 +188,10 @@ const AccessTokenRequestBodySchema = z.strictObject({
   owner: GitHubRepositoryOwnerSchema.optional(),
   scope: z.enum(['repos', 'owner']).default('repos'),
   permissions: GitHubAppPermissionsSchema,
-  repositories: z.array(z.union([GitHubRepositoryNameSchema, GitHubRepositorySchema])).default([]),
+  repositories: z.array(z.union([
+        GitHubRepositoryNameSchema,
+        GitHubRepositorySchema,
+      ], {error: `Invalid repository`}),
+  ).default([]),
 });
 type AccessTokenRequestBody = z.infer<typeof AccessTokenRequestBodySchema>;
