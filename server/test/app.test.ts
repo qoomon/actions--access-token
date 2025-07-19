@@ -185,33 +185,6 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if token request scope is invalid', async () => {
-        // --- Given ---
-
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
-          body: JSON.stringify({
-            scope: 'invalid',
-            permissions: {secrets: 'write'},
-          }),
-        });
-
-        // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body.\n/,
-            /- scope: Invalid option: expected one of .*$/,
-          ])),
-        });
-      });
-
       it('if token request does not contain any permission', async () => {
         // --- Given ---
 
@@ -309,7 +282,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body:\n/,
-            /- repositories.0: Invalid repository$/,
+            /- repositories: Invalid repository: /,
           ])),
         });
       });
@@ -575,7 +548,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      describe('repos scope', () => {
+      describe('selected repositories', () => {
         beforeEach(() => {
           githubMockEnvironment.addAppInstallation({
             permissions: {single_file: 'read', contents: 'write'},
@@ -585,33 +558,6 @@ describe('App path /access_tokens', () => {
             ownerAccessPolicy: {
               'allowed-repository-permissions': {contents: 'write'},
             },
-          });
-        });
-
-        it('if requested permission is an owner permission', async () => {
-          // --- Given ---
-          const githubToken = Fixtures.createGitHubActionsToken({});
-
-          // --- When ---
-          const response = await app.request(path, {
-            method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
-            body: JSON.stringify({
-              permissions: {'organization-secrets': 'read'},
-            }),
-          });
-
-          // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.BAD_REQUEST);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid permissions scopes for token scope 'repos'\.\n/,
-              /- organization-secrets/,
-            ])),
           });
         });
 
@@ -663,7 +609,6 @@ describe('App path /access_tokens', () => {
             method: 'POST',
             headers: {Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
-              scope: 'repos',
               permissions: {contents: 'read'},
             }),
           });
@@ -871,7 +816,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      describe('owner scope', () => {
+      describe('ALL repositories', () => {
         beforeEach(() => {
           githubMockEnvironment.addAppInstallation({
             permissions: {'single_file': 'read', 'contents': 'write', 'organization-secrets': 'write'},
@@ -896,8 +841,8 @@ describe('App path /access_tokens', () => {
             method: 'POST',
             headers: {Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
-              scope: 'owner',
               permissions: {contents: 'write'},
+              repositories: 'ALL',
             }),
           });
 
@@ -910,7 +855,7 @@ describe('App path /access_tokens', () => {
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
               `- ${actionRepo.owner}:\n`,
-              / {2}- Not authorized\n/,
+              / {2}- contents: write - Not allowed by owner access policy\n/,
             ])),
           });
         });
@@ -931,7 +876,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      describe('repository scope', () => {
+      describe('selected repositories', () => {
         beforeEach(() => {
           githubMockEnvironment.addOwnerRepository({
             ownerAccessPolicy: {
@@ -1246,7 +1191,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      describe('owner scope', () => {
+      describe('ALL repositories', () => {
 
         it('if requested org permissions are granted', async () => {
           // --- Given ---
@@ -1269,8 +1214,8 @@ describe('App path /access_tokens', () => {
             method: 'POST',
             headers: {Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
-              scope: 'owner',
               permissions: {'organization-secrets': 'write'},
+              repositories: 'ALL',
             }),
           });
 
@@ -1307,8 +1252,8 @@ describe('App path /access_tokens', () => {
             method: 'POST',
             headers: {Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
-              scope: 'owner',
               permissions: {'pull-requests': 'write'},
+              repositories: 'ALL',
             }),
           });
 
@@ -1518,7 +1463,7 @@ function mockGithub() {
       accessPolicy?: Optional<GitHubRepositoryAccessPolicy,
           'origin' | 'statements'> | null,
     }): Repository {
-      name = name || `${DEFAULT_OWNER}/${DEFAULT_REPO}-${Object.keys(mock.appInstallations).length}`;
+      name = name || `${DEFAULT_OWNER}/${DEFAULT_REPO}-${Object.keys(mock.repositories).length}`;
 
       const repository: Repository = {
         name,

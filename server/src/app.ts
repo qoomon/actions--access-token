@@ -6,19 +6,16 @@ import {bodyLimit} from 'hono/body-limit';
 import {sha256} from 'hono/utils/crypto';
 import {z} from 'zod';
 import process from 'process';
-import {hasEntries, toBase64} from './common/common-utils.js';
+import {toBase64} from './common/common-utils.js';
 import {
   buildWorkflowRunUrl,
   GitHubActionsJwtPayload,
-  GitHubAppPermissions,
   GitHubAppPermissionsSchema,
-  GitHubAppRepositoryPermissions,
   GitHubRepositoryNameSchema,
   GitHubRepositoryOwnerSchema,
   GitHubRepositorySchema,
   normalizePermissionScopes,
   parseRepository,
-  verifyRepositoryPermissions,
 } from './common/github-utils.js';
 import {debugLogger, errorHandler, notFoundHandler, parseJsonBody, tokenAuthenticator,} from './common/hono-utils.js';
 import {Status} from './common/http-utils.js';
@@ -63,8 +60,10 @@ export function appInit(prepare?: (app: Hono) => void) {
           workflow_run_url: buildWorkflowRunUrl(callerIdentity),
         }, 'Caller Identity');
 
+        // console.log("###### X ", JSON.stringify(AccessTokenRequestBodySchema));
         const accessTokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
-            .then((it) => normalizeAccessTokenRequestBody(it, callerIdentity));
+            .then(async (it) => normalizeAccessTokenRequestBody(it, callerIdentity));
+        console.log(`###### B ${context.get('requestId')}`, accessTokenRequest)
         logger.info({
           request: accessTokenRequest
         }, 'Access Token Request');
@@ -114,6 +113,7 @@ export function appInit(prepare?: (app: Hono) => void) {
  * @param callerIdentity - caller identity
  * @return normalized access token request body
  */
+// TODO move to access token manager
 function normalizeAccessTokenRequestBody(
     tokenRequest: AccessTokenRequestBody,
     callerIdentity: GitHubActionsJwtPayload,
@@ -128,70 +128,60 @@ function normalizeAccessTokenRequestBody(
       // use the repository owner as the default target owner
       tokenRequest.owner = parseRepository(tokenRequest.repositories[0]).owner;
     } else {
-      // use the caller repository owner as the default target owner
-      tokenRequest.owner = callerIdentity.repository_owner;
+      tokenRequest.owner = callerIdentity.repository_owner
     }
   }
 
-  // remove owner prefixes and ensure all token repositories belong to the same owner
-  tokenRequest.repositories = tokenRequest.repositories.map((repository) => {
-    if (repository.includes('/')) {
-      const {owner, repo} = parseRepository(repository);
-      if (owner !== tokenRequest.owner) {
-        throw new HTTPException(Status.BAD_REQUEST, {
-          message: `All target repositories must belong to same owner.`,
-        });
-      }
-      return repo;
+  if (Array.isArray(tokenRequest.repositories)) {
+    if (tokenRequest.repositories.length === 0) {
+      tokenRequest.repositories.push(callerIdentity.repository);
     }
-
-    return repository;
-  });
-
-  switch (tokenRequest.scope) {
-    case 'owner': {
-      return tokenRequest as typeof tokenRequest & { scope: 'owner', owner: string, permissions: GitHubAppPermissions };
-    }
-    case 'repos': {
-      if (!hasEntries(tokenRequest.repositories)) {
-        if (tokenRequest.owner !== callerIdentity.repository_owner) {
-          throw new HTTPException(Status.BAD_REQUEST, {message: 'Token repositories must not be empty.'});
+    // remove owner prefixes and ensure all token repositories belong to the same owner
+    tokenRequest.repositories = tokenRequest.repositories.map((repository) => {
+      if (repository.includes('/')) {
+        const {owner, repo} = parseRepository(repository);
+        if (owner !== tokenRequest.owner) {
+          throw new HTTPException(Status.BAD_REQUEST, {
+            message: `All target repositories must belong to same owner.`,
+          });
         }
-
-        // use caller repository as default repository
-        tokenRequest.repositories = [parseRepository(callerIdentity.repository).repo];
+        return repo;
       }
 
-      // ensure only repository permissions are requested
-      const invalidRepositoryPermissionScopes = verifyRepositoryPermissions(tokenRequest.permissions).invalid;
-      if (hasEntries(invalidRepositoryPermissionScopes)) {
-        throw new HTTPException(Status.BAD_REQUEST, {
-          message: `Invalid permissions scopes for token scope 'repos'.\n` +
-              Object.keys(invalidRepositoryPermissionScopes).map((scope) => `- ${scope}`).join('\n'),
-        });
-      }
-
-      return tokenRequest as typeof tokenRequest & {
-        scope: 'repos',
-        owner: string,
-        permissions: GitHubAppRepositoryPermissions
-      };
-    }
-    default:
-      throw new HTTPException(Status.BAD_REQUEST, {message: `Invalid token scope '${tokenRequest.scope}'.`});
+      return repository;
+    });
   }
+
+  return {
+    ...tokenRequest,
+    owner: tokenRequest.owner as string,
+  };
 }
 
 // --- Schemas & Types -----------------------------------------------------------------------------------------------------------
 
-const AccessTokenRequestBodySchema = z.strictObject({
-  owner: GitHubRepositoryOwnerSchema.optional(),
-  scope: z.enum(['repos', 'owner']).default('repos'),
-  permissions: GitHubAppPermissionsSchema,
-  repositories: z.array(z.union([
-        GitHubRepositoryNameSchema,
-        GitHubRepositorySchema,
-      ], {error: `Invalid repository`}),
-  ).default([]),
-});
+const AccessTokenRequestBodySchema = z.any().transform(val => {
+  // legacy support for owner input
+  if(val !== null && typeof val === 'object') {
+    if(val.scope === 'owner') {
+      delete val.scope;
+      if(val.repositories?.length === 0) {
+        val.repositories = 'ALL';
+      }
+    }
+  }
+  return val;
+}).pipe(
+    z.strictObject({
+      owner: GitHubRepositoryOwnerSchema.optional(),
+      permissions: GitHubAppPermissionsSchema,
+      repositories: z.union([
+            z.array(z.union([GitHubRepositoryNameSchema, GitHubRepositorySchema])),
+            z.literal('ALL'),
+          ], {
+            error: `Invalid repository: Must be a valid repository name, match <owner>/<repository> or 'ALL'`
+          },
+      ).default(() => []),
+    })
+);
 type AccessTokenRequestBody = z.infer<typeof AccessTokenRequestBodySchema>;

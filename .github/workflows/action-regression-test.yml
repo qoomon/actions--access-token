@@ -19,14 +19,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  build:
+  main:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./
+      - uses: qoomon/actions--access-token@main
         id: access-token
         with:
           permissions: |

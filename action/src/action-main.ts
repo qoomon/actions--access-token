@@ -14,27 +14,40 @@ import {OutgoingHttpHeaders} from 'http';
 
 runAction(async () => {
   const input = {
-    scope: z.enum(['repos', 'owner'])
-        .parse(getInput('scope')),
     permissions: z.record(z.string(), z.string())
         .parse(getYamlInput('permissions', {required: true})),
     repository: getInput('repository'),
-    repositories: z.array(z.string()).default([])
+    repositories: z.union([
+      z.array(z.string()),
+      z.literal('ALL'),
+    ])
+        .default(() => [])
         .parse(getYamlInput('repositories')),
     owner: getInput('owner'),
+    // --- legacy support
+    scope: getInput('scope'),
   };
 
-  // Legacy support for snake_case permissions
-  input.permissions = mapObjectEntries(input.permissions,
-      ([key, value]) => [key.replace('_', '-'), value]);
+  // --- legacy support
+  {
+    // legacy support for owner input
+    if (input.scope === 'owner') {
+      if (Array.isArray(input.repositories) && input.repositories.length === 0) {
+        input.repositories = 'ALL';
+      }
+    }
 
-  if (input.repository) {
+    // Legacy support for snake_case permissions
+    input.permissions = mapObjectEntries(input.permissions,
+        ([key, value]) => [key.replace('_', '-'), value]);
+  }
+
+  if (Array.isArray(input.repositories) && input.repository) {
     input.repositories.unshift(input.repository);
   }
 
   core.info('Get access token...');
   const accessToken = await getAccessToken({
-    scope: input.scope,
     permissions: input.permissions,
     repositories: input.repositories,
     owner: input.owner,
@@ -59,9 +72,8 @@ runAction(async () => {
  * @return token
  */
 async function getAccessToken(tokenRequest: {
-  scope: 'repos' | 'owner' | undefined
   permissions: GitHubAppPermissions
-  repositories: string[] | undefined
+  repositories: string[] | 'ALL' | undefined
   owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
   const idTokenForAccessManager = await core.getIDToken(config.appServer.url.hostname)
