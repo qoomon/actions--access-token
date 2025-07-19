@@ -1,4 +1,4 @@
-name: Access Tokens for GitHub Actions
+name: Ephemeral Access Tokens for GitHub Actions
 description: GitHub Action to request temporary access tokens
 author: qoomon
 branding:
