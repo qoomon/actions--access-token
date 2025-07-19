@@ -3,7 +3,7 @@ import {Logger} from 'pino';
 import {HTTPException} from 'hono/http-exception';
 import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status';
 import {createMiddleware} from 'hono/factory';
-import {ZodType} from 'zod';
+import {z, ZodType} from 'zod';
 import {createVerifier, KeyFetcher, TokenError, VerifierOptions,} from 'fast-jwt';
 import {formatZodIssue, JsonTransformer} from './zod-utils.js';
 import {Status, StatusPhrases} from './http-utils.js';
@@ -80,7 +80,9 @@ export function debugLogger(logger: Logger) {
  */
 export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema: T) {
   const body = await req.text();
-  const bodyParseResult = await JsonTransformer.pipe(schema).safeParseAsync(body);
+  console.log("###### body", body);
+  const bodyParseResult = JsonTransformer.pipe(schema).safeParse(body);
+  console.log("###### bodyParseResult", bodyParseResult);
 
   if (!bodyParseResult.success) {
     throw new HTTPException(Status.BAD_REQUEST, {

@@ -62782,13 +62782,13 @@ function handleSetResult(result, final) {
     }
     final.value.add(result.value);
 }
-const $ZodEnum = /*@__PURE__*/ $constructor("$ZodEnum", (inst, def) => {
+const $ZodEnum = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("$ZodEnum", (inst, def) => {
     $ZodType.init(inst, def);
-    const values = getEnumValues(def.entries);
+    const values = util.getEnumValues(def.entries);
     inst._zod.values = new Set(values);
     inst._zod.pattern = new RegExp(`^(${values
-        .filter((k) => propertyKeyTypes.has(typeof k))
-        .map((o) => (typeof o === "string" ? escapeRegex(o) : o.toString()))
+        .filter((k) => util.propertyKeyTypes.has(typeof k))
+        .map((o) => (typeof o === "string" ? util.escapeRegex(o) : o.toString()))
         .join("|")})$`);
     inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -62803,12 +62803,12 @@ const $ZodEnum = /*@__PURE__*/ $constructor("$ZodEnum", (inst, def) => {
         });
         return payload;
     };
-});
-const $ZodLiteral = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("$ZodLiteral", (inst, def) => {
+})));
+const $ZodLiteral = /*@__PURE__*/ $constructor("$ZodLiteral", (inst, def) => {
     $ZodType.init(inst, def);
     inst._zod.values = new Set(def.values);
     inst._zod.pattern = new RegExp(`^(${def.values
-        .map((o) => (typeof o === "string" ? util.escapeRegex(o) : o ? o.toString() : String(o)))
+        .map((o) => (typeof o === "string" ? escapeRegex(o) : o ? o.toString() : String(o)))
         .join("|")})$`);
     inst._zod.parse = (payload, _ctx) => {
         const input = payload.value;
@@ -62823,7 +62823,7 @@ const $ZodLiteral = /*@__PURE__*/ (/* unused pure expression or super */ null &&
         });
         return payload;
     };
-})));
+});
 const $ZodFile = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("$ZodFile", (inst, def) => {
     $ZodType.init(inst, def);
     inst._zod.parse = (payload, _ctx) => {
@@ -64847,8 +64847,8 @@ function set(valueType, params) {
         ...util.normalizeParams(params),
     });
 }
-const ZodEnum = /*@__PURE__*/ $constructor("ZodEnum", (inst, def) => {
-    $ZodEnum.init(inst, def);
+const ZodEnum = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("ZodEnum", (inst, def) => {
+    core.$ZodEnum.init(inst, def);
     ZodType.init(inst, def);
     inst.enum = def.entries;
     inst.options = Object.values(def.entries);
@@ -64865,7 +64865,7 @@ const ZodEnum = /*@__PURE__*/ $constructor("ZodEnum", (inst, def) => {
         return new ZodEnum({
             ...def,
             checks: [],
-            ...normalizeParams(params),
+            ...util.normalizeParams(params),
             entries: newEntries,
         });
     };
@@ -64881,17 +64881,17 @@ const ZodEnum = /*@__PURE__*/ $constructor("ZodEnum", (inst, def) => {
         return new ZodEnum({
             ...def,
             checks: [],
-            ...normalizeParams(params),
+            ...util.normalizeParams(params),
             entries: newEntries,
         });
     };
-});
+})));
 function schemas_enum(values, params) {
     const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
     return new ZodEnum({
         type: "enum",
         entries,
-        ...normalizeParams(params),
+        ...util.normalizeParams(params),
     });
 }
 
@@ -64909,8 +64909,8 @@ function nativeEnum(entries, params) {
         ...util.normalizeParams(params),
     });
 }
-const ZodLiteral = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("ZodLiteral", (inst, def) => {
-    core.$ZodLiteral.init(inst, def);
+const ZodLiteral = /*@__PURE__*/ $constructor("ZodLiteral", (inst, def) => {
+    $ZodLiteral.init(inst, def);
     ZodType.init(inst, def);
     inst.values = new Set(def.values);
     Object.defineProperty(inst, "value", {
@@ -64921,12 +64921,12 @@ const ZodLiteral = /*@__PURE__*/ (/* unused pure expression or super */ null && 
             return def.values[0];
         },
     });
-})));
+});
 function literal(value, params) {
     return new ZodLiteral({
         type: "literal",
         values: Array.isArray(value) ? value : [value],
-        ...util.normalizeParams(params),
+        ...normalizeParams(params),
     });
 }
 const ZodFile = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("ZodFile", (inst, def) => {
@@ -65318,23 +65318,35 @@ if (appServerInput) {
 // --- Main ------------------------------------------------------------------------------------------------------------
 runAction(async () => {
     const input = {
-        scope: schemas_enum(['repos', 'owner'])
-            .parse(getInput('scope')),
         permissions: record(schemas_string(), schemas_string())
             .parse(getYamlInput('permissions', { required: true })),
         repository: getInput('repository'),
-        repositories: array(schemas_string()).default([])
+        repositories: union([
+            array(schemas_string()),
+            literal('ALL'),
+        ])
+            .default(() => [])
             .parse(getYamlInput('repositories')),
         owner: getInput('owner'),
+        // --- legacy support
+        scope: getInput('scope'),
     };
-    // Legacy support for snake_case permissions
-    input.permissions = mapObjectEntries(input.permissions, ([key, value]) => [key.replace('_', '-'), value]);
-    if (input.repository) {
+    // --- legacy support
+    {
+        // legacy support for owner input
+        if (input.scope === 'owner') {
+            if (Array.isArray(input.repositories) && input.repositories.length === 0) {
+                input.repositories = 'ALL';
+            }
+        }
+        // Legacy support for snake_case permissions
+        input.permissions = mapObjectEntries(input.permissions, ([key, value]) => [key.replace('_', '-'), value]);
+    }
+    if (Array.isArray(input.repositories) && input.repository) {
         input.repositories.unshift(input.repository);
     }
     lib_core.info('Get access token...');
     const accessToken = await getAccessToken({
-        scope: input.scope,
         permissions: input.permissions,
         repositories: input.repositories,
         owner: input.owner,

@@ -2,6 +2,7 @@ import {components} from '@octokit/openapi-types';
 import {z} from 'zod';
 import {mapObjectEntries, tuplesOf} from './common-utils.js';
 
+
 // --- Functions -------------------------------------------------------------------------------------------------------
 
 /**
@@ -82,45 +83,54 @@ export function verifyPermissions({requested, granted}: {
   requested: GitHubAppPermissions,
   granted: GitHubAppPermissions,
 }): {
-  granted: { scope: string, permission: 'read' | 'write' | 'admin' }[],
-  denied: { scope: string, permission: 'read' | 'write' | 'admin' }[],
+  granted: GitHubAppPermissions,
+  pending: GitHubAppPermissions,
 } {
   const result = {
-    granted: [] as { scope: string, permission: 'read' | 'write' | 'admin' }[],
-    denied: [] as { scope: string, permission: 'read' | 'write' | 'admin' }[],
+    granted: {} as GitHubAppPermissions,
+    pending: {} as GitHubAppPermissions,
   };
-  Object.entries(requested).forEach(([scope, _requestedPermission]) => {
-    const requestedPermission = {scope, permission: _requestedPermission};
+  Object.entries(requested).forEach(([scope, requestedPermission]) => {
+
     if (verifyPermission({
       granted: granted[scope as keyof GitHubAppPermissions],
-      requested: requestedPermission.permission,
+      requested: requestedPermission,
     })) {
-      result.granted.push(requestedPermission);
+      (result.granted as Record<string, string>)[scope] = requestedPermission;
     } else {
-      result.denied.push(requestedPermission);
+      (result.pending as Record<string, string>)[scope] = requestedPermission;
     }
   });
 
   return result;
 }
 
+export function validatePermissions(permissions: Record<string, string>, scopeType: 'owner')
+    : { valid: GitHubAppPermissions, invalid: Record<string, string> }
+export function validatePermissions(permissions: Record<string, string>, scopeType: 'repo')
+    : { valid: GitHubAppRepositoryPermissions, invalid: Record<string, string> }
 /**
  * Verify repository permissions
  * @param permissions - permissions
+ * @param scopeType - scope type, either 'owner' or 'repo'
  * @return invalid repository permissions
  */
-export function verifyRepositoryPermissions(permissions: GitHubAppRepositoryPermissions) {
-  const valid: GitHubAppRepositoryPermissions = {};
-  const invalid: GitHubAppPermissions = {};
+export function validatePermissions(permissions: Record<string, string>, scopeType: 'owner' | 'repo') {
+  const valid: GitHubAppPermissions = {};
+  const invalid: Record<string, string> = {};
+
+  const permissionsSchema = scopeType === 'owner'
+      ? GitHubAppPermissionsSchema
+      : GitHubAppRepositoryPermissionsSchema;
 
   Object.entries(permissions).forEach(([scope, permission]) => {
-    if (GitHubAppRepositoryPermissionsSchema.keyof()
-        .safeParse(scope).success) {
+    if (permissionsSchema.keyof().safeParse(scope).success) {
       (valid as Record<string, string>)[scope] = permission;
     } else {
-      (invalid as Record<string, string>)[scope] = permission;
+      invalid[scope] = permission;
     }
   });
+
   return {valid, invalid};
 }
 

@@ -1,4 +1,4 @@
-name: Access Tokens for GitHub Actions
+name: Ephemeral Access Tokens for GitHub Actions
 description: GitHub Action to request temporary access tokens
 author: qoomon
 branding:
@@ -6,11 +6,6 @@ branding:
   color: blue
 
 inputs:
-  scope:
-    default: repos
-    description: |
-      Token scope either 'repos' or 'owner'
-      If you want to request owner wide permissions, you need to set the scope to 'owner'
   permissions:
     description: |
       Permissions to request as YAML object string, e.g.
@@ -24,7 +19,7 @@ inputs:
       Defaults to OIDC token repository, only if inputs.owner is equal to OIDC token repository owner
   repositories:
     description: |
-      Target repositories as YAML array string, e.g.
+      Target repositories as YAML array string or 'ALL', e.g.
       repositories: |
         - playground
         - shop
