@@ -65323,7 +65323,7 @@ runAction(async () => {
         repository: getInput('repository'),
         repositories: union([
             array(schemas_string()),
-            literal('ALL'),
+            schemas_string().toUpperCase().pipe(literal('ALL')),
         ])
             .default(() => [])
             .parse(getYamlInput('repositories')),

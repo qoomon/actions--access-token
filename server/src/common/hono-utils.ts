@@ -80,9 +80,7 @@ export function debugLogger(logger: Logger) {
  */
 export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema: T) {
   const body = await req.text();
-  console.log("###### body", body);
   const bodyParseResult = JsonTransformer.pipe(schema).safeParse(body);
-  console.log("###### bodyParseResult", bodyParseResult);
 
   if (!bodyParseResult.success) {
     throw new HTTPException(Status.BAD_REQUEST, {

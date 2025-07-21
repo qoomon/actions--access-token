@@ -19,7 +19,7 @@ runAction(async () => {
     repository: getInput('repository'),
     repositories: z.union([
       z.array(z.string()),
-      z.literal('ALL'),
+      z.string().toUpperCase().pipe(z.literal('ALL')),
     ])
         .default(() => [])
         .parse(getYamlInput('repositories')),

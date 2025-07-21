@@ -60,10 +60,8 @@ export function appInit(prepare?: (app: Hono) => void) {
           workflow_run_url: buildWorkflowRunUrl(callerIdentity),
         }, 'Caller Identity');
 
-        // console.log("###### X ", JSON.stringify(AccessTokenRequestBodySchema));
         const accessTokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema)
             .then(async (it) => normalizeAccessTokenRequestBody(it, callerIdentity));
-        console.log(`###### B ${context.get('requestId')}`, accessTokenRequest)
         logger.info({
           request: accessTokenRequest
         }, 'Access Token Request');
