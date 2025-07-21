@@ -14,7 +14,7 @@
     "@actions/github": "^6.0.1",
     "@actions/http-client": "^2.2.1",
     "@aws-crypto/sha256-js": "^5.2.0",
-    "@aws-sdk/credential-providers": "^3.844.0",
+    "@aws-sdk/credential-providers": "^3.848.0",
     "@smithy/signature-v4": "^5.1.1",
     "ts-node": "^10.9.2",
     "yaml": "^2.8.0",
