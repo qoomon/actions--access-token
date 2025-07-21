@@ -38,3 +38,48 @@ jobs:
           --repo $GITHUB_REPOSITORY
         env:
           GH_TOKEN: ${{ steps.access-token.outputs.token }}
+
+  main-all-repositories:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: qoomon/actions--access-token@main
+        id: access-token
+        with:
+          permissions: |
+            contents: read
+
+  v3:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: qoomon/actions--access-token@v3
+        id: access-token
+        with:
+          permissions: |
+            secrets: write
+
+      - run: >-
+          gh secret set RAINBOW_API_KEY
+          --body "Unicorn-$(date +%s)"
+          --app actions
+          --repo $GITHUB_REPOSITORY
+        env:
+          GH_TOKEN: ${{ steps.access-token.outputs.token }}
+
+  v3-scope-owner:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: qoomon/actions--access-token@main
+        id: access-token
+        with:
+          scope: owner
+          permissions: |
+            contents: read

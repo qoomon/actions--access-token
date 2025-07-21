@@ -13,7 +13,7 @@ origin: __CHANGE_ME_TO_GITHUB_REPO_OWNER__/.github-access-token # e.g. qoomon/.g
 allowed-repository-permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
   # === Repository permissions ===
   #
-  # actions: read # read or write
+  actions: read # read or write
   # actions-variables: read # read or write
   # administration: read # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
   # checks: read # read or write
@@ -21,7 +21,7 @@ allowed-repository-permissions: # https://docs.github.com/en/rest/authentication
   # codespaces-lifecycle-admin: read # read or write
   # codespaces-metadata: read # read or write
   # codespaces-secrets: read # write
-  # contents: read # read or write
+  contents: write # read or write
   # custom-properties: read # read or write
   # dependabot-secrets: read # read or write
   # deployments: read # read or write
@@ -48,31 +48,31 @@ allowed-repository-permissions: # https://docs.github.com/en/rest/authentication
 # NOTE: Every statement will always implicitly grant `metadata: read` permission.
 statements:
   - subjects:
-    # === Subject Pattern examples ===
-    #
-    # grant access to jobs running on the main branch
-    # - repo:${origin}:ref:refs/heads/main
-    # grant access jobs running on any tag starting with a v
-    # - repo:${origin}:ref:refs/tags/v*
-    # grant access to jobs using production environment
-    # - repo:${origin}:environment:production
-    # grant access to jobs of a specific workflow file
-    # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+      # === Subject Pattern examples ===
+      #
+      # grant access to jobs running on the main branch
+      # - repo:${origin}:ref:refs/heads/main
+      # grant access jobs running on any tag starting with a v
+      # - repo:${origin}:ref:refs/tags/v*
+      # grant access to jobs using production environment
+      # - repo:${origin}:environment:production
+      # grant access to jobs of a specific workflow file
+      # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
 
-    # === Subject Pattern Variables and Wildcards ===
-    #
-    # ${origin} - resolves to the origin repository name e.g. qoomon/sandbox
-    # '*' - match every character except ':'
-    # ':**' - match every following claim, can only be used at the end of a subject pattern
+      # === Subject Pattern Variables and Wildcards ===
+      #
+      # ${origin} - resolves to the origin repository name e.g. qoomon/sandbox
+      # '*' - match every character except ':'
+      # ':**' - match every following claim, can only be used at the end of a subject pattern
 
-    # === GitHub Actions OIDC Token Subjects ===
-    #
-    # A GitHub Actions job will always have the following subjects
-    # The original OIDC token 'sub' claim e.g. repo:${origin}:ref:refs/heads/main or repo:${origin}:environment:production
-    # repo:${origin}:ref:<ref> e.g. repo:${origin}:ref:refs/heads/main
-    # repo:${origin}:environment:<environment> e.g. repo:${origin}:environment:production
-    # repo:${origin}:workflow_ref:<workflow_ref> e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
-    # repo:${origin}:job_workflow_ref:<job_workflow_ref> e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+      # === GitHub Actions OIDC Token Subjects ===
+      #
+      # A GitHub Actions job will always have the following subjects
+      # The original OIDC token 'sub' claim e.g. repo:${origin}:ref:refs/heads/main or repo:${origin}:environment:production
+      # repo:${origin}:ref:<ref> e.g. repo:${origin}:ref:refs/heads/main
+      # repo:${origin}:environment:<environment> e.g. repo:${origin}:environment:production
+      # repo:${origin}:workflow_ref:<workflow_ref> e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
+      # repo:${origin}:job_workflow_ref:<job_workflow_ref> e.g. repo:${origin}:job_workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
 
     permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
       # === Organization permissions ===
