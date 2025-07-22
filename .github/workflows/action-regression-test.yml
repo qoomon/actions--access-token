@@ -25,7 +25,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: qoomon/actions--access-token@main
+      - uses: ${{github.repository}}@main
         id: access-token
         with:
           permissions: |
@@ -45,7 +45,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: qoomon/actions--access-token@main
+      - uses: ${{github.repository}}@main
         id: access-token
         with:
           permissions: |
@@ -57,7 +57,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: qoomon/actions--access-token@v3
+      - uses: ${{github.repository}}@v3
         id: access-token
         with:
           permissions: |
@@ -77,7 +77,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: qoomon/actions--access-token@main
+      - uses: ${{github.repository}}@main
         id: access-token
         with:
           scope: owner
