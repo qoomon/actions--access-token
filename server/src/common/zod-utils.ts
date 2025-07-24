@@ -1,15 +1,31 @@
 import {z} from 'zod';
 import YAML from 'yaml';
-import {$ZodIssue} from 'zod/v4/core';
 
 /**
  * This function will format a zod issue
  * @param issue - zod issue
  * @return formatted issue
  */
-export function formatZodIssue(issue: $ZodIssue): string {
-  if (issue.path.length === 0) return issue.message;
-  return `${issue.path.join('.')}: ${issue.message}`;
+export function formatZodIssue(issue: z.core.$ZodIssue): string {
+  let result = '- ';
+  if (issue.path.length > 0) {
+    result += `${issue.path.join('.')}: `;
+  }
+
+  if (issue.code === 'invalid_union') {
+    result += `Union errors:\n` + issue.errors
+        .map((error) => error
+            .map((error) => formatZodIssue(error)
+                .split('\n')
+                .map((line) => '  ' + line)
+                .join('\n')
+            ).join('\n')
+        ).join('\n');
+  } else {
+    result += issue.message;
+  }
+
+  return result;
 }
 
 export const JsonTransformer = z.string().transform((val, ctx) => {

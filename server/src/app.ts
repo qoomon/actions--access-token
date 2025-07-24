@@ -160,10 +160,10 @@ function normalizeAccessTokenRequestBody(
 
 const AccessTokenRequestBodySchema = z.any().transform(val => {
   // legacy support for owner input
-  if(val !== null && typeof val === 'object') {
-    if(val.scope === 'owner') {
+  if (val !== null && typeof val === 'object') {
+    if (val.scope === 'owner') {
       delete val.scope;
-      if(val.repositories?.length === 0) {
+      if (val.repositories?.length === 0) {
         val.repositories = 'ALL';
       }
     }
@@ -173,13 +173,9 @@ const AccessTokenRequestBodySchema = z.any().transform(val => {
     z.strictObject({
       owner: GitHubRepositoryOwnerSchema.optional(),
       permissions: GitHubAppPermissionsSchema,
-      repositories: z.union([
-            z.array(z.union([GitHubRepositoryNameSchema, GitHubRepositorySchema])),
-            z.literal('ALL'),
-          ], {
-            error: `Invalid repository: Must be a valid repository name, match <owner>/<repository> or 'ALL'`
-          },
-      ).default(() => []),
+      repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema))
+          .or(z.literal('ALL'))
+          .default(() => []),
     })
 );
 type AccessTokenRequestBody = z.infer<typeof AccessTokenRequestBodySchema>;

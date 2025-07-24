@@ -180,7 +180,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body:\n/,
-            /- Unexpected token 'i', "invalid json" is not valid JSON$/,
+            / {2}- Unexpected token 'i', "invalid json" is not valid JSON$/,
           ])),
         });
       });
@@ -229,7 +229,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body:\n/,
-            /- permissions: Unrecognized key: "unexpected"$/,
+            / {2}- permissions: Unrecognized key: "unexpected"$/,
           ])),
         });
       });
@@ -255,7 +255,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body:\n/,
-            /- permissions.secrets: Invalid option: expected one of .*$/,
+            / {2}- permissions.secrets: Invalid option: expected one of .*$/,
           ])),
         });
       });
@@ -282,7 +282,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body:\n/,
-            /- repositories: Invalid repository: /,
+            / {2}- repositories: Union errors:/,
           ])),
         });
       });
@@ -309,7 +309,7 @@ describe('App path /access_tokens', () => {
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
             /^Invalid request body.\n/,
-            /- owner: Invalid string: must match pattern .*$/,
+            / {2}- owner: Invalid string: must match pattern .*$/,
           ])),
         });
       });

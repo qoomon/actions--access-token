@@ -159,14 +159,16 @@ export function buildWorkflowRunUrl(token: GitHubActionsJwtPayload) {
 // --- Schemas ---------------------------------------------------------------------------------------------------------
 
 const GitHubRepositoryOwnerRegex = /^[a-z\d](-?[a-z\d])+$/i;
-export const GitHubRepositoryOwnerSchema = z.string().regex(GitHubRepositoryOwnerRegex);
+export const GitHubRepositoryOwnerSchema = z.string().regex(GitHubRepositoryOwnerRegex,
+    {abort: true});
 const GitHubRepositoryNameRegex = /^[a-z\d-._]+$/i;
-export const GitHubRepositoryNameSchema = z.string().regex(GitHubRepositoryNameRegex);
+export const GitHubRepositoryNameSchema = z.string().regex(GitHubRepositoryNameRegex,
+    {abort: true});
 
 export const GitHubRepositorySchema = z.string().regex(
     new RegExp(`^${GitHubRepositoryOwnerRegex.source.replace(/^\^|\$$/g, '')}` +
         `/${GitHubRepositoryNameRegex.source.replace(/^\^|\$$/g, '')}$`, 'i'),
-);
+    {abort: true});
 
 export const GitHubAppRepositoryPermissionsSchema = z.strictObject({
   // ---- Repository Permissions ----
