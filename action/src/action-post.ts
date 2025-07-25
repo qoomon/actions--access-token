@@ -11,6 +11,12 @@ runAction(async () => {
     await github.getOctokit(token)
         .request('DELETE /installation/token', {
           headers: {'X-GitHub-Api-Version': '2022-11-28'},
+        }).catch((err) => {
+          if(err.response.status === 401) {
+            // ignore already expired or revoked token
+            return;
+          }
+          throw err;
         });
   }
 });
