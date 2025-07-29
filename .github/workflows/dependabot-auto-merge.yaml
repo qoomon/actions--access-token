@@ -7,11 +7,13 @@
 #   => https://github.com/OWNER/REPO/settings/actions
 
 name: Dependabot auto-merge
-on: pull_request_target
+on: pull_request
+# on: pull_request_target
+
 
 permissions:
   contents: write
-  pull-requests: write
+  # pull-requests: write
 
 jobs:
   merge:
@@ -31,4 +33,3 @@ jobs:
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-          GH_TOKEN: ${{secrets.DEPENDABOT_TOKEN}}
