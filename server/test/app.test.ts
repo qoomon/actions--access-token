@@ -204,7 +204,10 @@ describe('App path /access_tokens', () => {
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
-          message: expect.stringMatching(/^Token permissions must not be empty\.$/),
+          message:  expect.stringMatching(joinRegExp([
+            /^Invalid request body:\n/,
+            / {2}- permissions: Invalid object: must have at least one entry$/,
+          ])),
         });
       });
 
@@ -335,7 +338,10 @@ describe('App path /access_tokens', () => {
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
-          message: expect.stringMatching(/^All target repositories must belong to same owner\.$/),
+          message: expect.stringMatching(joinRegExp([
+            /^Invalid request body.\n/,
+            / {2}- repositories.0: Owner must match the specified owner 'octocat'$/,
+          ])),
         });
       });
 
@@ -359,7 +365,10 @@ describe('App path /access_tokens', () => {
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
-          message: expect.stringMatching(/^All target repositories must belong to same owner\.$/),
+          message: expect.stringMatching(joinRegExp([
+            /^Invalid request body.\n/,
+            / {2}- repositories: Must have one common owner$/,
+          ])),
         });
       });
     });

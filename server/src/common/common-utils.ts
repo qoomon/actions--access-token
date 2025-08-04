@@ -58,10 +58,11 @@ export function mapValue<T, R>(value: T, fn: (value: T) => R): R {
 /**
  * This function will ensure that the given object is not empty, otherwise it will throw an error
  * @param obj - object to check
+ * @param message - error message
  * @return the given object
  */
-export function ensureHasEntries<T extends object>(obj: T): T {
-  if (!hasEntries(obj)) throw Error('Illegal argument, object can not be empty');
+export function ensureHasEntries<T extends object>(obj: T, message?: string): T {
+  if (!hasEntries(obj)) throw Error(message ?? 'Illegal argument, object can not be empty');
   return obj;
 }
 

@@ -75,6 +75,7 @@ export async function accessTokenManager(options: {
    */
   async function createAccessToken(callerIdentity: GitHubActionsJwtPayload, tokenRequest: GitHubAccessTokenRequest) {
     const effectiveCallerIdentitySubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
+    normalizeTokenRequest(tokenRequest, callerIdentity);
 
     // grant requested permissions explicitly to prevent accidental permission escalation
     const grantedTokenPermissions: Record<string, string> = {};
@@ -250,7 +251,7 @@ export async function accessTokenManager(options: {
           granted: ownerAccessPolicy['allowed-repository-permissions'],
           requested: pendingTokenPermissions,
         });
-        if(hasEntries(verifiedAllowedRepositoryPermissions.pending)){
+        if (hasEntries(verifiedAllowedRepositoryPermissions.pending)) {
           logger.info({owner: tokenRequest.owner, denied: verifiedAllowedRepositoryPermissions.pending},
               'Owner access policy - permission(s) not allowed');
           // --- deny permissions
@@ -387,6 +388,75 @@ export async function accessTokenManager(options: {
   return {
     createAccessToken,
   };
+}
+
+/**
+ * Normalize access token request body
+ * @param tokenRequest - access token request body
+ * @param callerIdentity - caller identity
+ * @return normalized access token request body
+ */
+function normalizeTokenRequest(
+    tokenRequest: GitHubAccessTokenRequest,
+    callerIdentity: GitHubActionsJwtPayload,
+): asserts tokenRequest is GitHubAccessTokenRequest & { owner: string } {
+
+  if (!hasEntries(tokenRequest.permissions)) {
+    throw new GitHubAccessTokenError([
+      'Invalid token request - permissions must have at least one entry',
+    ]);
+  }
+
+  if (tokenRequest.repositories === 'ALL') {
+    if (!tokenRequest.owner) {
+      tokenRequest.owner = callerIdentity.repository_owner
+    }
+  } else {
+    if (tokenRequest.owner && !hasEntries(tokenRequest.repositories)) {
+      throw new GitHubAccessTokenError([
+        'Invalid token request - repositories must have at least one entry if owner is specified explicitly',
+      ]);
+    }
+
+    if (!hasEntries(tokenRequest.repositories)) {
+      tokenRequest.repositories.push(callerIdentity.repository);
+    }
+
+    const repositories = tokenRequest.repositories.map((repository) => {
+      return repository.includes('/') ? parseRepository(repository) : {
+        owner: tokenRequest.owner ?? callerIdentity.repository_owner,
+        repo: repository,
+      };
+    });
+    const repositoriesOwnerSet = new Set<string>();
+    if (tokenRequest.owner) {
+      repositoriesOwnerSet.add(tokenRequest.owner);
+    }
+    const repositoriesNameSet = new Set<string>();
+    for (const repository of repositories) {
+      repositoriesOwnerSet.add(repository.owner);
+      repositoriesNameSet.add(repository.repo);
+    }
+
+    if (repositoriesOwnerSet.size > 1) {
+      if (tokenRequest.owner) {
+        throw new GitHubAccessTokenError([
+          `Invalid token request - All repositories owners must match the specified owner ${tokenRequest.owner}`,
+        ]);
+      } else {
+        throw new GitHubAccessTokenError([
+          'Invalid token request - All repositories must have one common owner',
+        ]);
+      }
+    }
+    const repositoriesOwner = repositoriesOwnerSet.keys().next().value;
+
+    if (!tokenRequest.owner) {
+      tokenRequest.owner = repositoriesOwner;
+    }
+    // replace repositories with their names only
+    tokenRequest.repositories = Array.from(repositoriesNameSet);
+  }
 }
 
 // --- Access Manager Functions --------------------------------------------------------------------------------------
@@ -950,18 +1020,22 @@ export class GitHubAccessTokenError extends Error {
    * @param callerIdentitySubjects - caller identity subjects
    */
   constructor(
-      reasons: ({
+      reasons: (string | {
         owner: string,
         issues: (string | { scope: string, permission: string, message: string })[],
       } | {
         owner: string, repo: string,
         issues: (string | { scope: string, permission: string, message: string })[],
       })[],
-      callerIdentitySubjects: string[],
+      callerIdentitySubjects?: string[],
   ) {
-    const message = '' +
+    let message = '' +
         'Issues:\n' +
         reasons.map((reason) => {
+          if (typeof reason === 'string') {
+            return reason;
+          }
+
           let messagePrefix = reason.owner;
           if ('repo' in reason && reason.repo) {
             messagePrefix += `/${reason.repo}`;
@@ -973,10 +1047,13 @@ export class GitHubAccessTokenError extends Error {
                 }
                 return `${issue.scope}: ${issue.permission} - ${issue.message}`;
               }).map((message) => indent(message, '- ')).join('\n');
-        }).map((message) => indent(message, '- ')).join('\n') + '\n' +
+        }).map((message) => indent(message, '- ')).join('\n')
 
-        'Effective OIDC token subjects:\n' +
-        `${callerIdentitySubjects.map((subject) => indent(subject, '- ')).join('\n')}`;
+    if (callerIdentitySubjects) {
+      message += '\n' +
+          'Effective OIDC token subjects:\n' +
+          `${callerIdentitySubjects.map((subject) => indent(subject, '- ')).join('\n')}`;
+    }
 
     super(message);
 
@@ -1003,7 +1080,7 @@ export class GithubAccessPolicyError extends Error {
 // --- Schemas ---------------------------------------------------------------------------------------------------------
 
 export type GitHubAccessTokenRequest = {
-  owner: string,
+  owner?: string,
   permissions: GitHubAppPermissions,
   repositories: string[] | 'ALL',
 };
