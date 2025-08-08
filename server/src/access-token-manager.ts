@@ -886,7 +886,7 @@ function matchSubject(subjectPattern: string | string[], subject: string | strin
  */
 function regexpOfSubjectPattern(subjectPattern: string): RegExp {
   const regexp = escapeRegexp(subjectPattern)
-      .replaceAll('\\*\\*', '.*') // ** matches zero or more characters
+      .replaceAll('\\*\\*', '.*') // **  matches zero or more characters
       .replaceAll('\\*', '[^:]*') //  *  matches zero or more characters except ':'
       .replaceAll('\\?', '[^:]'); //  ?  matches one character except ':'
   return RegExp(`^${regexp}$`, 'i');
