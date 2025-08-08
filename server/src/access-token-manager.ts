@@ -461,16 +461,6 @@ function normalizeTokenRequest(
 // --- Access Manager Functions --------------------------------------------------------------------------------------
 
 /**
- * Format access policy error
- * @param error - access policy error
- * @return formatted error message
- */
-function formatAccessPolicyError(error: GithubAccessPolicyError) {
-  return error.message + (!error.issues?.length ? '' : '\n' +
-      error.issues.map((issue) => indent(issue, '- ')).join('\n'));
-}
-
-/**
  * Get owner access policy
  * @param client - GitHub client for target repository
  * @param owner - repository owner
@@ -899,6 +889,16 @@ function regexpOfSubjectPattern(subjectPattern: string): RegExp {
       .replace(/\\\*/g, '[^:]*') //  *  matches zero or more characters except ':'
       .replace(/\\\?/g, '[^:]'); //  ?  matches one character except ':'
   return RegExp(`^${regexp}$`, 'i');
+}
+
+/**
+ * Format access policy error
+ * @param error - access policy error
+ * @return formatted error message
+ */
+function formatAccessPolicyError(error: GithubAccessPolicyError) {
+  return error.message + (!error.issues?.length ? '' : '\n' +
+      error.issues.map((issue) => indent(issue, '- ')).join('\n'));
 }
 
 // --- GitHub Functions ----------------------------------------------------------------------------------------------
