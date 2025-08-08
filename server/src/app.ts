@@ -177,7 +177,7 @@ const LegacyAccessTokenRequestBodyTransformer = z.any().transform(val => {
 const AccessTokenRequestBodySchema = LegacyAccessTokenRequestBodyTransformer.pipe(z.strictObject({
   owner: GitHubRepositoryOwnerSchema.optional(),
   permissions: GitHubAppPermissionsSchema.check(zUtils.hasEntries),
-  repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema)).check(zUtils.hasEntries)
+  repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema)).min(1).max(10)
       .or(z.literal('ALL'))
       .default(() => []),
 }));
