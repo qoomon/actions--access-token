@@ -151,7 +151,7 @@ export async function accessTokenManager(options: {
     // === verify against owner policy =================================================================================
     {
       // --- load owner access policy ----------------------------------------------------------------------------------
-      const ownerAccessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
+      const accessPolicy = await getOwnerAccessPolicy(appInstallationClient, {
         owner: tokenRequest.owner,
         repo: options.accessPolicyLocation.owner.repo,
         paths: options.accessPolicyLocation.owner.paths,
@@ -172,9 +172,9 @@ export async function accessTokenManager(options: {
         }
         throw error;
       });
-      logger.debug({owner: tokenRequest.owner, ownerAccessPolicy}, 'Owner access policy');
+      logger.debug({owner: tokenRequest.owner, ownerAccessPolicy: accessPolicy}, 'Owner access policy');
       // if allowed-subjects is not defined, allow any subjects from the policy owner
-      const allowedSubjects = ownerAccessPolicy['allowed-subjects'] ??
+      const allowedSubjects = accessPolicy['allowed-subjects'] ??
           [`repo:${tokenRequest.owner}/*:**`]; // e.g., ['repo:qoomon/*:**' ]
       if (!matchSubject(allowedSubjects, effectiveCallerIdentitySubjects)) {
         logger.info({owner: tokenRequest.owner},
@@ -188,18 +188,18 @@ export async function accessTokenManager(options: {
         }], effectiveCallerIdentitySubjects);
       }
 
-      const ownerGrantedPermissions = evaluateGrantedPermissions({
-        statements: ownerAccessPolicy.statements,
+      const grantedPermissions = evaluateGrantedPermissions({
+        statements: accessPolicy.statements,
         callerIdentitySubjects: effectiveCallerIdentitySubjects,
       });
 
-      const verifiedOwnerPermissions = verifyPermissions({
-        granted: ownerGrantedPermissions,
+      const verifiedPermissions = verifyPermissions({
+        granted: grantedPermissions,
         requested: pendingTokenPermissions,
       });
 
       // --- grant owner permissions
-      Object.entries(verifiedOwnerPermissions.granted).forEach(([scope, permission]) => {
+      Object.entries(verifiedPermissions.granted).forEach(([scope, permission]) => {
         grantedTokenPermissions[scope] = permission;
         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete pendingTokenPermissions[scope];
@@ -242,7 +242,7 @@ export async function accessTokenManager(options: {
         } else {
           // --- ensure owner access policy explicitly allows all pending repository permissions
           const forbiddenRepositoryPermissions = verifyPermissions({
-            granted: ownerAccessPolicy['allowed-repository-permissions'],
+            granted: accessPolicy['allowed-repository-permissions'],
             requested: pendingTokenPermissions,
           }).pending;
           if (hasEntries(forbiddenRepositoryPermissions)) {
