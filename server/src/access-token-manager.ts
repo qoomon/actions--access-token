@@ -206,7 +206,7 @@ export async function accessTokenManager(options: {
       });
 
       // --- ensure owner access policy has granted all requested owner permissions
-      const pendingOwnerPermissions = filterValidPermissions(pendingTokenPermissions, '!repo');
+      const pendingOwnerPermissions = filterValidPermissions('!repo', pendingTokenPermissions);
       if (hasEntries(pendingOwnerPermissions)) {
         // --- reject all pending owner permissions
         logger.info({owner: tokenRequest.owner, denied: pendingOwnerPermissions},
@@ -521,7 +521,7 @@ async function getOwnerAccessPolicy(client: Octokit, {
 
       if (isRecord(policy['allowed-repository-permissions'])) {
         policy['allowed-repository-permissions'] = filterValidPermissions(
-            policy['allowed-repository-permissions'], 'repo');
+            'repo', policy['allowed-repository-permissions']);
       }
       if (Array.isArray(policy.statements)) {
         policy.statements = filterValidStatements(
@@ -650,7 +650,7 @@ function filterValidStatements(statements: unknown[], permissionsType: 'owner' |
           // ---- permissions
           if ('permissions' in statementObject && isRecord(statementObject.permissions)) {
             // ignore invalid permissions
-            statementObject.permissions = filterValidPermissions(statementObject.permissions, permissionsType);
+            statementObject.permissions = filterValidPermissions(permissionsType, statementObject.permissions);
           }
         }
         return statementObject;
@@ -667,22 +667,27 @@ function filterValidSubjects(subjects: unknown[]): unknown[] {
   return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success);
 }
 
-function filterValidPermissions(permissions: Record<string, unknown>, scopeType: 'owner'): GitHubAppPermissions
-function filterValidPermissions(permissions: Record<string, unknown>, scopeType: 'repo'): GitHubAppRepositoryPermissions
-function filterValidPermissions(permissions: Record<string, unknown>,
-                                scopeType: '!owner' | '!repo'): Record<string, unknown>
-function filterValidPermissions(permissions: Record<string, unknown>,
-                                scopeType: 'owner' | '!owner' | 'repo' | '!repo')
+function filterValidPermissions(scopeType: 'owner',
+                                permissions: Record<string, unknown>)
+    : GitHubAppPermissions
+function filterValidPermissions(scopeType: 'repo',
+                                permissions: Record<string, unknown>)
+    : GitHubAppRepositoryPermissions
+function filterValidPermissions(scopeType: '!owner' | '!repo',
+                                permissions: Record<string, unknown>)
+    : Record<string, unknown>
+function filterValidPermissions(scopeType: 'owner' | '!owner' | 'repo' | '!repo',
+                                permissions: Record<string, unknown>)
     : GitHubAppPermissions | GitHubAppRepositoryPermissions
 /**
  * Filter invalid permissions
- * @param permissions - access policy permissions
  * @param scopeType - permission scope type, either 'owner' or 'repo'
+ * @param permissions - access policy permissions
  * @return valid permissions
  */
 function filterValidPermissions(
-    permissions: Record<string, unknown>,
-    scopeType: 'owner' | '!owner' | 'repo' | '!repo'
+    scopeType: "owner" | "!owner" | "repo" | "!repo",
+    permissions: Record<string, unknown>
 ) {
   const negate = scopeType.startsWith('!');
   const _scopeType = scopeType.replace(/^!/, '') as 'owner' | 'repo';
