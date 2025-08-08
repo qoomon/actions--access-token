@@ -275,15 +275,8 @@ export async function accessTokenManager(options: {
             `'ALL' repositories scope should have been handled within owner access policy section`);
       }
 
-      const repositoryVerifyResults = await Promise.all(tokenRequest.repositories
-          .map((repo) => GITHUB_API_CONCURRENCY_LIMIT(async () => {
-            const targetRepository = `${tokenRequest.owner}/${repo}`;
-            const repoAccessPolicyResult = await resultOf(getRepoAccessPolicy(appInstallationClient, {
-              ...parseRepository(targetRepository),
-              paths: options.accessPolicyLocation.repo.paths,
-              strict: false, // ignore invalid access policy entries
-            }));
-
+      const repositoryVerifyResults = await Promise.all(
+          tokenRequest.repositories.map((repo) => GITHUB_API_CONCURRENCY_LIMIT(async () => {
             const result = {
               owner: tokenRequest.owner,
               repo,
@@ -291,8 +284,13 @@ export async function accessTokenManager(options: {
               granted: {} as GitHubAppRepositoryPermissions,
             };
 
-            if (!repoAccessPolicyResult.success) {
-              const error = repoAccessPolicyResult.error;
+            const accessPolicyResult = await resultOf(getRepoAccessPolicy(appInstallationClient, {
+              owner: tokenRequest.owner, repo,
+              paths: options.accessPolicyLocation.repo.paths,
+              strict: false, // ignore invalid access policy entries
+            }));
+            if (!accessPolicyResult.success) {
+              const error = accessPolicyResult.error;
               if (error instanceof GithubAccessPolicyError) {
                 logger.info({owner: tokenRequest.owner, repo, issues: error.issues},
                     'Repository access policy - invalid');
@@ -307,16 +305,16 @@ export async function accessTokenManager(options: {
               throw error;
             }
 
-            const repoAccessPolicy = repoAccessPolicyResult.value;
+            const repoAccessPolicy = accessPolicyResult.value;
             logger.debug({owner: tokenRequest.owner, repo, repoAccessPolicy},
                 'Repository access policy');
 
-            const repoGrantedPermissions = evaluateGrantedPermissions({
+            const grantedPermissions = evaluateGrantedPermissions({
               statements: repoAccessPolicy.statements,
               callerIdentitySubjects: effectiveCallerIdentitySubjects,
             });
 
-            if (!hasEntries(repoGrantedPermissions)) {
+            if (!hasEntries(grantedPermissions)) {
               logger.info({owner: tokenRequest.owner, repo},
                   'Repository access policy - no permissions granted');
               // BE AWARE to prevent leaking owner existence
@@ -324,13 +322,13 @@ export async function accessTokenManager(options: {
               return result;
             }
 
-            const verifiedRepoPermissions = verifyPermissions({
-              granted: repoGrantedPermissions,
+            const verifiedPermissions = verifyPermissions({
+              granted: grantedPermissions,
               requested: pendingTokenPermissions,
             });
 
             // --- deny permissions
-            Object.entries(verifiedRepoPermissions.pending).forEach(([scope, permission]) => {
+            Object.entries(verifiedPermissions.pending).forEach(([scope, permission]) => {
               result.issues.push({
                 scope, permission,
                 message: NOT_AUTHORIZED_MESSAGE,
@@ -338,10 +336,9 @@ export async function accessTokenManager(options: {
             });
 
             // --- grant permissions
-            result.granted = verifiedRepoPermissions.granted;
+            result.granted = verifiedPermissions.granted;
             return result;
-          })),
-      );
+          })));
 
       // --- ensure no pending permissions for any target repository
       const pendingRepositoryPermissions = repositoryVerifyResults
@@ -353,8 +350,8 @@ export async function accessTokenManager(options: {
         throw new GitHubAccessTokenError(repositoryVerifyResults, effectiveCallerIdentitySubjects);
       }
 
-      const grantedPermissions = aggregatePermissions(repositoryVerifyResults
-          .map((it) => it.granted));
+      const grantedPermissions = aggregatePermissions(
+          repositoryVerifyResults.map((it) => it.granted));
 
       // --- grant repository permission only if all repositories have granted the specific permission
       for (const [scope, permission] of Object.entries(grantedPermissions)) {
@@ -376,7 +373,7 @@ export async function accessTokenManager(options: {
       // BE AWARE that an empty object will result in a token with all app installation permissions
       permissions: ensureHasEntries(grantedTokenPermissions),
       // BE AWARE that an empty array will result in a token with access to all app installation repositories
-      repositories: tokenRequest.repositories === 'ALL' ? [] : ensureHasEntries(tokenRequest.repositories),
+      repositories: tokenRequest.repositories === 'ALL' ? undefined : ensureHasEntries(tokenRequest.repositories),
     });
     return {
       owner: appInstallation.account?.name ?? tokenRequest.owner,
@@ -421,12 +418,11 @@ function normalizeTokenRequest(
       tokenRequest.repositories.push(callerIdentity.repository);
     }
 
-    const repositories = tokenRequest.repositories.map((repository) => {
-      return repository.includes('/') ? parseRepository(repository) : {
-        owner: tokenRequest.owner ?? callerIdentity.repository_owner,
-        repo: repository,
-      };
-    });
+    const repositories = tokenRequest.repositories
+        .map((repository) => parseRepository(
+            repository,
+            tokenRequest.owner ?? callerIdentity.repository_owner,
+        ));
     const repositoriesOwnerSet = new Set<string>();
     if (tokenRequest.owner) {
       repositoriesOwnerSet.add(tokenRequest.owner);
@@ -667,12 +663,12 @@ function filterValidSubjects(subjects: unknown[]): unknown[] {
   return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success);
 }
 
-function filterValidPermissions(scopeType: 'owner',
-                                permissions: Record<string, unknown>)
-    : GitHubAppPermissions
 function filterValidPermissions(scopeType: 'repo',
                                 permissions: Record<string, unknown>)
     : GitHubAppRepositoryPermissions
+function filterValidPermissions(scopeType: 'owner',
+                                permissions: Record<string, unknown>)
+    : GitHubAppPermissions
 function filterValidPermissions(scopeType: '!owner' | '!repo',
                                 permissions: Record<string, unknown>)
     : Record<string, unknown>

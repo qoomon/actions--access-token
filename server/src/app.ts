@@ -73,12 +73,11 @@ export function appInit(prepare?: (app: Hono) => void) {
                   });
                 }
 
-                const repositories = tokenRequest.repositories.map((repository) => {
-                  return repository.includes('/') ? parseRepository(repository) : {
-                    owner: tokenRequest.owner ?? callerIdentity.repository_owner,
-                    repo: repository,
-                  };
-                });
+                const repositories = tokenRequest.repositories
+                    .map((repository) => parseRepository(
+                        repository,
+                        tokenRequest.owner ?? callerIdentity.repository_owner,
+                    ));
                 const repositoriesOwnerSet = new Set<string>();
                 if (tokenRequest.owner) {
                   repositoriesOwnerSet.add(tokenRequest.owner);
@@ -91,16 +90,16 @@ export function appInit(prepare?: (app: Hono) => void) {
 
                 if (repositoriesOwnerSet.size > 1) {
                   if (tokenRequest.owner) {
-                    tokenRequest.repositories.forEach((repository, index) => {
-                          if(repository.includes('/') && parseRepository(repository).owner !== tokenRequest.owner) {
-                            ctx.issues.push({
-                              code: "custom",
-                              message: `Owner must match the specified owner '${tokenRequest.owner}'`,
-                              input: tokenRequest.repositories,
-                              path: ['repositories', index],
-                            });
-                          }
-                        })
+                    repositories.forEach((repository, index) => {
+                      if (repository.owner !== tokenRequest.owner) {
+                        ctx.issues.push({
+                          code: "custom",
+                          message: `Owner must match the specified owner '${tokenRequest.owner}'`,
+                          input: tokenRequest.repositories,
+                          path: ['repositories', index],
+                        });
+                      }
+                    })
                   } else {
                     ctx.issues.push({
                       code: "custom",

@@ -8,11 +8,20 @@ import {mapObjectEntries, tuplesOf} from './common-utils.js';
 /**
  * Parse repository string to owner and repo
  * @param repository - repository string e.g. 'spongebob/sandbox'
+ * @param owner - optional default owner if repository string does not contain owner
  * @return object with owner and repo
  */
-export function parseRepository(repository: string) {
+export function parseRepository(repository: string, owner?: string) {
   const separatorIndex = repository.indexOf('/');
-  if (separatorIndex === -1) throw Error(`Invalid repository format '${repository}'`);
+  if (separatorIndex === -1) {
+    if(owner) {
+      return {
+        owner,
+        repo: repository,
+      }
+    }
+    throw new Error(`Invalid repository string: ${repository}`);
+  }
   return {
     owner: repository.substring(0, separatorIndex),
     repo: repository.substring(separatorIndex + 1),
