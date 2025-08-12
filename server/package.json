@@ -32,7 +32,7 @@
     "@types/aws-lambda": "^8.10.152",
     "@types/content-type": "^1.1.9",
     "@types/jest": "^30.0.0",
-    "typescript-eslint": "^8.1.0",
+    "typescript-eslint": "^8.39.1",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.39.1",
     "@vercel/ncc": "^0.38.3",

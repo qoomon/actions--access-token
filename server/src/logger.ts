@@ -18,24 +18,6 @@ const _logger = pino({
     level: (label) => ({level: label.toUpperCase()}),
   },
   mixin: () => ({...asyncBindings.getStore()?.bindings}),
-  hooks: {
-    logMethod(inputArgs, method) {
-      if (typeof inputArgs[0] === 'object' && typeof inputArgs[1] === 'string') {
-        // --- arrange message field to be first
-        // @ts-expect-error inputArgs[0] will be an object
-        inputArgs[0] = {
-          // @ts-expect-error field needs be defined at first to set position
-          [_loggerMessageKey]: undefined, // move message to first position
-          ...(inputArgs[0] as object), // apply other properties
-          ...{[_loggerMessageKey]: inputArgs[1]} // always overwrite messageKey with message
-        };
-        if (inputArgs.length <= 2) inputArgs.pop();
-        else inputArgs[1] = undefined;
-      }
-
-      return method.apply(this, inputArgs);
-    }
-  },
 });
 
 const _loggerExtensions = {
