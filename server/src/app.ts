@@ -23,9 +23,13 @@ import {accessTokenManager, GitHubAccessTokenError} from './access-token-manager
 import {logger} from './logger.js';
 import {config} from './config.js';
 import * as zUtils from './common/zod-utils.js';
+import {rateLimiter} from './common/rate-limiter.js';
+import {SecurityLogger} from './common/security-logger.js';
+import {requestTimeout} from './common/timeout.js';
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
+const securityLogger = new SecurityLogger(logger);
 
 export function appInit(prepare?: (app: Hono) => void) {
   const app = new Hono();
@@ -42,6 +46,16 @@ export function appInit(prepare?: (app: Hono) => void) {
   app.use(bodyLimit({maxSize: 100 * 1024})); // 100kb
   app.use(prettyJSON());
 
+  // Request timeout middleware
+  app.use(requestTimeout({timeout: 30000})); // 30 second timeout
+
+  // Rate limiting for access token endpoint
+  app.use('/access_tokens', rateLimiter({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each client to 100 requests per window
+    message: 'Too many token requests, please try again later.',
+  }));
+
   // --- handle access token request -----------------------------------------------------------------------------------
   app.post('/access_tokens',
       tokenAuthenticator<GitHubActionsJwtPayload>({
@@ -51,6 +65,24 @@ export function appInit(prepare?: (app: Hono) => void) {
       }),
       async (context) => {
         const callerIdentity = context.var.token;
+        const clientIp = context.req.header('x-forwarded-for') || context.req.header('x-real-ip') || 'unknown';
+        const userAgent = context.req.header('user-agent') || 'unknown';
+        
+        // Log successful authentication
+        securityLogger.logAuthSuccess({
+          requestId: context.var.requestId,
+          clientIp,
+          userAgent,
+          subject: callerIdentity.sub,
+          repository: callerIdentity.repository,
+          metadata: {
+            workflow_ref: callerIdentity.workflow_ref,
+            job_workflow_ref: callerIdentity.job_workflow_ref,
+            run_id: callerIdentity.run_id,
+            attempts: callerIdentity.attempts,
+          },
+        });
+        
         logger.info({
           identity: {
             workflow_ref: callerIdentity.workflow_ref,
@@ -123,6 +155,17 @@ export function appInit(prepare?: (app: Hono) => void) {
             .createAccessToken(callerIdentity, accessTokenRequest)
             .catch((error) => {
               if (error instanceof GitHubAccessTokenError) {
+                // Log authorization failure
+                securityLogger.logAuthzFailure({
+                  requestId: context.var.requestId,
+                  clientIp,
+                  userAgent,
+                  subject: callerIdentity.sub,
+                  repository: callerIdentity.repository,
+                  permissions: accessTokenRequest.permissions,
+                  reason: error.message,
+                });
+                
                 logger.info({
                   reason: error.message,
                 }, 'Access Token Denied');
