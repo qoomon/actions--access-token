@@ -145,7 +145,7 @@ export async function accessTokenManager(options: {
 
     const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
       // single_file to read access policy files
-      permissions: {single_file: 'read'},
+      permissions: {single_file: 'read', contents: 'read'},
     });
 
     // === verify against owner policy =================================================================================
