@@ -106,7 +106,8 @@ export async function accessTokenManager(options: {
         ...options.accessPolicyLocation.owner.paths,
         ...options.accessPolicyLocation.repo.paths,
       ];
-      if (!accessPolicyPaths.every((path) => appInstallation.single_file_paths?.includes(path))) {
+      if (!accessPolicyPaths.every((path) =>
+          appInstallation.single_file_paths?.includes(path) || appInstallation.single_file_name === path)) {
         logger.info({owner: tokenRequest.owner, required: accessPolicyPaths, actual: appInstallation.single_file_paths},
             `'${GITHUB_APP.name}' is not authorized to read all access policy file(s) by 'single_file' permission`);
         throw new GitHubAccessTokenError([{
@@ -145,7 +146,7 @@ export async function accessTokenManager(options: {
 
     const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
       // single_file to read access policy files
-      permissions: {single_file: 'read', contents: 'read'},
+      permissions: {single_file: 'read', contents: 'read'}, // TODO investigate why 'contents' permission is needed to read single files
     });
 
     // === verify against owner policy =================================================================================
