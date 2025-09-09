@@ -26,7 +26,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       # build the action
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           cache-dependency-path: server/package-lock.json
           node-version: '20'
