@@ -18,7 +18,7 @@
     "@smithy/signature-v4": "^5.2.0",
     "ts-node": "^10.9.2",
     "yaml": "^2.8.1",
-    "zod": "^4.1.5"
+    "zod": "^4.1.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
