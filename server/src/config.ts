@@ -1,20 +1,48 @@
-import process from 'process';
-import {_throw, regexpOfWildcardPattern} from './common/common-utils.js';
+import {env, regexpOfWildcardPattern} from './common/common-utils.js';
 import {formatPEMKey} from './common/ras-key-utils.js';
+import {z} from 'zod';
+import {GitHubRepositoryNameSchema} from './common/github-utils.js';
 
-export const config: Readonly<Config> = {
+const configSchema = z.strictObject({
+  githubAppAuth: z.strictObject({
+    appId: z.string()
+        .regex(/^[1-9][0-9]*$/),
+    privateKey: z.string()
+        .regex(/^\s*-----BEGIN [\w\s]+ KEY-----/, 'Invalid key format')
+        .regex(/-----END [\w\s]+ KEY-----\s*$/, 'Invalid key format')
+        .transform(formatPEMKey),
+  }),
+  githubActionsTokenVerifier: z.strictObject({
+    allowedAud: z.string().nonempty(),
+    allowedSub: z.array(
+        z.instanceof(RegExp)
+    ).optional(),
+  }),
+  accessPolicyLocation: z.strictObject({
+    owner: z.strictObject({
+      repo: GitHubRepositoryNameSchema,
+      paths: z.array(
+          z.string().regex(/(\.yaml|\.yml)$/)
+      ).nonempty(),
+    }),
+    repo: z.strictObject({
+      paths: z.array(
+          z.string().nonempty()
+      ).nonempty(),
+    }),
+  }),
+});
+
+export const config = validate({
   githubAppAuth: {
-    appId: process.env.GITHUB_APP_ID ??
-        _throw(new Error('Environment variable GITHUB_APP_ID is required')),
+    appId: env('GITHUB_APP_ID', true),
     // depending on the environment multiline environment variables are not supported,
     // due to this limitation formatPEMKey ensure the right format, even if the key formatted as a single line
-    privateKey: formatPEMKey(process.env.GITHUB_APP_PRIVATE_KEY ??
-        _throw(new Error('Environment variable GITHUB_APP_ID is required'))),
+    privateKey: formatPEMKey(env('GITHUB_APP_PRIVATE_KEY', true)),
   },
   githubActionsTokenVerifier: {
-    allowedAud: process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE ??
-        _throw(new Error('Environment variable GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE is required')),
-    allowedSub: process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS
+    allowedAud: env('GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE', true),
+    allowedSub: env('GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS')
         ?.split(/\s*,\s*/)
         ?.map((subjectPattern) => regexpOfWildcardPattern(subjectPattern, 'i')),
   },
@@ -27,26 +55,8 @@ export const config: Readonly<Config> = {
       paths: ['.github/access-token.yaml', '.github/access-token.yml'],
     },
   },
-};
+});
 
-// --- Types -----------------------------------------------------------------------------------------------------------
-
-interface Config {
-  githubAppAuth: {
-    appId: string
-    privateKey: string
-  },
-  githubActionsTokenVerifier: {
-    allowedAud: string
-    allowedSub?: RegExp[]
-  }
-  accessPolicyLocation: {
-    owner: {
-      paths: string[]
-      repo: string
-    },
-    repo: {
-      paths: string[]
-    }
-  }
+function validate(config: z.infer<typeof configSchema>): z.infer<typeof configSchema> {
+  return configSchema.parse(config);
 }

@@ -23,9 +23,9 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@types/jest": "^30.0.0",
-    "@types/node": "^20.19.17",
-    "typescript-eslint": "^8.1.0",
-    "@typescript-eslint/eslint-plugin": "^8.1.0",
+    "@types/node": "^24.5.2",
+    "typescript-eslint": "^8.44.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
     "@vercel/ncc": "^0.38.3",
     "eslint": "^9.36.0",
@@ -38,6 +38,6 @@
     "typescript": "^5.9.2"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   }
 }

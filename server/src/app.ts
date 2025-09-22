@@ -23,6 +23,7 @@ import {accessTokenManager, GitHubAccessTokenError} from './access-token-manager
 import {logger} from './logger.js';
 import {config} from './config.js';
 import * as zUtils from './common/zod-utils.js';
+import {formatPEMKey} from './common/ras-key-utils';
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);

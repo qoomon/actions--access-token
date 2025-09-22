@@ -36,6 +36,6 @@ outputs:
     description: The requested access token
 
 runs:
-  using: node20
+  using: node24
   main: action/dist/main/index.js
   post: action/dist/post/index.js

@@ -1,3 +1,15 @@
+import process from 'process';
+
+export function env(name: string): string | undefined;
+export function env(name: string, required: true): string;
+export function env(name: string, required?: boolean): string | undefined {
+  const value = process.env[name];
+  if (required && !value) {
+    throw new Error(`Environment variable ${name} is required`);
+  }
+  return value;
+}
+
 /**
  * This function returns true if the given object has entries
  * @param obj - object to check
@@ -236,3 +248,4 @@ export function toBase64(value?: string | null) {
 }
 
 export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
+
