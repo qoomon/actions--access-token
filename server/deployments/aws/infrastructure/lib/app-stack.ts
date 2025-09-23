@@ -26,7 +26,7 @@ export class AppStack extends Stack {
     // --- API Access Token Function--------------------------------------------------------------------------------
 
     const httpApiAccessTokenFunction = new lambda.Function(this, 'HttpApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
       memorySize: 128,
       timeout: Duration.seconds(30),

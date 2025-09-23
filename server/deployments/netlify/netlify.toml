@@ -2,7 +2,7 @@
   command = "npm ci && touch .netlify"
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ../../"
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "24"
 
 [functions]
   directory = "functions/"
