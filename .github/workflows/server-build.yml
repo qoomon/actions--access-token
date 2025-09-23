@@ -18,15 +18,17 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: server
+        working-directory: &working-directory server
     steps:
       - uses: actions/checkout@v5
         with:
-          sparse-checkout: server
+          sparse-checkout: *working-directory
           sparse-checkout-cone-mode: false
 
       # build the action
       - uses: jdx/mise-action@v2
+        with:
+          working_directory: *working-directory
 
       - run: npm ci
       - run: npm run test
