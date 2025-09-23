@@ -26,11 +26,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       # build the action
-      - uses: actions/setup-node@v5
-        with:
-          cache-dependency-path: action/package-lock.json
-          node-version: '24'
-          cache: 'npm'
+      - uses: jdx/mise-action@v2
 
       - run: npm ci
       - run: npm run test
