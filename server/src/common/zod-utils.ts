@@ -1,6 +1,5 @@
 import {z} from 'zod';
 import YAML from 'yaml';
-import {GitHubRepositoryNameSchema} from './github-utils';
 
 export const hasEntries: z.core.$ZodCheck<object> = z.superRefine((obj, ctx) => {
   if (Object.keys(obj).length === 0) {

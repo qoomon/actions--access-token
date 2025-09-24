@@ -23,7 +23,6 @@ import {accessTokenManager, GitHubAccessTokenError} from './access-token-manager
 import {logger} from './logger.js';
 import {config} from './config.js';
 import * as zUtils from './common/zod-utils.js';
-import {formatPEMKey} from './common/ras-key-utils';
 
 // --- Initialization ------------------------------------------------------------------------------------------------
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
@@ -177,7 +176,8 @@ const LegacyAccessTokenRequestBodyTransformer = z.any().transform(val => {
 const AccessTokenRequestBodySchema = LegacyAccessTokenRequestBodyTransformer.pipe(z.strictObject({
   owner: GitHubRepositoryOwnerSchema.optional(),
   permissions: GitHubAppPermissionsSchema.check(zUtils.hasEntries),
-  repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema)).max(10)
+  repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema))
+      .max(config.maxTargetRepositoriesPerRequest)
       .or(z.literal('ALL'))
       .default(() => []),
 }));

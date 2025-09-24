@@ -31,6 +31,7 @@ const configSchema = z.strictObject({
       ).nonempty(),
     }),
   }),
+  maxTargetRepositoriesPerRequest: z.int().min(1),
 });
 
 export const config = validate({
@@ -55,6 +56,7 @@ export const config = validate({
       paths: ['.github/access-token.yaml', '.github/access-token.yml'],
     },
   },
+  maxTargetRepositoriesPerRequest: 32,
 });
 
 function validate(config: z.infer<typeof configSchema>): z.infer<typeof configSchema> {
