@@ -7,7 +7,7 @@
     "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts ",
     "build:docker-container": "docker build -t localhost/github-access-token-server:latest .",
     "build:vercel-function": "ncc build deployments/vercel/api/index.ts",
-    "build:netlify-function": "ncc build deployments/netlify/api/access_tokens.ts",
+    "build:netlify-function": "ncc build deployments/netlify/functions/index.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
     "start": "ncc run src/server.ts"
   },
@@ -21,6 +21,7 @@
     "get-jwks": "^11.0.2",
     "hono": "^4.9.8",
     "pino": "^9.12.0",
+    "uuid": "^13.0.0",
     "yaml": "^2.8.1",
     "zod": "^4.1.11"
   },
@@ -32,7 +33,7 @@
     "@types/aws-lambda": "^8.10.152",
     "@types/content-type": "^1.1.9",
     "@types/jest": "^30.0.0",
-    "typescript-eslint": "^8.39.1",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.44.0",
     "@vercel/ncc": "^0.38.3",
@@ -45,7 +46,8 @@
     "pino-pretty": "^13.0.0",
     "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.1"
   },
   "engines": {
     "node": "24.x"
