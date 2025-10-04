@@ -1,4 +1,4 @@
-import {handle} from 'hono/vercel';
+import {handle} from 'hono/netlify';
 import * as process from 'process';
 
 if (!process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE) {
