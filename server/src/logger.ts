@@ -1,7 +1,7 @@
 import pino from "pino";
 import asyncHooks from "node:async_hooks";
 import process from "process";
-import {v4 as uuid} from "uuid";
+import * as crypto from 'node:crypto';
 
 type Bindings = Record<string, unknown>;
 const asyncBindings = new asyncHooks.AsyncLocalStorage<{
@@ -34,7 +34,7 @@ function setAsyncBindings(bindings: Bindings) {
     bindings: {},
   };
 
-  const bindingsId = uuid();
+  const bindingsId = crypto.randomUUID();
   store.bindingsSources.set(bindingsId, bindings);
   store.bindings = buildBindings(store.bindingsSources);
 
