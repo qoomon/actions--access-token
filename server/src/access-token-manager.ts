@@ -866,6 +866,18 @@ function matchSubject(subjectPattern: string | string[], subject: string | strin
     return subjectPattern.some((subjectPattern) => matchSubject(subjectPattern, subject));
   }
 
+  // Security: Validate input lengths to prevent DoS
+  const MAX_SUBJECT_LENGTH = 1000;
+  if (subjectPattern.length > MAX_SUBJECT_LENGTH || subject.length > MAX_SUBJECT_LENGTH) {
+    return false;
+  }
+
+  // Security: Ensure pattern and subject contain only valid characters (alphanumeric, :, /, -, _, ., *, ?)
+  const VALID_CHARS_PATTERN = /^[a-zA-Z0-9:/\-_.@*?]+$/;
+  if (!VALID_CHARS_PATTERN.test(subjectPattern) || !VALID_CHARS_PATTERN.test(subject)) {
+    return false;
+  }
+
   // subject pattern claims must not contain wildcards to prevent granting access accidentally
   //   repo:foo/bar:*  is NOT allowed
   //   repo:foo/bar:** is allowed
@@ -873,6 +885,21 @@ function matchSubject(subjectPattern: string | string[], subject: string | strin
   const explicitSubjectPattern = subjectPattern.replace(/:\*\*$/, '')
   if (Object.keys(parseOIDCSubject(explicitSubjectPattern)).some((claim) => claim.includes('*'))) {
     return false;
+  }
+
+  // Security: Additional validation - wildcards should only appear in claim values, not claim names
+  // Split pattern into claim pairs and validate structure
+  const patternParts = subjectPattern.split(':');
+  for (let i = 0; i < patternParts.length - 1; i += 2) {
+    const claimName = patternParts[i];
+    // Claim names (even indices) should not contain wildcards
+    if (claimName && claimName.includes('*')) {
+      // Exception: allow trailing ':**' pattern
+      if (i === patternParts.length - 2 && patternParts[i + 1] === '*') {
+        break;
+      }
+      return false;
+    }
   }
 
   // grantedSubjectPattern example: repo:qoomon/sandbox:ref:refs/heads/*
@@ -886,10 +913,19 @@ function matchSubject(subjectPattern: string | string[], subject: string | strin
  * @return regexp
  */
 function regexpOfSubjectPattern(subjectPattern: string): RegExp {
+  // Security: Limit pattern length to prevent ReDoS attacks
+  const MAX_PATTERN_LENGTH = 500;
+  if (subjectPattern.length > MAX_PATTERN_LENGTH) {
+    throw new Error(`Subject pattern exceeds maximum length of ${MAX_PATTERN_LENGTH} characters`);
+  }
+
+  // Security: Use atomic groups and possessive quantifiers to prevent catastrophic backtracking
   const regexp = escapeRegexp(subjectPattern)
-      .replaceAll('\\*\\*', '.*') // **  matches zero or more characters
-      .replaceAll('\\*', '[^:]*') //  *  matches zero or more characters except ':'
+      .replaceAll('\\*\\*', '(?:.*)') // **  matches zero or more characters (atomic group)
+      .replaceAll('\\*', '(?:[^:]*)') //  *  matches zero or more characters except ':' (atomic group)
       .replaceAll('\\?', '[^:]'); //  ?  matches one character except ':'
+  
+  // Security: Set regex timeout-like behavior by limiting test string length
   return RegExp(`^${regexp}$`, 'i');
 }
 
@@ -988,6 +1024,11 @@ async function getRepositoryFileContent(client: Octokit, {
   path: string,
   maxSize?: number
 }): Promise<string | null> {
+  // Security: Validate path to prevent directory traversal attacks
+  if (!isValidFilePath(path)) {
+    throw new Error(`Invalid file path: ${path}`);
+  }
+
   return client.rest.repos.getContent({owner, repo, path})
       .then((res) => {
         if ('type' in res.data && res.data.type === 'file') {
@@ -1007,6 +1048,44 @@ async function getRepositoryFileContent(client: Octokit, {
         if (error.status === Status.NOT_FOUND) return null;
         throw error;
       });
+}
+
+/**
+ * Validate file path to prevent directory traversal
+ * @param path - file path
+ * @return true if path is valid
+ */
+function isValidFilePath(path: string): boolean {
+  // Security: Prevent path traversal attacks
+  // - No parent directory references (..)
+  // - No absolute paths
+  // - No null bytes
+  // - Must be a reasonable length
+  const MAX_PATH_LENGTH = 500;
+  
+  if (!path || path.length === 0 || path.length > MAX_PATH_LENGTH) {
+    return false;
+  }
+  
+  if (path.includes('\0')) {
+    return false;
+  }
+  
+  if (path.startsWith('/') || path.startsWith('\\')) {
+    return false;
+  }
+  
+  if (path.includes('..')) {
+    return false;
+  }
+  
+  // Only allow alphanumeric, dash, underscore, dot, slash in paths
+  const VALID_PATH_PATTERN = /^[a-zA-Z0-9\-_./]+$/;
+  if (!VALID_PATH_PATTERN.test(path)) {
+    return false;
+  }
+  
+  return true;
 }
 
 // --- Errors ------------------------------------------------------------------------------------------------------

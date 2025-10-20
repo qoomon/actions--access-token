@@ -24,6 +24,78 @@ import {logger} from './logger.js';
 import {config} from './config.js';
 import * as zUtils from './common/zod-utils.js';
 
+// --- Token Replay Protection -----------------------------------------------------------------------------------------
+// Security: Track used JTI claims to prevent token replay attacks
+// Using a Map with timestamp-based expiry to prevent memory leaks
+const usedTokens = new Map<string, number>();
+const TOKEN_REUSE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Check if a token has been used before (replay attack detection)
+ * @param jti - JWT ID claim
+ * @param iat - Issued at timestamp (as string)
+ * @return true if token was already used
+ */
+function isTokenReplayed(jti: string | undefined, iat: string): boolean {
+  if (!jti) {
+    // If no JTI is provided, we cannot track replay - log warning
+    logger.warn('OIDC token missing jti claim - replay protection disabled for this token');
+    return false;
+  }
+
+  const now = Date.now();
+  
+  // Clean up expired entries (older than token reuse window)
+  for (const [key, timestamp] of usedTokens.entries()) {
+    if (now - timestamp > TOKEN_REUSE_WINDOW_MS) {
+      usedTokens.delete(key);
+    }
+  }
+
+  const tokenKey = `${jti}:${iat}`;
+  if (usedTokens.has(tokenKey)) {
+    return true;
+  }
+
+  usedTokens.set(tokenKey, now);
+  return false;
+}
+
+// --- Rate Limiting ---------------------------------------------------------------------------------------------------
+// Security: Rate limit requests by repository to prevent abuse
+const rateLimitMap = new Map<string, { count: number, resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 20; // Max requests per window per repository
+
+/**
+ * Check if a request should be rate limited
+ * @param repository - repository identifier
+ * @return true if rate limit exceeded
+ */
+function isRateLimited(repository: string): boolean {
+  const now = Date.now();
+  const rateLimit = rateLimitMap.get(repository);
+  
+  // Clean up expired entries
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (now > value.resetTime) {
+      rateLimitMap.delete(key);
+    }
+  }
+  
+  if (!rateLimit || now > rateLimit.resetTime) {
+    rateLimitMap.set(repository, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  
+  if (rateLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return true;
+  }
+  
+  rateLimit.count++;
+  return false;
+}
+
 // --- Initialization ------------------------------------------------------------------------------------------------
 const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
 
@@ -51,6 +123,29 @@ export function appInit(prepare?: (app: Hono) => void) {
       }),
       async (context) => {
         const callerIdentity = context.var.token;
+        
+        // Security: Rate limiting by repository
+        if (isRateLimited(callerIdentity.repository)) {
+          logger.warn({
+            repository: callerIdentity.repository,
+            workflow_run_url: buildWorkflowRunUrl(callerIdentity),
+          }, 'Rate limit exceeded');
+          throw new HTTPException(Status.TOO_MANY_REQUESTS, {
+            message: 'Rate limit exceeded. Please try again later.',
+          });
+        }
+        
+        // Security: Check for token replay attacks
+        if (isTokenReplayed(callerIdentity.jti, callerIdentity.iat)) {
+          logger.warn({
+            workflow_run_url: buildWorkflowRunUrl(callerIdentity),
+            jti: callerIdentity.jti,
+          }, 'Token replay attack detected');
+          throw new HTTPException(Status.FORBIDDEN, {
+            message: 'Token has already been used',
+          });
+        }
+        
         logger.info({
           identity: {
             workflow_ref: callerIdentity.workflow_ref,
