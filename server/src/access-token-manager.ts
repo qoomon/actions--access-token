@@ -661,7 +661,7 @@ function filterValidStatements(statements: unknown[], permissionsType: 'owner' |
  * @return valid subjects
  */
 function filterValidSubjects(subjects: unknown[]): unknown[] {
-  return subjects.filter((it: unknown) => GitHubSubjectClaimSchema.safeParse(it).success);
+  return subjects.filter((it: unknown) => GitHubSubjectPatternSchema.safeParse(it).success);
 }
 
 function filterValidPermissions(scopeType: 'repo',
@@ -887,8 +887,8 @@ function matchSubject(subjectPattern: string | string[], subject: string | strin
  */
 function regexpOfSubjectPattern(subjectPattern: string): RegExp {
   const regexp = escapeRegexp(subjectPattern)
-      .replaceAll('\\*\\*', '.*') // **  matches zero or more characters
-      .replaceAll('\\*', '[^:]*') //  *  matches zero or more characters except ':'
+      .replaceAll('\\*\\*', '(?:.*)') // **  matches zero or more characters
+      .replaceAll('\\*', '(?:[^:]*)') //  *  matches zero or more characters except ':'
       .replaceAll('\\?', '[^:]'); //  ?  matches one character except ':'
   return RegExp(`^${regexp}$`, 'i');
 }
@@ -1089,10 +1089,10 @@ export type GitHubAccessTokenRequest = {
 };
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
-const GitHubSubjectClaimSchema = z.string().trim();
+const GitHubSubjectPatternSchema = z.string().trim().max(512);
 
 const GitHubBaseStatementSchema = z.strictObject({
-  subjects: z.array(GitHubSubjectClaimSchema),
+  subjects: z.array(GitHubSubjectPatternSchema),
 });
 
 const GitHubAccessStatementSchema = z.strictObject({
@@ -1114,7 +1114,7 @@ export type GitHubAccessPolicy = z.infer<typeof GitHubAccessPolicySchema>;
 
 const GitHubOwnerAccessPolicySchema = z.strictObject({
   ...GitHubAccessPolicySchema.shape,
-  'allowed-subjects': z.array(GitHubSubjectClaimSchema).optional(),
+  'allowed-subjects': z.array(GitHubSubjectPatternSchema).optional(),
   'statements': z.array(GitHubAccessStatementSchema).optional().default(() => []),
   'allowed-repository-permissions': GitHubAppRepositoryPermissionsSchema.optional().default(() => ({})),
 });

@@ -14,7 +14,6 @@ export async function withHint(
     await test();
   } catch (e: unknown) {
     if (e instanceof Error && e.constructor.name === 'JestAssertionError') {
-      console.log(e.constructor.name);
       const hintMessage = `Hints:\n${indent(
           Object.entries(await hints()).map(([name, message]) => {
             let formattedMessage;

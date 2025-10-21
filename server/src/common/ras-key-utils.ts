@@ -4,16 +4,19 @@
  * @return well formatted pem key
  */
 export function formatPEMKey(keyString: string): string {
-  const headerMatch = keyString.match(/^\s*-----BEGIN [\w\s]+ KEY-----/g);
-  const footerMatch = keyString.match(/-----END [\w\s]+ KEY-----\s*$/g);
-  if (!headerMatch || !footerMatch) throw Error('Invalid key format');
+  keyString = keyString.trim(); // remove leading and trailing whitespace
+  const header = keyString.match(/^-----BEGIN [\w\s]+ KEY-----/g)?.[0];
+  const footer = keyString.match(/-----END [\w\s]+ KEY-----$/g)?.[0];
+  if (!header || !footer) throw Error('Invalid key format');
 
   const key = keyString
-      .slice(headerMatch[0].length)
-      .slice(0, -footerMatch[0].length)
-      .replace(/\s+/g, '');
+      .slice(header.length, -footer.length) // remove header and footer
+      .replace(/\s+/g, ''); // remove all whitespace
 
-  return `${headerMatch[0]}\n${
-    key.replace(/.{1,64}/g, '$&\n')
-  }${footerMatch[0]}\n`;
+  // format key
+  return '' +
+      header + '\n' +
+      // split key into 64 character lines,
+      key.replace(/.{1,64}/g, '$&\n') +
+      footer + '\n'
 }
