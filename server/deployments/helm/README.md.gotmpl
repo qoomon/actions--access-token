@@ -1,10 +1,10 @@
 # Actions--Access-Token Helm Chart
 {{ template "chart.badgesSection" . }}
 
-This is a Helm chart for deploying Github Actions Access Token Server on Kubernetes. Make sure to build/push the [docker image first](server/Dockerfile)
+This is a Helm chart for deploying GitHub Actions Access Token Server on Kubernetes. Make sure to build/push the [docker image first](server/Dockerfile)
 
 
-## Install. Set Github AppID/Key and docker image registry path in `values.yaml`
+## Install. Set GitHub AppID/Key and docker image registry path in `values.yaml`
 
 ```bash
 helm install github-access-token-server . -f values.yaml

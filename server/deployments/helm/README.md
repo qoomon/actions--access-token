@@ -1,9 +1,9 @@
 # Actions--Access-Token Helm Chart
 ![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
-This is a Helm chart for deploying Github Actions Access Token Server on Kubernetes. Make sure to build/push the [docker image first](server/Dockerfile)
+This is a Helm chart for deploying GitHub Actions Access Token Server on Kubernetes. Make sure to build/push the [docker image first](server/Dockerfile)
 
-## Install. Set Github AppID/Key and docker image registry path in `values.yaml`
+## Install. Set GitHub AppID/Key and docker image registry path in `values.yaml`
 
 ```bash
 helm install github-access-token-server . -f values.yaml
@@ -36,11 +36,11 @@ helm install github-access-token-server . -f values.yaml
 | image.repository | string | `""` | Container image repository |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion |
 | imagePullSecrets | list | `[]` | Secrets for pulling images from a private repository |
-| ingress | object | `{"annotations":{},"className":"","enabled":true,"hosts":[{"host":"example.com","paths":[{"path":"/","pathType":"ImplementationSpecific"}]}],"tls":[]}` | Ingress configuration |
+| ingress | object | `{"annotations":{},"className":"","enabled":false,"hosts":[],"tls":[]}` | Ingress configuration |
 | ingress.annotations | object | `{}` | Ingress annotations |
 | ingress.className | string | `""` | Ingress class name |
-| ingress.enabled | bool | `true` | Enable ingress |
-| ingress.hosts | list | `[{"host":"example.com","paths":[{"path":"/","pathType":"ImplementationSpecific"}]}]` | Ingress hosts configuration |
+| ingress.enabled | bool | `false` | Enable ingress |
+| ingress.hosts | list | `[]` | Ingress hosts configuration |
 | ingress.tls | list | `[]` | Ingress TLS configuration |
 | livenessProbe | object | `{}` | Liveness probe configuration |
 | nameOverride | string | `""` | Override the chart name |
@@ -50,7 +50,7 @@ helm install github-access-token-server . -f values.yaml
 | podSecurityContext | object | `{}` | Pod security context configuration |
 | readinessProbe | object | `{}` | Readiness probe configuration |
 | replicaCount | int | `1` | Number of replicas for the deployment |
-| resources | object | `{"limits":{"cpu":"100m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource limits and requests for the container |
+| resources | object | `{}` | Resource limits and requests for the container |
 | securityContext | object | `{}` | Container security context configuration |
 | service | object | `{"port":3000,"type":"ClusterIP"}` | Service configuration |
 | service.port | int | `3000` | Service port |

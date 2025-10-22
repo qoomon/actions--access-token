@@ -45,8 +45,10 @@ spec:
               value: {{ .Values.githubAppId | quote }}
             - name: GITHUB_APP_PRIVATE_KEY
               value: {{ .Values.githubAppPrivateKey | quote }}
+            {{- if and .Values.ingress .Values.ingress.hosts (gt (len .Values.ingress.hosts) 0) }}
             - name: GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE
               value: {{ (index .Values.ingress.hosts 0).host }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
