@@ -30,7 +30,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.38.0",
     "@octokit/types": "^15.0.1",
-    "@types/aws-lambda": "^8.10.155",
+    "@types/aws-lambda": "^8.10.157",
     "@types/content-type": "^1.1.9",
     "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
