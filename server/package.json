@@ -23,7 +23,7 @@
     "hono": "^4.11.1",
     "pino": "^10.1.0",
     "yaml": "^2.8.2",
-    "zod": "^4.1.13"
+    "zod": "^4.2.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251213.0",
