@@ -194,7 +194,6 @@ class EventStreamSerde {
                     const { eventHeader, eventPayload } = memberSchema.getMergedTraits();
                     if (eventPayload) {
                         explicitPayloadMember = memberName;
-                        break;
                     }
                     else if (eventHeader) {
                         const value = event[unionMember][memberName];

@@ -458,10 +458,7 @@ var AccessDeniedException = [
     -3,
     n0,
     _ADE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
+    { [_e]: _c, [_hE]: 400 },
     [_e, _r, _ed],
     [0, 0, 0],
 ];
@@ -470,10 +467,7 @@ var AuthorizationPendingException = [
     -3,
     n0,
     _APE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
+    { [_e]: _c, [_hE]: 400 },
     [_e, _ed],
     [0, 0],
 ];
@@ -494,110 +488,34 @@ var CreateTokenResponse = [
     [_aT, _tT, _eI, _rT, _iT],
     [[() => AccessToken, 0], 0, 1, [() => RefreshToken, 0], [() => IdToken, 0]],
 ];
-var ExpiredTokenException = [
-    -3,
-    n0,
-    _ETE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
-    [_e, _ed],
-    [0, 0],
-];
+var ExpiredTokenException = [-3, n0, _ETE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(ExpiredTokenException, ExpiredTokenException$1);
-var InternalServerException = [
-    -3,
-    n0,
-    _ISE,
-    {
-        [_e]: _se,
-        [_hE]: 500,
-    },
-    [_e, _ed],
-    [0, 0],
-];
+var InternalServerException = [-3, n0, _ISE, { [_e]: _se, [_hE]: 500 }, [_e, _ed], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(InternalServerException, InternalServerException$1);
-var InvalidClientException = [
-    -3,
-    n0,
-    _ICE,
-    {
-        [_e]: _c,
-        [_hE]: 401,
-    },
-    [_e, _ed],
-    [0, 0],
-];
+var InvalidClientException = [-3, n0, _ICE, { [_e]: _c, [_hE]: 401 }, [_e, _ed], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(InvalidClientException, InvalidClientException$1);
-var InvalidGrantException = [
-    -3,
-    n0,
-    _IGE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
-    [_e, _ed],
-    [0, 0],
-];
+var InvalidGrantException = [-3, n0, _IGE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(InvalidGrantException, InvalidGrantException$1);
 var InvalidRequestException = [
     -3,
     n0,
     _IRE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
+    { [_e]: _c, [_hE]: 400 },
     [_e, _r, _ed],
     [0, 0, 0],
 ];
 schema.TypeRegistry.for(n0).registerError(InvalidRequestException, InvalidRequestException$1);
-var InvalidScopeException = [
-    -3,
-    n0,
-    _ISEn,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
-    [_e, _ed],
-    [0, 0],
-];
+var InvalidScopeException = [-3, n0, _ISEn, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(InvalidScopeException, InvalidScopeException$1);
-var SlowDownException = [
-    -3,
-    n0,
-    _SDE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
-    [_e, _ed],
-    [0, 0],
-];
+var SlowDownException = [-3, n0, _SDE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(SlowDownException, SlowDownException$1);
-var UnauthorizedClientException = [
-    -3,
-    n0,
-    _UCE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
-    [_e, _ed],
-    [0, 0],
-];
+var UnauthorizedClientException = [-3, n0, _UCE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(UnauthorizedClientException, UnauthorizedClientException$1);
 var UnsupportedGrantTypeException = [
     -3,
     n0,
     _UGTE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
+    { [_e]: _c, [_hE]: 400 },
     [_e, _ed],
     [0, 0],
 ];
@@ -608,9 +526,7 @@ var CreateToken = [
     9,
     n0,
     _CT,
-    {
-        [_h]: ["POST", "/token", 200],
-    },
+    { [_h]: ["POST", "/token", 200] },
     () => CreateTokenRequest,
     () => CreateTokenResponse,
 ];
@@ -688,14 +604,13 @@ const hash_node_1 = __webpack_require__(5092);
 const middleware_retry_1 = __webpack_require__(9618);
 const node_config_provider_1 = __webpack_require__(5704);
 const node_http_handler_1 = __webpack_require__(1279);
+const smithy_client_1 = __webpack_require__(1411);
 const util_body_length_node_1 = __webpack_require__(3638);
+const util_defaults_mode_node_1 = __webpack_require__(5435);
 const util_retry_1 = __webpack_require__(5518);
 const runtimeConfig_shared_1 = __webpack_require__(1546);
-const smithy_client_1 = __webpack_require__(1411);
-const util_defaults_mode_node_1 = __webpack_require__(5435);
-const smithy_client_2 = __webpack_require__(1411);
 const getRuntimeConfig = (config) => {
-    (0, smithy_client_2.emitWarningIfUnsupportedVersion)(process.version);
+    (0, smithy_client_1.emitWarningIfUnsupportedVersion)(process.version);
     const defaultsMode = (0, util_defaults_mode_node_1.resolveDefaultsModeConfig)(config);
     const defaultConfigProvider = () => defaultsMode().then(smithy_client_1.loadConfigsForDefaultMode);
     const clientSharedValues = (0, runtimeConfig_shared_1.getRuntimeConfig)(config);

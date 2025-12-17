@@ -320,16 +320,7 @@ const _tO = "tokenOutput";
 const _tT = "tokenType";
 const n0 = "com.amazonaws.signin";
 var RefreshToken = [0, n0, _RT, 8, 0];
-var AccessDeniedException = [
-    -3,
-    n0,
-    _ADE,
-    {
-        [_e]: _c,
-    },
-    [_e, _m],
-    [0, 0],
-];
+var AccessDeniedException = [-3, n0, _ADE, { [_e]: _c }, [_e, _m], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(AccessDeniedException, AccessDeniedException$1);
 var AccessToken = [
     3,
@@ -338,24 +329,9 @@ var AccessToken = [
     8,
     [_aKI, _sAK, _sT],
     [
-        [
-            0,
-            {
-                [_jN]: _aKI,
-            },
-        ],
-        [
-            0,
-            {
-                [_jN]: _sAK,
-            },
-        ],
-        [
-            0,
-            {
-                [_jN]: _sT,
-            },
-        ],
+        [0, { [_jN]: _aKI }],
+        [0, { [_jN]: _sAK }],
+        [0, { [_jN]: _sT }],
     ],
 ];
 var CreateOAuth2TokenRequest = [
@@ -373,37 +349,12 @@ var CreateOAuth2TokenRequestBody = [
     0,
     [_cI, _gT, _co, _rU, _cV, _rT],
     [
-        [
-            0,
-            {
-                [_jN]: _cI,
-            },
-        ],
-        [
-            0,
-            {
-                [_jN]: _gT,
-            },
-        ],
+        [0, { [_jN]: _cI }],
+        [0, { [_jN]: _gT }],
         0,
-        [
-            0,
-            {
-                [_jN]: _rU,
-            },
-        ],
-        [
-            0,
-            {
-                [_jN]: _cV,
-            },
-        ],
-        [
-            () => RefreshToken,
-            {
-                [_jN]: _rT,
-            },
-        ],
+        [0, { [_jN]: _rU }],
+        [0, { [_jN]: _cV }],
+        [() => RefreshToken, { [_jN]: _rT }],
     ],
 ];
 var CreateOAuth2TokenResponse = [
@@ -421,73 +372,18 @@ var CreateOAuth2TokenResponseBody = [
     0,
     [_aT, _tT, _eI, _rT, _iT],
     [
-        [
-            () => AccessToken,
-            {
-                [_jN]: _aT,
-            },
-        ],
-        [
-            0,
-            {
-                [_jN]: _tT,
-            },
-        ],
-        [
-            1,
-            {
-                [_jN]: _eI,
-            },
-        ],
-        [
-            () => RefreshToken,
-            {
-                [_jN]: _rT,
-            },
-        ],
-        [
-            0,
-            {
-                [_jN]: _iT,
-            },
-        ],
+        [() => AccessToken, { [_jN]: _aT }],
+        [0, { [_jN]: _tT }],
+        [1, { [_jN]: _eI }],
+        [() => RefreshToken, { [_jN]: _rT }],
+        [0, { [_jN]: _iT }],
     ],
 ];
-var InternalServerException = [
-    -3,
-    n0,
-    _ISE,
-    {
-        [_e]: _s,
-        [_hE]: 500,
-    },
-    [_e, _m],
-    [0, 0],
-];
+var InternalServerException = [-3, n0, _ISE, { [_e]: _s, [_hE]: 500 }, [_e, _m], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(InternalServerException, InternalServerException$1);
-var TooManyRequestsError = [
-    -3,
-    n0,
-    _TMRE,
-    {
-        [_e]: _c,
-        [_hE]: 429,
-    },
-    [_e, _m],
-    [0, 0],
-];
+var TooManyRequestsError = [-3, n0, _TMRE, { [_e]: _c, [_hE]: 429 }, [_e, _m], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(TooManyRequestsError, TooManyRequestsError$1);
-var ValidationException = [
-    -3,
-    n0,
-    _VE,
-    {
-        [_e]: _c,
-        [_hE]: 400,
-    },
-    [_e, _m],
-    [0, 0],
-];
+var ValidationException = [-3, n0, _VE, { [_e]: _c, [_hE]: 400 }, [_e, _m], [0, 0]];
 schema.TypeRegistry.for(n0).registerError(ValidationException, ValidationException$1);
 var SigninServiceException = [-3, _sm, "SigninServiceException", 0, [], []];
 schema.TypeRegistry.for(_sm).registerError(SigninServiceException, SigninServiceException$1);
@@ -495,9 +391,7 @@ var CreateOAuth2Token = [
     9,
     n0,
     _COAT,
-    {
-        [_h]: ["POST", "/v1/token", 200],
-    },
+    { [_h]: ["POST", "/v1/token", 200] },
     () => CreateOAuth2TokenRequest,
     () => CreateOAuth2TokenResponse,
 ];
@@ -566,14 +460,13 @@ const hash_node_1 = __webpack_require__(5092);
 const middleware_retry_1 = __webpack_require__(9618);
 const node_config_provider_1 = __webpack_require__(5704);
 const node_http_handler_1 = __webpack_require__(1279);
+const smithy_client_1 = __webpack_require__(1411);
 const util_body_length_node_1 = __webpack_require__(3638);
+const util_defaults_mode_node_1 = __webpack_require__(5435);
 const util_retry_1 = __webpack_require__(5518);
 const runtimeConfig_shared_1 = __webpack_require__(357);
-const smithy_client_1 = __webpack_require__(1411);
-const util_defaults_mode_node_1 = __webpack_require__(5435);
-const smithy_client_2 = __webpack_require__(1411);
 const getRuntimeConfig = (config) => {
-    (0, smithy_client_2.emitWarningIfUnsupportedVersion)(process.version);
+    (0, smithy_client_1.emitWarningIfUnsupportedVersion)(process.version);
     const defaultsMode = (0, util_defaults_mode_node_1.resolveDefaultsModeConfig)(config);
     const defaultConfigProvider = () => defaultsMode().then(smithy_client_1.loadConfigsForDefaultMode);
     const clientSharedValues = (0, runtimeConfig_shared_1.getRuntimeConfig)(config);
