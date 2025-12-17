@@ -29,7 +29,6 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           working_directory: *working-directory
-          cache: false
 
       - run: npm ci
       - run: npm run test
