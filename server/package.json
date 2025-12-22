@@ -34,7 +34,7 @@
     "@types/content-type": "^1.1.9",
     "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
-    "@typescript-eslint/parser": "^8.49.0",
+    "@typescript-eslint/parser": "^8.50.0",
     "@vercel/ncc": "^0.38.3",
     "eslint": "^9.39.2",
     "eslint-config-google": "^0.14.0",
