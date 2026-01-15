@@ -320,7 +320,7 @@ const _tO = "tokenOutput";
 const _tT = "tokenType";
 const n0 = "com.amazonaws.signin";
 var RefreshToken = [0, n0, _RT, 8, 0];
-var AccessDeniedException$ = [-3, n0, _ADE, { [_e]: _c }, [_e, _m], [0, 0]];
+var AccessDeniedException$ = [-3, n0, _ADE, { [_e]: _c }, [_e, _m], [0, 0], 2];
 schema.TypeRegistry.for(n0).registerError(AccessDeniedException$, AccessDeniedException);
 var AccessToken$ = [
     3,
@@ -333,6 +333,7 @@ var AccessToken$ = [
         [0, { [_jN]: _sAK }],
         [0, { [_jN]: _sT }],
     ],
+    3,
 ];
 var CreateOAuth2TokenRequest$ = [
     3,
@@ -341,6 +342,7 @@ var CreateOAuth2TokenRequest$ = [
     0,
     [_tI],
     [[() => CreateOAuth2TokenRequestBody$, 16]],
+    1,
 ];
 var CreateOAuth2TokenRequestBody$ = [
     3,
@@ -356,6 +358,7 @@ var CreateOAuth2TokenRequestBody$ = [
         [0, { [_jN]: _cV }],
         [() => RefreshToken, { [_jN]: _rT }],
     ],
+    2,
 ];
 var CreateOAuth2TokenResponse$ = [
     3,
@@ -364,6 +367,7 @@ var CreateOAuth2TokenResponse$ = [
     0,
     [_tO],
     [[() => CreateOAuth2TokenResponseBody$, 16]],
+    1,
 ];
 var CreateOAuth2TokenResponseBody$ = [
     3,
@@ -378,12 +382,13 @@ var CreateOAuth2TokenResponseBody$ = [
         [() => RefreshToken, { [_jN]: _rT }],
         [0, { [_jN]: _iT }],
     ],
+    4,
 ];
-var InternalServerException$ = [-3, n0, _ISE, { [_e]: _s, [_hE]: 500 }, [_e, _m], [0, 0]];
+var InternalServerException$ = [-3, n0, _ISE, { [_e]: _s, [_hE]: 500 }, [_e, _m], [0, 0], 2];
 schema.TypeRegistry.for(n0).registerError(InternalServerException$, InternalServerException);
-var TooManyRequestsError$ = [-3, n0, _TMRE, { [_e]: _c, [_hE]: 429 }, [_e, _m], [0, 0]];
+var TooManyRequestsError$ = [-3, n0, _TMRE, { [_e]: _c, [_hE]: 429 }, [_e, _m], [0, 0], 2];
 schema.TypeRegistry.for(n0).registerError(TooManyRequestsError$, TooManyRequestsError);
-var ValidationException$ = [-3, n0, _VE, { [_e]: _c, [_hE]: 400 }, [_e, _m], [0, 0]];
+var ValidationException$ = [-3, n0, _VE, { [_e]: _c, [_hE]: 400 }, [_e, _m], [0, 0], 2];
 schema.TypeRegistry.for(n0).registerError(ValidationException$, ValidationException);
 var SigninServiceException$ = [-3, _sm, "SigninServiceException", 0, [], []];
 schema.TypeRegistry.for(_sm).registerError(SigninServiceException$, SigninServiceException);
