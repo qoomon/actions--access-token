@@ -220,14 +220,14 @@ class SSOOIDCClient extends smithyClient.Client {
     }
 }
 
-let SSOOIDCServiceException$1 = class SSOOIDCServiceException extends smithyClient.ServiceException {
+class SSOOIDCServiceException extends smithyClient.ServiceException {
     constructor(options) {
         super(options);
         Object.setPrototypeOf(this, SSOOIDCServiceException.prototype);
     }
-};
+}
 
-let AccessDeniedException$1 = class AccessDeniedException extends SSOOIDCServiceException$1 {
+class AccessDeniedException extends SSOOIDCServiceException {
     name = "AccessDeniedException";
     $fault = "client";
     error;
@@ -244,8 +244,8 @@ let AccessDeniedException$1 = class AccessDeniedException extends SSOOIDCService
         this.reason = opts.reason;
         this.error_description = opts.error_description;
     }
-};
-let AuthorizationPendingException$1 = class AuthorizationPendingException extends SSOOIDCServiceException$1 {
+}
+class AuthorizationPendingException extends SSOOIDCServiceException {
     name = "AuthorizationPendingException";
     $fault = "client";
     error;
@@ -260,8 +260,8 @@ let AuthorizationPendingException$1 = class AuthorizationPendingException extend
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let ExpiredTokenException$1 = class ExpiredTokenException extends SSOOIDCServiceException$1 {
+}
+class ExpiredTokenException extends SSOOIDCServiceException {
     name = "ExpiredTokenException";
     $fault = "client";
     error;
@@ -276,8 +276,8 @@ let ExpiredTokenException$1 = class ExpiredTokenException extends SSOOIDCService
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let InternalServerException$1 = class InternalServerException extends SSOOIDCServiceException$1 {
+}
+class InternalServerException extends SSOOIDCServiceException {
     name = "InternalServerException";
     $fault = "server";
     error;
@@ -292,8 +292,8 @@ let InternalServerException$1 = class InternalServerException extends SSOOIDCSer
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let InvalidClientException$1 = class InvalidClientException extends SSOOIDCServiceException$1 {
+}
+class InvalidClientException extends SSOOIDCServiceException {
     name = "InvalidClientException";
     $fault = "client";
     error;
@@ -308,8 +308,8 @@ let InvalidClientException$1 = class InvalidClientException extends SSOOIDCServi
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let InvalidGrantException$1 = class InvalidGrantException extends SSOOIDCServiceException$1 {
+}
+class InvalidGrantException extends SSOOIDCServiceException {
     name = "InvalidGrantException";
     $fault = "client";
     error;
@@ -324,8 +324,8 @@ let InvalidGrantException$1 = class InvalidGrantException extends SSOOIDCService
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let InvalidRequestException$1 = class InvalidRequestException extends SSOOIDCServiceException$1 {
+}
+class InvalidRequestException extends SSOOIDCServiceException {
     name = "InvalidRequestException";
     $fault = "client";
     error;
@@ -342,8 +342,8 @@ let InvalidRequestException$1 = class InvalidRequestException extends SSOOIDCSer
         this.reason = opts.reason;
         this.error_description = opts.error_description;
     }
-};
-let InvalidScopeException$1 = class InvalidScopeException extends SSOOIDCServiceException$1 {
+}
+class InvalidScopeException extends SSOOIDCServiceException {
     name = "InvalidScopeException";
     $fault = "client";
     error;
@@ -358,8 +358,8 @@ let InvalidScopeException$1 = class InvalidScopeException extends SSOOIDCService
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let SlowDownException$1 = class SlowDownException extends SSOOIDCServiceException$1 {
+}
+class SlowDownException extends SSOOIDCServiceException {
     name = "SlowDownException";
     $fault = "client";
     error;
@@ -374,8 +374,8 @@ let SlowDownException$1 = class SlowDownException extends SSOOIDCServiceExceptio
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let UnauthorizedClientException$1 = class UnauthorizedClientException extends SSOOIDCServiceException$1 {
+}
+class UnauthorizedClientException extends SSOOIDCServiceException {
     name = "UnauthorizedClientException";
     $fault = "client";
     error;
@@ -390,8 +390,8 @@ let UnauthorizedClientException$1 = class UnauthorizedClientException extends SS
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
-let UnsupportedGrantTypeException$1 = class UnsupportedGrantTypeException extends SSOOIDCServiceException$1 {
+}
+class UnsupportedGrantTypeException extends SSOOIDCServiceException {
     name = "UnsupportedGrantTypeException";
     $fault = "client";
     error;
@@ -406,7 +406,7 @@ let UnsupportedGrantTypeException$1 = class UnsupportedGrantTypeException extend
         this.error = opts.error;
         this.error_description = opts.error_description;
     }
-};
+}
 
 const _ADE = "AccessDeniedException";
 const _APE = "AuthorizationPendingException";
@@ -454,7 +454,7 @@ var ClientSecret = [0, n0, _CS, 8, 0];
 var CodeVerifier = [0, n0, _CV, 8, 0];
 var IdToken = [0, n0, _IT, 8, 0];
 var RefreshToken = [0, n0, _RT, 8, 0];
-var AccessDeniedException = [
+var AccessDeniedException$ = [
     -3,
     n0,
     _ADE,
@@ -462,8 +462,8 @@ var AccessDeniedException = [
     [_e, _r, _ed],
     [0, 0, 0],
 ];
-schema.TypeRegistry.for(n0).registerError(AccessDeniedException, AccessDeniedException$1);
-var AuthorizationPendingException = [
+schema.TypeRegistry.for(n0).registerError(AccessDeniedException$, AccessDeniedException);
+var AuthorizationPendingException$ = [
     -3,
     n0,
     _APE,
@@ -471,8 +471,8 @@ var AuthorizationPendingException = [
     [_e, _ed],
     [0, 0],
 ];
-schema.TypeRegistry.for(n0).registerError(AuthorizationPendingException, AuthorizationPendingException$1);
-var CreateTokenRequest = [
+schema.TypeRegistry.for(n0).registerError(AuthorizationPendingException$, AuthorizationPendingException);
+var CreateTokenRequest$ = [
     3,
     n0,
     _CTR,
@@ -480,7 +480,7 @@ var CreateTokenRequest = [
     [_cI, _cS, _gT, _dC, _co, _rT, _s, _rU, _cV],
     [0, [() => ClientSecret, 0], 0, 0, 0, [() => RefreshToken, 0], 64 | 0, 0, [() => CodeVerifier, 0]],
 ];
-var CreateTokenResponse = [
+var CreateTokenResponse$ = [
     3,
     n0,
     _CTRr,
@@ -488,15 +488,15 @@ var CreateTokenResponse = [
     [_aT, _tT, _eI, _rT, _iT],
     [[() => AccessToken, 0], 0, 1, [() => RefreshToken, 0], [() => IdToken, 0]],
 ];
-var ExpiredTokenException = [-3, n0, _ETE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(ExpiredTokenException, ExpiredTokenException$1);
-var InternalServerException = [-3, n0, _ISE, { [_e]: _se, [_hE]: 500 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InternalServerException, InternalServerException$1);
-var InvalidClientException = [-3, n0, _ICE, { [_e]: _c, [_hE]: 401 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InvalidClientException, InvalidClientException$1);
-var InvalidGrantException = [-3, n0, _IGE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InvalidGrantException, InvalidGrantException$1);
-var InvalidRequestException = [
+var ExpiredTokenException$ = [-3, n0, _ETE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(ExpiredTokenException$, ExpiredTokenException);
+var InternalServerException$ = [-3, n0, _ISE, { [_e]: _se, [_hE]: 500 }, [_e, _ed], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(InternalServerException$, InternalServerException);
+var InvalidClientException$ = [-3, n0, _ICE, { [_e]: _c, [_hE]: 401 }, [_e, _ed], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(InvalidClientException$, InvalidClientException);
+var InvalidGrantException$ = [-3, n0, _IGE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(InvalidGrantException$, InvalidGrantException);
+var InvalidRequestException$ = [
     -3,
     n0,
     _IRE,
@@ -504,14 +504,21 @@ var InvalidRequestException = [
     [_e, _r, _ed],
     [0, 0, 0],
 ];
-schema.TypeRegistry.for(n0).registerError(InvalidRequestException, InvalidRequestException$1);
-var InvalidScopeException = [-3, n0, _ISEn, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InvalidScopeException, InvalidScopeException$1);
-var SlowDownException = [-3, n0, _SDE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(SlowDownException, SlowDownException$1);
-var UnauthorizedClientException = [-3, n0, _UCE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(UnauthorizedClientException, UnauthorizedClientException$1);
-var UnsupportedGrantTypeException = [
+schema.TypeRegistry.for(n0).registerError(InvalidRequestException$, InvalidRequestException);
+var InvalidScopeException$ = [-3, n0, _ISEn, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(InvalidScopeException$, InvalidScopeException);
+var SlowDownException$ = [-3, n0, _SDE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(SlowDownException$, SlowDownException);
+var UnauthorizedClientException$ = [
+    -3,
+    n0,
+    _UCE,
+    { [_e]: _c, [_hE]: 400 },
+    [_e, _ed],
+    [0, 0],
+];
+schema.TypeRegistry.for(n0).registerError(UnauthorizedClientException$, UnauthorizedClientException);
+var UnsupportedGrantTypeException$ = [
     -3,
     n0,
     _UGTE,
@@ -519,16 +526,16 @@ var UnsupportedGrantTypeException = [
     [_e, _ed],
     [0, 0],
 ];
-schema.TypeRegistry.for(n0).registerError(UnsupportedGrantTypeException, UnsupportedGrantTypeException$1);
-var SSOOIDCServiceException = [-3, _sm, "SSOOIDCServiceException", 0, [], []];
-schema.TypeRegistry.for(_sm).registerError(SSOOIDCServiceException, SSOOIDCServiceException$1);
-var CreateToken = [
+schema.TypeRegistry.for(n0).registerError(UnsupportedGrantTypeException$, UnsupportedGrantTypeException);
+var SSOOIDCServiceException$ = [-3, _sm, "SSOOIDCServiceException", 0, [], []];
+schema.TypeRegistry.for(_sm).registerError(SSOOIDCServiceException$, SSOOIDCServiceException);
+var CreateToken$ = [
     9,
     n0,
     _CT,
     { [_h]: ["POST", "/token", 200] },
-    () => CreateTokenRequest,
-    () => CreateTokenResponse,
+    () => CreateTokenRequest$,
+    () => CreateTokenResponse$,
 ];
 
 class CreateTokenCommand extends smithyClient.Command
@@ -539,7 +546,7 @@ class CreateTokenCommand extends smithyClient.Command
 })
     .s("AWSSSOOIDCService", "CreateToken", {})
     .n("SSOOIDCClient", "CreateTokenCommand")
-    .sc(CreateToken)
+    .sc(CreateToken$)
     .build() {
 }
 
@@ -568,23 +575,38 @@ __webpack_unused_export__ = ({
     enumerable: true,
     get: function () { return smithyClient.Client; }
 });
-__webpack_unused_export__ = AccessDeniedException$1;
+__webpack_unused_export__ = AccessDeniedException;
+__webpack_unused_export__ = AccessDeniedException$;
 __webpack_unused_export__ = AccessDeniedExceptionReason;
-__webpack_unused_export__ = AuthorizationPendingException$1;
+__webpack_unused_export__ = AuthorizationPendingException;
+__webpack_unused_export__ = AuthorizationPendingException$;
+__webpack_unused_export__ = CreateToken$;
 exports.CreateTokenCommand = CreateTokenCommand;
-__webpack_unused_export__ = ExpiredTokenException$1;
-__webpack_unused_export__ = InternalServerException$1;
-__webpack_unused_export__ = InvalidClientException$1;
-__webpack_unused_export__ = InvalidGrantException$1;
-__webpack_unused_export__ = InvalidRequestException$1;
+__webpack_unused_export__ = CreateTokenRequest$;
+__webpack_unused_export__ = CreateTokenResponse$;
+__webpack_unused_export__ = ExpiredTokenException;
+__webpack_unused_export__ = ExpiredTokenException$;
+__webpack_unused_export__ = InternalServerException;
+__webpack_unused_export__ = InternalServerException$;
+__webpack_unused_export__ = InvalidClientException;
+__webpack_unused_export__ = InvalidClientException$;
+__webpack_unused_export__ = InvalidGrantException;
+__webpack_unused_export__ = InvalidGrantException$;
+__webpack_unused_export__ = InvalidRequestException;
+__webpack_unused_export__ = InvalidRequestException$;
 __webpack_unused_export__ = InvalidRequestExceptionReason;
-__webpack_unused_export__ = InvalidScopeException$1;
+__webpack_unused_export__ = InvalidScopeException;
+__webpack_unused_export__ = InvalidScopeException$;
 __webpack_unused_export__ = SSOOIDC;
 exports.SSOOIDCClient = SSOOIDCClient;
-__webpack_unused_export__ = SSOOIDCServiceException$1;
-__webpack_unused_export__ = SlowDownException$1;
-__webpack_unused_export__ = UnauthorizedClientException$1;
-__webpack_unused_export__ = UnsupportedGrantTypeException$1;
+__webpack_unused_export__ = SSOOIDCServiceException;
+__webpack_unused_export__ = SSOOIDCServiceException$;
+__webpack_unused_export__ = SlowDownException;
+__webpack_unused_export__ = SlowDownException$;
+__webpack_unused_export__ = UnauthorizedClientException;
+__webpack_unused_export__ = UnauthorizedClientException$;
+__webpack_unused_export__ = UnsupportedGrantTypeException;
+__webpack_unused_export__ = UnsupportedGrantTypeException$;
 
 
 /***/ }),
@@ -686,7 +708,12 @@ const getRuntimeConfig = (config) => {
             },
         ],
         logger: config?.logger ?? new smithy_client_1.NoOpLogger(),
-        protocol: config?.protocol ?? new protocols_1.AwsRestJsonProtocol({ defaultNamespace: "com.amazonaws.ssooidc" }),
+        protocol: config?.protocol ?? protocols_1.AwsRestJsonProtocol,
+        protocolSettings: config?.protocolSettings ?? {
+            defaultNamespace: "com.amazonaws.ssooidc",
+            version: "2019-06-10",
+            serviceTarget: "AWSSSOOIDCService",
+        },
         serviceId: config?.serviceId ?? "SSO OIDC",
         urlParser: config?.urlParser ?? url_parser_1.parseUrl,
         utf8Decoder: config?.utf8Decoder ?? util_utf8_1.fromUtf8,

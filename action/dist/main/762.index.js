@@ -220,14 +220,14 @@ class SigninClient extends smithyClient.Client {
     }
 }
 
-let SigninServiceException$1 = class SigninServiceException extends smithyClient.ServiceException {
+class SigninServiceException extends smithyClient.ServiceException {
     constructor(options) {
         super(options);
         Object.setPrototypeOf(this, SigninServiceException.prototype);
     }
-};
+}
 
-let AccessDeniedException$1 = class AccessDeniedException extends SigninServiceException$1 {
+class AccessDeniedException extends SigninServiceException {
     name = "AccessDeniedException";
     $fault = "client";
     error;
@@ -240,8 +240,8 @@ let AccessDeniedException$1 = class AccessDeniedException extends SigninServiceE
         Object.setPrototypeOf(this, AccessDeniedException.prototype);
         this.error = opts.error;
     }
-};
-let InternalServerException$1 = class InternalServerException extends SigninServiceException$1 {
+}
+class InternalServerException extends SigninServiceException {
     name = "InternalServerException";
     $fault = "server";
     error;
@@ -254,8 +254,8 @@ let InternalServerException$1 = class InternalServerException extends SigninServ
         Object.setPrototypeOf(this, InternalServerException.prototype);
         this.error = opts.error;
     }
-};
-let TooManyRequestsError$1 = class TooManyRequestsError extends SigninServiceException$1 {
+}
+class TooManyRequestsError extends SigninServiceException {
     name = "TooManyRequestsError";
     $fault = "client";
     error;
@@ -268,8 +268,8 @@ let TooManyRequestsError$1 = class TooManyRequestsError extends SigninServiceExc
         Object.setPrototypeOf(this, TooManyRequestsError.prototype);
         this.error = opts.error;
     }
-};
-let ValidationException$1 = class ValidationException extends SigninServiceException$1 {
+}
+class ValidationException extends SigninServiceException {
     name = "ValidationException";
     $fault = "client";
     error;
@@ -282,7 +282,7 @@ let ValidationException$1 = class ValidationException extends SigninServiceExcep
         Object.setPrototypeOf(this, ValidationException.prototype);
         this.error = opts.error;
     }
-};
+}
 
 const _ADE = "AccessDeniedException";
 const _AT = "AccessToken";
@@ -320,9 +320,9 @@ const _tO = "tokenOutput";
 const _tT = "tokenType";
 const n0 = "com.amazonaws.signin";
 var RefreshToken = [0, n0, _RT, 8, 0];
-var AccessDeniedException = [-3, n0, _ADE, { [_e]: _c }, [_e, _m], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(AccessDeniedException, AccessDeniedException$1);
-var AccessToken = [
+var AccessDeniedException$ = [-3, n0, _ADE, { [_e]: _c }, [_e, _m], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(AccessDeniedException$, AccessDeniedException);
+var AccessToken$ = [
     3,
     n0,
     _AT,
@@ -334,15 +334,15 @@ var AccessToken = [
         [0, { [_jN]: _sT }],
     ],
 ];
-var CreateOAuth2TokenRequest = [
+var CreateOAuth2TokenRequest$ = [
     3,
     n0,
     _COATR,
     0,
     [_tI],
-    [[() => CreateOAuth2TokenRequestBody, 16]],
+    [[() => CreateOAuth2TokenRequestBody$, 16]],
 ];
-var CreateOAuth2TokenRequestBody = [
+var CreateOAuth2TokenRequestBody$ = [
     3,
     n0,
     _COATRB,
@@ -357,43 +357,43 @@ var CreateOAuth2TokenRequestBody = [
         [() => RefreshToken, { [_jN]: _rT }],
     ],
 ];
-var CreateOAuth2TokenResponse = [
+var CreateOAuth2TokenResponse$ = [
     3,
     n0,
     _COATRr,
     0,
     [_tO],
-    [[() => CreateOAuth2TokenResponseBody, 16]],
+    [[() => CreateOAuth2TokenResponseBody$, 16]],
 ];
-var CreateOAuth2TokenResponseBody = [
+var CreateOAuth2TokenResponseBody$ = [
     3,
     n0,
     _COATRBr,
     0,
     [_aT, _tT, _eI, _rT, _iT],
     [
-        [() => AccessToken, { [_jN]: _aT }],
+        [() => AccessToken$, { [_jN]: _aT }],
         [0, { [_jN]: _tT }],
         [1, { [_jN]: _eI }],
         [() => RefreshToken, { [_jN]: _rT }],
         [0, { [_jN]: _iT }],
     ],
 ];
-var InternalServerException = [-3, n0, _ISE, { [_e]: _s, [_hE]: 500 }, [_e, _m], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InternalServerException, InternalServerException$1);
-var TooManyRequestsError = [-3, n0, _TMRE, { [_e]: _c, [_hE]: 429 }, [_e, _m], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(TooManyRequestsError, TooManyRequestsError$1);
-var ValidationException = [-3, n0, _VE, { [_e]: _c, [_hE]: 400 }, [_e, _m], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(ValidationException, ValidationException$1);
-var SigninServiceException = [-3, _sm, "SigninServiceException", 0, [], []];
-schema.TypeRegistry.for(_sm).registerError(SigninServiceException, SigninServiceException$1);
-var CreateOAuth2Token = [
+var InternalServerException$ = [-3, n0, _ISE, { [_e]: _s, [_hE]: 500 }, [_e, _m], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(InternalServerException$, InternalServerException);
+var TooManyRequestsError$ = [-3, n0, _TMRE, { [_e]: _c, [_hE]: 429 }, [_e, _m], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(TooManyRequestsError$, TooManyRequestsError);
+var ValidationException$ = [-3, n0, _VE, { [_e]: _c, [_hE]: 400 }, [_e, _m], [0, 0]];
+schema.TypeRegistry.for(n0).registerError(ValidationException$, ValidationException);
+var SigninServiceException$ = [-3, _sm, "SigninServiceException", 0, [], []];
+schema.TypeRegistry.for(_sm).registerError(SigninServiceException$, SigninServiceException);
+var CreateOAuth2Token$ = [
     9,
     n0,
     _COAT,
     { [_h]: ["POST", "/v1/token", 200] },
-    () => CreateOAuth2TokenRequest,
-    () => CreateOAuth2TokenResponse,
+    () => CreateOAuth2TokenRequest$,
+    () => CreateOAuth2TokenResponse$,
 ];
 
 class CreateOAuth2TokenCommand extends smithyClient.Command
@@ -404,7 +404,7 @@ class CreateOAuth2TokenCommand extends smithyClient.Command
 })
     .s("Signin", "CreateOAuth2Token", {})
     .n("SigninClient", "CreateOAuth2TokenCommand")
-    .sc(CreateOAuth2Token)
+    .sc(CreateOAuth2Token$)
     .build() {
 }
 
@@ -432,15 +432,26 @@ __webpack_unused_export__ = ({
     enumerable: true,
     get: function () { return smithyClient.Client; }
 });
-__webpack_unused_export__ = AccessDeniedException$1;
+__webpack_unused_export__ = AccessDeniedException;
+__webpack_unused_export__ = AccessDeniedException$;
+__webpack_unused_export__ = AccessToken$;
+__webpack_unused_export__ = CreateOAuth2Token$;
 exports.CreateOAuth2TokenCommand = CreateOAuth2TokenCommand;
-__webpack_unused_export__ = InternalServerException$1;
+__webpack_unused_export__ = CreateOAuth2TokenRequest$;
+__webpack_unused_export__ = CreateOAuth2TokenRequestBody$;
+__webpack_unused_export__ = CreateOAuth2TokenResponse$;
+__webpack_unused_export__ = CreateOAuth2TokenResponseBody$;
+__webpack_unused_export__ = InternalServerException;
+__webpack_unused_export__ = InternalServerException$;
 __webpack_unused_export__ = OAuth2ErrorCode;
 __webpack_unused_export__ = Signin;
 exports.SigninClient = SigninClient;
-__webpack_unused_export__ = SigninServiceException$1;
-__webpack_unused_export__ = TooManyRequestsError$1;
-__webpack_unused_export__ = ValidationException$1;
+__webpack_unused_export__ = SigninServiceException;
+__webpack_unused_export__ = SigninServiceException$;
+__webpack_unused_export__ = TooManyRequestsError;
+__webpack_unused_export__ = TooManyRequestsError$;
+__webpack_unused_export__ = ValidationException;
+__webpack_unused_export__ = ValidationException$;
 
 
 /***/ }),
@@ -542,7 +553,12 @@ const getRuntimeConfig = (config) => {
             },
         ],
         logger: config?.logger ?? new smithy_client_1.NoOpLogger(),
-        protocol: config?.protocol ?? new protocols_1.AwsRestJsonProtocol({ defaultNamespace: "com.amazonaws.signin" }),
+        protocol: config?.protocol ?? protocols_1.AwsRestJsonProtocol,
+        protocolSettings: config?.protocolSettings ?? {
+            defaultNamespace: "com.amazonaws.signin",
+            version: "2023-01-01",
+            serviceTarget: "Signin",
+        },
         serviceId: config?.serviceId ?? "Signin",
         urlParser: config?.urlParser ?? url_parser_1.parseUrl,
         utf8Decoder: config?.utf8Decoder ?? util_utf8_1.fromUtf8,
