@@ -100,7 +100,7 @@ export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema:
 export function tokenAuthenticator<T extends object>(
     options: Partial<VerifierOptions & { key?: KeyFetcher }>,
 ) {
-  options.key = options.key ?? buildJwksKeyFetcher({providerDiscovery: true});
+  options.key ??= buildJwksKeyFetcher({providerDiscovery: true});
   const verifier = createVerifier(options);
 
   return createMiddleware<{ Variables: { token: T } }>(async (context, next) => {
@@ -120,6 +120,12 @@ export function tokenAuthenticator<T extends object>(
 
     const tokenPayload = await verifier(tokenValue)
         .catch((error) => {
+          console.log(`FUCK verifier error`, {
+            error: error.message,
+            code: error.code,
+            originalError: error.originalError?.message,
+            stack: JSON.stringify(error.originalError?.stack),
+          }); // TODO remove debug log
           if (error instanceof TokenError) {
             throw new HTTPException(Status.UNAUTHORIZED, {
               message: error.message,

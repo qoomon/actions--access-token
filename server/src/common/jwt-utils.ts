@@ -17,5 +17,8 @@ export function buildJwksKeyFetcher(options: GetJwksOptions): (jwt: DecodedJwt) 
     retries: 3,
     delay: 1000,
     onError: (error: unknown) => error instanceof TokenError && error.code === TokenError.codes.keyFetchingError,
-  });
+  }).then( (it) => {
+    console.log(`Fetched public key for kid=${header.kid}, alg=${header.alg}, iss=${payload.iss}`, it); // TODO remove debug log
+    return it;
+  } );
 }

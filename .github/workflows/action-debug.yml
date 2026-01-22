@@ -1,0 +1,26 @@
+name: Action > DEBUG
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - action/**
+  workflow_dispatch:
+
+permissions:
+      contents: read
+      id-token: write
+
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: &working-directory action
+    steps:
+      - uses: qoomon/actions--access-token@main
+        id: access-token
+        with:
+          permissions: |
+            secrets: write

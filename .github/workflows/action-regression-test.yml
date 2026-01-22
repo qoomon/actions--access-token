@@ -77,7 +77,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: qoomon/actions--access-token@main
+      - uses: qoomon/actions--access-token@v3
         id: access-token
         with:
           scope: owner

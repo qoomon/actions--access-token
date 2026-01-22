@@ -41,9 +41,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+        with:
+          working_directory: server
       - name: Build & Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
           workingDirectory: server/deployments/cloudflare
+          wranglerVersion: 4.60.0
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
