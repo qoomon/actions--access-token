@@ -2,21 +2,9 @@ import {getYamlInput} from './github-actions-utils.js';
 
 export const config : Config = {
   appServer: {
-    url: new URL('https://github-actions-access-token.netlify.app'),
+    url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
   },
 };
-
-interface Config {
-  appServer: {
-    url: URL
-    auth?: {
-      type: 'aws'
-      roleArn: string // e.g. 'arn:aws:iam::123456789012:role/github-actions-access-token-api-access'
-      region: string // e.g. 'eu-central-1'
-      service: 'lambda' | 'execute-api'
-    }
-  }
-}
 
 const appServerInput = getYamlInput('app-server') ;
 if(appServerInput) {
@@ -59,4 +47,16 @@ if(appServerInput) {
   }
 
   config.appServer =  appServerInput as Config['appServer'];
+}
+
+interface Config {
+  appServer: {
+    url: URL
+    auth?: {
+      type: 'aws'
+      roleArn: string // e.g. 'arn:aws:iam::123456789012:role/github-actions-access-token-api-access'
+      region: string // e.g. 'eu-central-1'
+      service: 'lambda' | 'execute-api'
+    }
+  }
 }

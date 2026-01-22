@@ -6853,23 +6853,41 @@ class JsonShapeDeserializer extends SerdeContextConfig {
         const ns = schema.NormalizedSchema.of(schema$1);
         if (isObject) {
             if (ns.isStructSchema()) {
+                const record = value;
                 const union = ns.isUnionSchema();
                 const out = {};
+                let nameMap = void 0;
+                const { jsonName } = this.settings;
+                if (jsonName) {
+                    nameMap = {};
+                }
                 let unionSerde;
                 if (union) {
-                    unionSerde = new UnionSerde(value, out);
+                    unionSerde = new UnionSerde(record, out);
                 }
-                for (const [memberName, memberSchema] of deserializingStructIterator(ns, value, this.settings.jsonName ? "jsonName" : false)) {
-                    const fromKey = this.settings.jsonName ? memberSchema.getMergedTraits().jsonName ?? memberName : memberName;
+                for (const [memberName, memberSchema] of deserializingStructIterator(ns, record, jsonName ? "jsonName" : false)) {
+                    let fromKey = memberName;
+                    if (jsonName) {
+                        fromKey = memberSchema.getMergedTraits().jsonName ?? fromKey;
+                        nameMap[fromKey] = memberName;
+                    }
                     if (union) {
                         unionSerde.mark(fromKey);
                     }
-                    if (value[fromKey] != null) {
-                        out[memberName] = this._read(memberSchema, value[fromKey]);
+                    if (record[fromKey] != null) {
+                        out[memberName] = this._read(memberSchema, record[fromKey]);
                     }
                 }
                 if (union) {
                     unionSerde.writeUnknown();
+                }
+                else if (typeof record.__type === "string") {
+                    for (const [k, v] of Object.entries(record)) {
+                        const t = jsonName ? nameMap[k] ?? k : k;
+                        if (!(t in out)) {
+                            out[t] = v;
+                        }
+                    }
                 }
                 return out;
             }
@@ -7049,20 +7067,37 @@ class JsonShapeSerializer extends SerdeContextConfig {
         const ns = schema.NormalizedSchema.of(schema$1);
         if (isObject) {
             if (ns.isStructSchema()) {
+                const record = value;
                 const out = {};
-                for (const [memberName, memberSchema] of serializingStructIterator(ns, value)) {
-                    const serializableValue = this._write(memberSchema, value[memberName], ns);
+                const { jsonName } = this.settings;
+                let nameMap = void 0;
+                if (jsonName) {
+                    nameMap = {};
+                }
+                for (const [memberName, memberSchema] of serializingStructIterator(ns, record)) {
+                    const serializableValue = this._write(memberSchema, record[memberName], ns);
                     if (serializableValue !== undefined) {
-                        const jsonName = memberSchema.getMergedTraits().jsonName;
-                        const targetKey = this.settings.jsonName ? jsonName ?? memberName : memberName;
+                        let targetKey = memberName;
+                        if (jsonName) {
+                            targetKey = memberSchema.getMergedTraits().jsonName ?? memberName;
+                            nameMap[memberName] = targetKey;
+                        }
                         out[targetKey] = serializableValue;
                     }
                 }
                 if (ns.isUnionSchema() && Object.keys(out).length === 0) {
-                    const { $unknown } = value;
+                    const { $unknown } = record;
                     if (Array.isArray($unknown)) {
                         const [k, v] = $unknown;
                         out[k] = this._write(15, v);
+                    }
+                }
+                else if (typeof record.__type === "string") {
+                    for (const [k, v] of Object.entries(record)) {
+                        const targetKey = jsonName ? nameMap[k] ?? k : k;
+                        if (!(targetKey in out)) {
+                            out[targetKey] = this._write(15, v);
+                        }
                     }
                 }
                 return out;
@@ -9095,23 +9130,41 @@ class JsonShapeDeserializer extends SerdeContextConfig {
         const ns = schema.NormalizedSchema.of(schema$1);
         if (isObject) {
             if (ns.isStructSchema()) {
+                const record = value;
                 const union = ns.isUnionSchema();
                 const out = {};
+                let nameMap = void 0;
+                const { jsonName } = this.settings;
+                if (jsonName) {
+                    nameMap = {};
+                }
                 let unionSerde;
                 if (union) {
-                    unionSerde = new UnionSerde(value, out);
+                    unionSerde = new UnionSerde(record, out);
                 }
-                for (const [memberName, memberSchema] of deserializingStructIterator(ns, value, this.settings.jsonName ? "jsonName" : false)) {
-                    const fromKey = this.settings.jsonName ? memberSchema.getMergedTraits().jsonName ?? memberName : memberName;
+                for (const [memberName, memberSchema] of deserializingStructIterator(ns, record, jsonName ? "jsonName" : false)) {
+                    let fromKey = memberName;
+                    if (jsonName) {
+                        fromKey = memberSchema.getMergedTraits().jsonName ?? fromKey;
+                        nameMap[fromKey] = memberName;
+                    }
                     if (union) {
                         unionSerde.mark(fromKey);
                     }
-                    if (value[fromKey] != null) {
-                        out[memberName] = this._read(memberSchema, value[fromKey]);
+                    if (record[fromKey] != null) {
+                        out[memberName] = this._read(memberSchema, record[fromKey]);
                     }
                 }
                 if (union) {
                     unionSerde.writeUnknown();
+                }
+                else if (typeof record.__type === "string") {
+                    for (const [k, v] of Object.entries(record)) {
+                        const t = jsonName ? nameMap[k] ?? k : k;
+                        if (!(t in out)) {
+                            out[t] = v;
+                        }
+                    }
                 }
                 return out;
             }
@@ -9291,20 +9344,37 @@ class JsonShapeSerializer extends SerdeContextConfig {
         const ns = schema.NormalizedSchema.of(schema$1);
         if (isObject) {
             if (ns.isStructSchema()) {
+                const record = value;
                 const out = {};
-                for (const [memberName, memberSchema] of serializingStructIterator(ns, value)) {
-                    const serializableValue = this._write(memberSchema, value[memberName], ns);
+                const { jsonName } = this.settings;
+                let nameMap = void 0;
+                if (jsonName) {
+                    nameMap = {};
+                }
+                for (const [memberName, memberSchema] of serializingStructIterator(ns, record)) {
+                    const serializableValue = this._write(memberSchema, record[memberName], ns);
                     if (serializableValue !== undefined) {
-                        const jsonName = memberSchema.getMergedTraits().jsonName;
-                        const targetKey = this.settings.jsonName ? jsonName ?? memberName : memberName;
+                        let targetKey = memberName;
+                        if (jsonName) {
+                            targetKey = memberSchema.getMergedTraits().jsonName ?? memberName;
+                            nameMap[memberName] = targetKey;
+                        }
                         out[targetKey] = serializableValue;
                     }
                 }
                 if (ns.isUnionSchema() && Object.keys(out).length === 0) {
-                    const { $unknown } = value;
+                    const { $unknown } = record;
                     if (Array.isArray($unknown)) {
                         const [k, v] = $unknown;
                         out[k] = this._write(15, v);
+                    }
+                }
+                else if (typeof record.__type === "string") {
+                    for (const [k, v] of Object.entries(record)) {
+                        const targetKey = jsonName ? nameMap[k] ?? k : k;
+                        if (!(targetKey in out)) {
+                            out[targetKey] = this._write(15, v);
+                        }
                     }
                 }
                 return out;
@@ -14438,7 +14508,7 @@ var partitions = [
 		regionRegex: "^eusc\\-(de)\\-\\w+\\-\\d+$",
 		regions: {
 			"eusc-de-east-1": {
-				description: "EU (Germany)"
+				description: "AWS European Sovereign Cloud (Germany)"
 			}
 		}
 	},
@@ -16410,6 +16480,13 @@ class CborShapeSerializer extends protocols.SerdeContext {
                     const [k, v] = sourceObject.$unknown;
                     newObject[k] = v;
                 }
+                else if (typeof sourceObject.__type === "string") {
+                    for (const [k, v] of Object.entries(sourceObject)) {
+                        if (!(k in newObject)) {
+                            newObject[k] = this.serialize(15, v);
+                        }
+                    }
+                }
             }
             else if (ns.isDocumentSchema()) {
                 for (const key of Object.keys(sourceObject)) {
@@ -16513,6 +16590,13 @@ class CborShapeDeserializer extends protocols.SerdeContext {
                 if (isUnion && keys?.size === 1 && Object.keys(newObject).length === 0) {
                     const k = keys.values().next().value;
                     newObject.$unknown = [k, value[k]];
+                }
+                else if (typeof value.__type === "string") {
+                    for (const [k, v] of Object.entries(value)) {
+                        if (!(k in newObject)) {
+                            newObject[k] = v;
+                        }
+                    }
                 }
             }
             else if (value instanceof serde.NumericValue) {
@@ -16833,6 +16917,11 @@ class HttpBindingProtocol extends HttpProtocol {
             const memberTraits = memberNs.getMergedTraits() ?? {};
             const inputMemberValue = input[memberName];
             if (inputMemberValue == null && !memberNs.isIdempotencyToken()) {
+                if (memberTraits.httpLabel) {
+                    if (request.path.includes(`{${memberName}+}`) || request.path.includes(`{${memberName}}`)) {
+                        throw new Error(`No value provided for input HTTP label: ${memberName}.`);
+                    }
+                }
                 continue;
             }
             if (memberTraits.httpPayload) {
@@ -17729,6 +17818,9 @@ function translateTraits(indicator) {
     return traits;
 }
 
+const anno = {
+    it: Symbol.for("@smithy/nor-struct-it"),
+};
 class NormalizedSchema {
     ref;
     memberName;
@@ -17884,10 +17976,7 @@ class NormalizedSchema {
         return !!streaming || this.getSchema() === 42;
     }
     isIdempotencyToken() {
-        const match = (traits) => (traits & 0b0100) === 0b0100 ||
-            !!traits?.idempotencyToken;
-        const { normalizedTraits, traits, memberTraits } = this;
-        return match(normalizedTraits) || match(traits) || match(memberTraits);
+        return !!this.getMergedTraits().idempotencyToken;
     }
     getMergedTraits() {
         return (this.normalizedTraits ??
@@ -17968,9 +18057,19 @@ class NormalizedSchema {
             throw new Error("@smithy/core/schema - cannot iterate non-struct schema.");
         }
         const struct = this.getSchema();
-        for (let i = 0; i < struct[4].length; ++i) {
-            yield [struct[4][i], member([struct[5][i], 0], struct[4][i])];
+        const z = struct[4].length;
+        let it = struct[anno.it];
+        if (it && z === it.length) {
+            yield* it;
+            return;
         }
+        it = Array(z);
+        for (let i = 0; i < z; ++i) {
+            const k = struct[4][i];
+            const v = member([struct[5][i], 0], k);
+            yield (it[i] = [k, v]);
+        }
+        struct[anno.it] = it;
     }
 }
 function member(memberSchema, memberName) {
@@ -59097,21 +59196,21 @@ exports.visitAsync = visitAsync;
 /***/ 7499:
 /***/ ((module) => {
 
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-cognito-identity","description":"AWS SDK for JavaScript Cognito Identity Client for Node.js, Browser and React Native","version":"3.969.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-cognito-identity","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo cognito-identity","test:e2e":"yarn g:vitest run -c vitest.config.e2e.mts --mode development","test:e2e:watch":"yarn g:vitest watch -c vitest.config.e2e.mts","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.969.0","@aws-sdk/credential-provider-node":"3.969.0","@aws-sdk/middleware-host-header":"3.969.0","@aws-sdk/middleware-logger":"3.969.0","@aws-sdk/middleware-recursion-detection":"3.969.0","@aws-sdk/middleware-user-agent":"3.969.0","@aws-sdk/region-config-resolver":"3.969.0","@aws-sdk/types":"3.969.0","@aws-sdk/util-endpoints":"3.969.0","@aws-sdk/util-user-agent-browser":"3.969.0","@aws-sdk/util-user-agent-node":"3.969.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.5","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.6","@smithy/middleware-retry":"^4.4.22","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.7","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.21","@smithy/util-defaults-mode-node":"^4.2.24","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@aws-sdk/client-iam":"3.969.0","@tsconfig/node20":"20.1.8","@types/chai":"^4.2.11","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"5.0.10","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-cognito-identity","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-cognito-identity"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-cognito-identity","description":"AWS SDK for JavaScript Cognito Identity Client for Node.js, Browser and React Native","version":"3.972.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-cognito-identity","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo cognito-identity","test:e2e":"yarn g:vitest run -c vitest.config.e2e.mts --mode development","test:e2e:watch":"yarn g:vitest watch -c vitest.config.e2e.mts","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/credential-provider-node":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@aws-sdk/client-iam":"3.972.0","@tsconfig/node20":"20.1.8","@types/chai":"^4.2.11","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-cognito-identity","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-cognito-identity"}}');
 
 /***/ }),
 
 /***/ 5188:
 /***/ ((module) => {
 
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-sso","description":"AWS SDK for JavaScript Sso Client for Node.js, Browser and React Native","version":"3.969.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-sso","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sso","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.969.0","@aws-sdk/middleware-host-header":"3.969.0","@aws-sdk/middleware-logger":"3.969.0","@aws-sdk/middleware-recursion-detection":"3.969.0","@aws-sdk/middleware-user-agent":"3.969.0","@aws-sdk/region-config-resolver":"3.969.0","@aws-sdk/types":"3.969.0","@aws-sdk/util-endpoints":"3.969.0","@aws-sdk/util-user-agent-browser":"3.969.0","@aws-sdk/util-user-agent-node":"3.969.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.5","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.6","@smithy/middleware-retry":"^4.4.22","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.7","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.21","@smithy/util-defaults-mode-node":"^4.2.24","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node20":"20.1.8","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"5.0.10","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sso","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sso"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-sso","description":"AWS SDK for JavaScript Sso Client for Node.js, Browser and React Native","version":"3.972.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-sso","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sso","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node20":"20.1.8","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sso","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sso"}}');
 
 /***/ }),
 
 /***/ 9955:
 /***/ ((module) => {
 
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/nested-clients","version":"3.969.0","description":"Nested clients for AWS SDK packages.","main":"./dist-cjs/index.js","module":"./dist-es/index.js","types":"./dist-types/index.d.ts","scripts":{"build":"yarn lint && concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline nested-clients","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","lint":"node ../../scripts/validation/submodules-linter.js --pkg nested-clients","test":"yarn g:vitest run","test:watch":"yarn g:vitest watch"},"engines":{"node":">=20.0.0"},"sideEffects":false,"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.969.0","@aws-sdk/middleware-host-header":"3.969.0","@aws-sdk/middleware-logger":"3.969.0","@aws-sdk/middleware-recursion-detection":"3.969.0","@aws-sdk/middleware-user-agent":"3.969.0","@aws-sdk/region-config-resolver":"3.969.0","@aws-sdk/types":"3.969.0","@aws-sdk/util-endpoints":"3.969.0","@aws-sdk/util-user-agent-browser":"3.969.0","@aws-sdk/util-user-agent-node":"3.969.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.5","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.6","@smithy/middleware-retry":"^4.4.22","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.7","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.21","@smithy/util-defaults-mode-node":"^4.2.24","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"5.0.10","typescript":"~5.8.3"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["./signin.d.ts","./signin.js","./sso-oidc.d.ts","./sso-oidc.js","./sts.d.ts","./sts.js","dist-*/**"],"browser":{"./dist-es/submodules/signin/runtimeConfig":"./dist-es/submodules/signin/runtimeConfig.browser","./dist-es/submodules/sso-oidc/runtimeConfig":"./dist-es/submodules/sso-oidc/runtimeConfig.browser","./dist-es/submodules/sts/runtimeConfig":"./dist-es/submodules/sts/runtimeConfig.browser"},"react-native":{},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"packages/nested-clients"},"exports":{"./package.json":"./package.json","./sso-oidc":{"types":"./dist-types/submodules/sso-oidc/index.d.ts","module":"./dist-es/submodules/sso-oidc/index.js","node":"./dist-cjs/submodules/sso-oidc/index.js","import":"./dist-es/submodules/sso-oidc/index.js","require":"./dist-cjs/submodules/sso-oidc/index.js"},"./sts":{"types":"./dist-types/submodules/sts/index.d.ts","module":"./dist-es/submodules/sts/index.js","node":"./dist-cjs/submodules/sts/index.js","import":"./dist-es/submodules/sts/index.js","require":"./dist-cjs/submodules/sts/index.js"},"./signin":{"types":"./dist-types/submodules/signin/index.d.ts","module":"./dist-es/submodules/signin/index.js","node":"./dist-cjs/submodules/signin/index.js","import":"./dist-es/submodules/signin/index.js","require":"./dist-cjs/submodules/signin/index.js"}}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/nested-clients","version":"3.972.0","description":"Nested clients for AWS SDK packages.","main":"./dist-cjs/index.js","module":"./dist-es/index.js","types":"./dist-types/index.d.ts","scripts":{"build":"yarn lint && concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline nested-clients","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","lint":"node ../../scripts/validation/submodules-linter.js --pkg nested-clients","test":"yarn g:vitest run","test:watch":"yarn g:vitest watch"},"engines":{"node":">=20.0.0"},"sideEffects":false,"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["./signin.d.ts","./signin.js","./sso-oidc.d.ts","./sso-oidc.js","./sts.d.ts","./sts.js","dist-*/**"],"browser":{"./dist-es/submodules/signin/runtimeConfig":"./dist-es/submodules/signin/runtimeConfig.browser","./dist-es/submodules/sso-oidc/runtimeConfig":"./dist-es/submodules/sso-oidc/runtimeConfig.browser","./dist-es/submodules/sts/runtimeConfig":"./dist-es/submodules/sts/runtimeConfig.browser"},"react-native":{},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"packages/nested-clients"},"exports":{"./package.json":"./package.json","./sso-oidc":{"types":"./dist-types/submodules/sso-oidc/index.d.ts","module":"./dist-es/submodules/sso-oidc/index.js","node":"./dist-cjs/submodules/sso-oidc/index.js","import":"./dist-es/submodules/sso-oidc/index.js","require":"./dist-cjs/submodules/sso-oidc/index.js"},"./sts":{"types":"./dist-types/submodules/sts/index.d.ts","module":"./dist-es/submodules/sts/index.js","node":"./dist-cjs/submodules/sts/index.js","import":"./dist-es/submodules/sts/index.js","require":"./dist-cjs/submodules/sts/index.js"},"./signin":{"types":"./dist-types/submodules/signin/index.d.ts","module":"./dist-es/submodules/signin/index.js","node":"./dist-cjs/submodules/signin/index.js","import":"./dist-es/submodules/signin/index.js","require":"./dist-cjs/submodules/signin/index.js"}}}');
 
 /***/ })
 
@@ -73424,7 +73523,7 @@ function canonicalHeadersOf(headers) {
 
 const config_config = {
     appServer: {
-        url: new URL('https://github-actions-access-token.netlify.app'),
+        url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
     },
 };
 const appServerInput = getYamlInput('app-server');
