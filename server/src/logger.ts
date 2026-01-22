@@ -21,41 +21,18 @@ const _logger = pino({
 });
 
 const _loggerExtensions = {
-  setAsyncBindings,
-  deleteAsyncBindings,
   withAsyncBindings,
 };
 
 export const logger: typeof _logger & typeof _loggerExtensions = Object.assign(_logger, _loggerExtensions);
 
-function setAsyncBindings(bindings: Bindings) {
-  const store = asyncBindings.getStore() ?? {
-    bindingsSources: new Map(),
-    bindings: {},
+async function withAsyncBindings<T>(bindings: Bindings, fn: () => Promise<T>): Promise<T> {
+  const current = asyncBindings.getStore();
+  const baseBindings = current?.bindings ?? {};
+  const store = {
+    bindingsSources: new Map<string, Bindings>(),
+    bindings: {...baseBindings, ...bindings},
   };
 
-  const bindingsId = crypto.randomUUID();
-  store.bindingsSources.set(bindingsId, bindings);
-  store.bindings = buildBindings(store.bindingsSources);
-
-  asyncBindings.enterWith(store);
-  return bindingsId;
-}
-
-function deleteAsyncBindings(id: string) {
-  const store = asyncBindings.getStore();
-  if (!store || !store.bindingsSources.has(id)) throw new Error("Unknown async logger bindings id");
-  store.bindingsSources.delete(id);
-  store.bindings = buildBindings(store.bindingsSources);
-}
-
-async function withAsyncBindings<T>(bindings: Bindings, fn: () => Promise<T>): Promise<T> {
-  const asyncLoggerBindingsId = setAsyncBindings(bindings);
-  return fn()
-      .finally(() => deleteAsyncBindings(asyncLoggerBindingsId));
-}
-
-function buildBindings(bindingsSources: Map<string, Bindings>) {
-  return [...bindingsSources.values()]
-      .reduce((acc, val) => ({...acc, ...val}), {});
+  return asyncBindings.run(store, fn);
 }

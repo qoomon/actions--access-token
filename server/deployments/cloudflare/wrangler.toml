@@ -1,5 +1,15 @@
-name = "GitHub Actions Access Token"
-main = "./index.ts"
-compatibility_date = "2022-10-10"
+compatibility_date = "2026-01-22"
+compatibility_flags = [ "nodejs_compat" ]
 
-# set secret environment variables https://developers.cloudflare.com/workers/configuration/secrets/
+name = "github-actions-access-token"
+main = "./index.ts"
+
+preview_urls = false
+
+[observability]
+enabled = true
+
+
+[vars]
+GITHUB_APP_ID = "225539"
+GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE ="github-actions-access-token.qoomon.workers.dev"

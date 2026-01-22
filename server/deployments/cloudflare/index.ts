@@ -1,4 +1,15 @@
-const {appInit} = await import('../../src/app.js');
-const app = appInit();
+import {Hono} from 'hono';
 
-export default app;
+let app: Hono | null = null;
+
+export default {
+  fetch: async (...args: Parameters<Hono['fetch']>): Promise<Response> => {
+    if (!app) {
+      const {appInit} = await import('../../src/app.js');
+      app = appInit();
+    }
+
+    return app.fetch(...args);
+  },
+};
+
