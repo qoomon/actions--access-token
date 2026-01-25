@@ -7,8 +7,8 @@ import {describe, expect, it, jest} from '@jest/globals';
 import {RequestError} from '@octokit/request-error';
 import {GitHubAppRepositoryPermissions, parseRepository, verifyPermission} from '../src/common/github-utils.js';
 import * as Fixtures from './fixtures.js';
-import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, Repository} from './fixtures.js';
-import {joinRegExp, Optional, sleep} from '../src/common/common-utils.js';
+import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, GITHUB_ACTIONS_TOKEN_SIGNING, Repository} from './fixtures.js';
+import {joinRegExp, Optional} from '../src/common/common-utils.js';
 import {withHint} from './jest-utils.js';
 import {Status} from '../src/common/http-utils.js';
 import {
@@ -16,13 +16,14 @@ import {
   GitHubRepositoryAccessPolicy,
   GitHubRepositoryAccessStatement,
 } from '../src/access-token-manager.js';
+import {RemoteJWKSetOptions} from 'jose/jwks/remote';
 
 process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'warn';
 process.env.GITHUB_APP_ID = Fixtures.GITHUB_APP_AUTH.appId;
 process.env.GITHUB_APP_PRIVATE_KEY = Fixtures.GITHUB_APP_AUTH.privateKey;
 process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE = Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.aud;
 
-mockJwks();
+await mockJwks();
 const githubMockEnvironment = mockGithub();
 
 const {config} = await import('../src/config');
@@ -107,15 +108,15 @@ describe('App path /access_tokens', () => {
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
-          message: 'The token is malformed.',
+          message: 'Invalid token: Invalid Compact JWS',
         });
       });
 
       it('if authorization token signature is invalid', async () => {
         // --- Given ---
-        const githubToken = Fixtures.createGitHubActionsToken({
+        const githubToken = await Fixtures.createGitHubActionsToken({
           signing: {
-            key: Fixtures.UNKNOWN_SIGNING_KEY,
+            key: Fixtures.UNKNOWN_SIGNING_KEY.privateKey,
           },
         });
 
@@ -126,20 +127,21 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        expect(response.status).toEqual(Status.UNAUTHORIZED);
+        await withHint(() => {
+          expect(response.status).toEqual(Status.UNAUTHORIZED);
+        }, async () => ({'response.json()': await response.json()}));
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
-          message: 'The token signature is invalid.',
+          message: 'Invalid token: signature verification failed',
         });
       });
 
       it('if authorization token has expired', async () => {
         // --- Given ---
-        const githubToken = Fixtures.createGitHubActionsToken({
-          signing: {expiresIn: 1},
+        const githubToken = await Fixtures.createGitHubActionsToken({
+          expirationTime: 0,
         });
-        await sleep(2); // ensure token is expired
 
         // --- When ---
         const response = await app.request(path, {
@@ -148,18 +150,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        expect(response.status).toEqual(Status.UNAUTHORIZED);
+        await withHint(() => {
+          expect(response.status).toEqual(Status.UNAUTHORIZED);
+        }, async () => ({'response.json()': await response.json()}));
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
-          message: expect.stringMatching(/^The token has expired at /),
+          message: 'Invalid token: "exp" claim timestamp check failed',
         });
       });
     });
 
     describe('should response with status BAD REQUEST', () => {
       // --- Given ---
-      const githubToken = Fixtures.createGitHubActionsToken({});
+      const githubTokenPromise = Fixtures.createGitHubActionsToken({});
 
       it('if request body is invalid json', async () => {
         // --- Given ---
@@ -167,7 +171,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: 'invalid json',
         });
 
@@ -191,7 +195,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             permissions: {},
           }),
@@ -204,7 +208,7 @@ describe('App path /access_tokens', () => {
         expect(await response.json()).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
-          message:  expect.stringMatching(joinRegExp([
+          message: expect.stringMatching(joinRegExp([
             /^Invalid request body:\n/,
             / {2}- permissions: Invalid object: must have at least one entry$/,
           ])),
@@ -217,7 +221,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             permissions: {unexpected: 'write'},
           }),
@@ -243,7 +247,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             permissions: {secrets: 'invalid'},
           }),
@@ -269,7 +273,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             repositories: ['invalid/invalid/invalid'],
             permissions: {actions: 'read'},
@@ -296,7 +300,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             owner: 'invalid/invalid',
             permissions: {secrets: 'write'},
@@ -323,7 +327,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             owner: 'octocat',
             repositories: ['spongebob/sandbox'],
@@ -351,7 +355,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             repositories: ['spongebob/sandbox', 'patrick/sandbox'],
             permissions: {actions: 'read'},
@@ -378,7 +382,7 @@ describe('App path /access_tokens', () => {
       it('if GitHub app has not been installed for target repo', async () => {
         // --- Given ---
         const actionRepo = githubMockEnvironment.addRepository({});
-        const githubToken = Fixtures.createGitHubActionsToken({
+        const githubToken = await Fixtures.createGitHubActionsToken({
           claims: {repository: actionRepo.name},
         });
 
@@ -412,7 +416,7 @@ describe('App path /access_tokens', () => {
         });
 
         const actionRepo = githubMockEnvironment.addRepository({});
-        const githubToken = Fixtures.createGitHubActionsToken({
+        const githubToken = await Fixtures.createGitHubActionsToken({
           claims: {repository: actionRepo.name},
         });
 
@@ -446,7 +450,7 @@ describe('App path /access_tokens', () => {
         });
 
         const actionRepo = githubMockEnvironment.addRepository({});
-        const githubToken = Fixtures.createGitHubActionsToken({
+        const githubToken = await Fixtures.createGitHubActionsToken({
           claims: {repository: actionRepo.name},
         });
 
@@ -490,7 +494,7 @@ describe('App path /access_tokens', () => {
         });
 
         const actionRepo = githubMockEnvironment.addRepository({});
-        const githubToken = Fixtures.createGitHubActionsToken({
+        const githubToken = await Fixtures.createGitHubActionsToken({
           claims: {repository: actionRepo.name},
         });
 
@@ -530,7 +534,7 @@ describe('App path /access_tokens', () => {
         });
 
         const actionRepo = githubMockEnvironment.addRepository({});
-        const githubToken = Fixtures.createGitHubActionsToken({
+        const githubToken = await Fixtures.createGitHubActionsToken({
           claims: {repository: actionRepo.name},
         });
 
@@ -579,7 +583,7 @@ describe('App path /access_tokens', () => {
           });
 
           const actionRepo = githubMockEnvironment.addRepository({});
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -609,7 +613,7 @@ describe('App path /access_tokens', () => {
         it('if requested target repo has no access policy', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({});
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -647,7 +651,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -684,7 +688,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -721,7 +725,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -758,7 +762,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -797,7 +801,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -841,7 +845,7 @@ describe('App path /access_tokens', () => {
           });
 
           const actionRepo = githubMockEnvironment.addRepository({});
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -908,7 +912,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -944,7 +948,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -980,7 +984,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1010,7 +1014,7 @@ describe('App path /access_tokens', () => {
           // --- Given ---
 
           const actionRepo = githubMockEnvironment.addRepository({});
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1055,7 +1059,7 @@ describe('App path /access_tokens', () => {
               }],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1095,7 +1099,7 @@ describe('App path /access_tokens', () => {
               ],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1135,7 +1139,7 @@ describe('App path /access_tokens', () => {
               ],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1173,7 +1177,7 @@ describe('App path /access_tokens', () => {
               ],
             },
           });
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1205,7 +1209,7 @@ describe('App path /access_tokens', () => {
         it('if requested org permissions are granted', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({});
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1243,7 +1247,7 @@ describe('App path /access_tokens', () => {
         it('even if requested org policy uses underscore permissions scopes', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({});
-          const githubToken = Fixtures.createGitHubActionsToken({
+          const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
           });
 
@@ -1288,23 +1292,21 @@ describe('App path /access_tokens', () => {
  * Mock modules
  * @return void
  */
-function mockJwks() {
-  jest.unstable_mockModule('get-jwks', () => {
-    const actual = jest.requireActual<any>('get-jwks');
+
+async function mockJwks() {
+  const actual = await import('jose');
+
+  jest.unstable_mockModule('jose', async () => {
     return {
-      default: jest.fn().mockImplementation((params) => ({
-        ...actual(params),
-        getPublicKey: async (params: any) => {
-          // intercept getPublicKey for GitHub Actions Token Signing and return fixture public key
-          if (params.domain === Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.iss &&
-              params.kid === Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.kid &&
-              params.alg === Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.alg) {
-            return Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.publicKey;
-          }
-          return actual.getPublicKey(params);
-        },
-      })),
-    };
+      ...actual,
+      createRemoteJWKSet: (url: URL, options?: RemoteJWKSetOptions) => {
+        if (url.toString() === 'https://token.actions.githubusercontent.com/.well-known/jwks') {
+          return GITHUB_ACTIONS_TOKEN_SIGNING.key.publicKey;
+        }
+        return actual.createRemoteJWKSet(url, options);
+      }
+    }
+
   });
 }
 

@@ -9,7 +9,6 @@ preview_urls = false
 [observability]
 enabled = true
 
-
 [vars]
 GITHUB_APP_ID = "225539"
 GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE ="github-actions-access-token.qoomon.workers.dev"

@@ -44,11 +44,14 @@ export function appInit(prepare?: (app: Hono) => void) {
 
   // --- handle access token request -----------------------------------------------------------------------------------
   app.post('/access_tokens',
-      tokenAuthenticator<GitHubActionsJwtPayload>({
-        allowedIss: 'https://token.actions.githubusercontent.com',
-        allowedAud: config.githubActionsTokenVerifier.allowedAud,
-        allowedSub: config.githubActionsTokenVerifier.allowedSub,
-      }),
+      tokenAuthenticator<GitHubActionsJwtPayload>(
+          new URL('https://token.actions.githubusercontent.com/.well-known/jwks'),
+          {
+            issuer: 'https://token.actions.githubusercontent.com',
+            audience: config.githubActionsTokenVerifier.allowedAud,
+            subjects: config.githubActionsTokenVerifier.allowedSub,
+          },
+      ),
       async (context) => {
         const callerIdentity = context.var.token;
         logger.info({

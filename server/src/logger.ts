@@ -1,7 +1,6 @@
 import pino from "pino";
 import asyncHooks from "node:async_hooks";
 import process from "process";
-import * as crypto from 'node:crypto';
 
 type Bindings = Record<string, unknown>;
 const asyncBindings = new asyncHooks.AsyncLocalStorage<{

@@ -291,4 +291,5 @@ export type GitHubActionsJwtPayload = {
   run_number: string, // e.g. "107",
   run_attempt: string, // e.g. "4",
   runner_environment: string, // e.g. "github-hosted",
-} & Record<string, string>;
+  [key: string]: string,
+};

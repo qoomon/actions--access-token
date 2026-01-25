@@ -4,11 +4,11 @@ import {HTTPException} from 'hono/http-exception';
 import type {StatusCode, UnofficialStatusCode} from 'hono/utils/http-status';
 import {createMiddleware} from 'hono/factory';
 import {ZodType} from 'zod';
-import {createVerifier, KeyFetcher, TokenError, VerifierOptions,} from 'fast-jwt';
 import {formatZodIssue, JsonTransformer} from './zod-utils.js';
 import {Status, StatusPhrases} from './http-utils.js';
-import {buildJwksKeyFetcher} from './jwt-utils.js';
 import {indent} from './common-utils.js';
+import {createRemoteJWKSet, jwtVerify, JWTVerifyOptions} from 'jose';
+import {JOSEError} from 'jose/errors';
 
 /**
  * Creates a NotFoundHandler that responses with JSON
@@ -94,14 +94,15 @@ export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema:
 
 /**
  * Creates a middleware that verifies a token and sets the token payload as 'token' context variable
+ * @param jwksUrl - URL of the JWKS
  * @param options - fast-jwt createVerifier options
  * @return middleware
  */
 export function tokenAuthenticator<T extends object>(
-    options: Partial<VerifierOptions & { key?: KeyFetcher }>,
+    jwksUrl: URL,
+    options: JWTVerifyOptions & { subjects?: RegExp[] },
 ) {
-  options.key ??= buildJwksKeyFetcher({providerDiscovery: true});
-  const verifier = createVerifier(options);
+  const jwkSet = createRemoteJWKSet(jwksUrl);
 
   return createMiddleware<{ Variables: { token: T } }>(async (context, next) => {
     const authorizationHeaderValue = context.req.header().authorization;
@@ -118,23 +119,25 @@ export function tokenAuthenticator<T extends object>(
       });
     }
 
-    const tokenPayload = await verifier(tokenValue)
-        .catch((error) => {
-          console.log(`FUCK verifier error`, {
-            error: error.message,
-            code: error.code,
-            originalError: error.originalError?.message,
-            stack: JSON.stringify(error.originalError?.stack),
-          }); // TODO remove debug log
-          if (error instanceof TokenError) {
-            throw new HTTPException(Status.UNAUTHORIZED, {
-              message: error.message,
-            });
-          }
-          throw error;
+    const token = await jwtVerify(tokenValue,
+        jwkSet, options,
+    ).catch((error) => {
+      if (error instanceof JOSEError) {
+        throw new HTTPException(Status.UNAUTHORIZED, {
+          message: 'Invalid token: ' + error.message,
         });
+      }
+      throw error;
+    });
 
-    context.set('token', tokenPayload as T);
+    if (options.subjects && !options.subjects
+        .some((subject) => subject.test(token.payload.sub ?? ''))) {
+      throw new HTTPException(Status.UNAUTHORIZED, {
+        message: `Invalid Token: unexpected "sub" claim value`,
+      });
+    }
+
+    context.set('token', token.payload as T);
 
     await next();
   });
