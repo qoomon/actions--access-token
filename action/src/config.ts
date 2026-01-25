@@ -2,7 +2,8 @@ import {getYamlInput} from './github-actions-utils.js';
 
 export const config : Config = {
   appServer: {
-    url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
+    url: new URL('https://github-actions-access-token.koyeb.app'),
+    // url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
     // url: new URL('https://github-actions-access-token.netlify.app'),
   },
 };

