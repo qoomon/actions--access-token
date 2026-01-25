@@ -42,6 +42,10 @@ export function appInit(prepare?: (app: Hono) => void) {
   app.use(bodyLimit({maxSize: 100 * 1024})); // 100kb
   app.use(prettyJSON());
 
+  app.get('/', (context) => {
+      return context.text('https://github.com/qoomon/actions--access-token');
+  });
+
   // --- handle access token request -----------------------------------------------------------------------------------
   app.post('/access_tokens',
       tokenAuthenticator<GitHubActionsJwtPayload>(

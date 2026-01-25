@@ -18,7 +18,6 @@ if(appServerInput) {
   }
   appServerInput.url = new URL(appServerInput.url as string);
 
-
   if ('auth' in appServerInput && appServerInput.auth !== null) {
     if (typeof appServerInput.auth !== 'object') {
       throw new Error('input app-server.auth must be an object');
