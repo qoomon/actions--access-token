@@ -48783,6 +48783,343 @@ module.exports = {
 
 /***/ }),
 
+/***/ 1679:
+/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
+
+__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   s: () => (/* binding */ mapObjectEntries)
+/* harmony export */ });
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(7484);
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _actions_http_client__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(4844);
+/* harmony import */ var _actions_http_client__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(_actions_http_client__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _smithy_signature_v4__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(5118);
+/* harmony import */ var _aws_crypto_sha256_js__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3156);
+/* harmony import */ var _aws_crypto_sha256_js__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__nccwpck_require__.n(_aws_crypto_sha256_js__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _aws_sdk_credential_providers__WEBPACK_IMPORTED_MODULE_7__ = __nccwpck_require__(9719);
+/* harmony import */ var _aws_sdk_credential_providers__WEBPACK_IMPORTED_MODULE_7___default = /*#__PURE__*/__nccwpck_require__.n(_aws_sdk_credential_providers__WEBPACK_IMPORTED_MODULE_7__);
+/* harmony import */ var _github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(9106);
+/* harmony import */ var zod__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(3905);
+/* harmony import */ var _signature4_js__WEBPACK_IMPORTED_MODULE_8__ = __nccwpck_require__(4789);
+/* harmony import */ var _config_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(2973);
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([_config_js__WEBPACK_IMPORTED_MODULE_4__]);
+_config_js__WEBPACK_IMPORTED_MODULE_4__ = (__webpack_async_dependencies__.then ? (await __webpack_async_dependencies__)() : __webpack_async_dependencies__)[0];
+
+
+
+
+
+
+
+
+
+// --- Main ------------------------------------------------------------------------------------------------------------
+(0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__/* .runAction */ .Cs)(async () => {
+    const input = {
+        permissions: zod__WEBPACK_IMPORTED_MODULE_5__/* .record */ .g1P(zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .YjP(), zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .YjP())
+            .parse((0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__/* .getYamlInput */ .Q3)('permissions', { required: true })),
+        repository: (0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4)('repository'),
+        repositories: zod__WEBPACK_IMPORTED_MODULE_5__/* .union */ .KCZ([
+            zod__WEBPACK_IMPORTED_MODULE_5__/* .array */ .YOg(zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .YjP()),
+            zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .YjP().toUpperCase().pipe(zod__WEBPACK_IMPORTED_MODULE_5__/* .literal */ .euz('ALL')),
+        ])
+            .default(() => [])
+            .parse((0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__/* .getYamlInput */ .Q3)('repositories')),
+        owner: (0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4)('owner'),
+        // --- legacy support
+        scope: (0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__/* .getInput */ .V4)('scope'),
+    };
+    // --- legacy support
+    {
+        // legacy support for owner input
+        if (input.scope === 'owner') {
+            if (Array.isArray(input.repositories) && input.repositories.length === 0) {
+                input.repositories = 'ALL';
+            }
+        }
+        // Legacy support for snake_case permissions
+        input.permissions = mapObjectEntries(input.permissions, ([key, value]) => [key.replace('_', '-'), value]);
+    }
+    if (Array.isArray(input.repositories) && input.repository) {
+        input.repositories.unshift(input.repository);
+    }
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.info('Get access token...');
+    const accessToken = await getAccessToken({
+        permissions: input.permissions,
+        repositories: input.repositories,
+        owner: input.owner,
+    });
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.info('Access token hash: ' + accessToken.token_hash);
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setSecret(accessToken.token);
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.setOutput('token', accessToken.token);
+    // save token to state to be able to revoke it in post-action
+    _actions_core__WEBPACK_IMPORTED_MODULE_0__.saveState('token', accessToken.token);
+});
+// ---------------------------------------------------------------------------------------------------------------------
+/**
+ * Get access token from access manager endpoint
+ * @param tokenRequest - token request
+ * @param tokenRequest.organization - target organization
+ * @param tokenRequest.repositories - target repositories
+ * @param tokenRequest.permissions - target permissions
+ * @return token
+ */
+async function getAccessToken(tokenRequest) {
+    const idTokenForAccessManager = await _actions_core__WEBPACK_IMPORTED_MODULE_0__.getIDToken(_config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.url.hostname)
+        .catch((error) => {
+        if (error.message === 'Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable') {
+            throw new Error(error.message + ' Probably job permission `id-token: write` is missing');
+        }
+        throw error;
+    });
+    let requestSigner;
+    if (_config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.auth) {
+        if (_config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.auth.type === 'aws') {
+            requestSigner = new _smithy_signature_v4__WEBPACK_IMPORTED_MODULE_6__.SignatureV4({
+                sha256: _aws_crypto_sha256_js__WEBPACK_IMPORTED_MODULE_2__.Sha256,
+                service: _config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.auth.service,
+                region: _config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.auth.region,
+                credentials: (0,_aws_sdk_credential_providers__WEBPACK_IMPORTED_MODULE_7__.fromWebToken)({
+                    webIdentityToken: await _actions_core__WEBPACK_IMPORTED_MODULE_0__.getIDToken('sts.amazonaws.com'),
+                    roleArn: _config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.auth.roleArn,
+                    durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
+                }),
+            });
+        }
+        else {
+            throw new Error(`Unsupported app server auth type: ${_config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.auth?.type}`);
+        }
+    }
+    return await httpRequest({
+        method: 'POST', requestUrl: new URL('/access_tokens', _config_js__WEBPACK_IMPORTED_MODULE_4__/* .config */ .$.appServer.url).href,
+        data: JSON.stringify(tokenRequest),
+        additionalHeaders: {
+            'authorization': 'Bearer ' + idTokenForAccessManager,
+            'content-type': 'application/json',
+        },
+    }, {
+        signer: requestSigner,
+    })
+        .then(async (response) => response.readBody())
+        .then(async (body) => JSON.parse(body));
+}
+/**
+ * Make http request
+ * @param request - request to send
+ * @param options - options
+ * @return response - with parsed body if possible
+ */
+async function httpRequest(request, options) {
+    const httpClient = new _actions_http_client__WEBPACK_IMPORTED_MODULE_1__.HttpClient();
+    if (options?.signer) {
+        request = await (0,_signature4_js__WEBPACK_IMPORTED_MODULE_8__/* .signHttpRequest */ .F)(request, options.signer);
+    }
+    return await httpClient.request(request.method, request.requestUrl, request.data, request.additionalHeaders)
+        .then(async (response) => {
+        if (!response.message.statusCode || response.message.statusCode < 200 || response.message.statusCode >= 300) {
+            const body = await response.readBody();
+            let bodyJson;
+            try {
+                bodyJson = JSON.parse(body);
+            }
+            catch {
+                // ignore
+            }
+            const msg = bodyJson?.message || body || 'Failed request';
+            const httpError = new _actions_http_client__WEBPACK_IMPORTED_MODULE_1__.HttpClientError(msg, response.message.statusCode ?? 0);
+            httpError.result = bodyJson || body;
+            throw httpError;
+        }
+        return response;
+    });
+}
+// --- Utils -----------------------------------------------------------------------------------------------------------
+function mapObjectEntries(object, fn) {
+    return Object.fromEntries(Object.entries(object).map(fn));
+}
+
+__webpack_async_result__();
+} catch(e) { __webpack_async_result__(e); } });
+
+/***/ }),
+
+/***/ 2973:
+/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
+
+__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   $: () => (/* binding */ config)
+/* harmony export */ });
+/* harmony import */ var _github_actions_utils_js__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(9106);
+
+const config = {
+    appServer: {
+        // Replace with your deployed server URL
+        // e.g. new URL('https://actions-access-token.example.com')
+        url: await fetch('https://raw.githubusercontent.com/qoomon/actions--access-token/refs/heads/main/server/public-host.json').then(response => response.json()).then(publicHost => new URL(publicHost.url)),
+    },
+};
+const appServerInput = (0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_0__/* .getYamlInput */ .Q3)('app-server');
+if (appServerInput) {
+    if (typeof appServerInput !== 'object') {
+        throw new Error('input app-server must be an object');
+    }
+    if (!('url' in appServerInput)) {
+        throw new Error('input app-server.url is required');
+    }
+    appServerInput.url = new URL(appServerInput.url);
+    if ('auth' in appServerInput && appServerInput.auth !== null) {
+        if (typeof appServerInput.auth !== 'object') {
+            throw new Error('input app-server.auth must be an object');
+        }
+        if (!('type' in appServerInput.auth)) {
+            throw new Error('input app-server.auth.type is required');
+        }
+        if (appServerInput.auth.type === 'aws') {
+            if (!('roleArn' in appServerInput.auth)) {
+                throw new Error('input app-server.auth.roleArn is required for auth type aws');
+            }
+            if (!('region' in appServerInput.auth)) {
+                throw new Error('input app-server.auth.region is required for auth type aws');
+            }
+            if (!('service' in appServerInput.auth)) {
+                throw new Error('input app-server.auth.service is required for auth type aws');
+            }
+            if (appServerInput.auth.service !== 'lambda' && appServerInput.auth.service !== 'execute-api') {
+                throw new Error(`input app-server.auth.service must be 'lambda' or 'execute-api',` +
+                    ` got '${appServerInput.auth.service}'`);
+            }
+        }
+        else {
+            throw new Error(`input app-server.auth.type must be 'aws', got '${appServerInput.auth.type}'`);
+        }
+    }
+    config.appServer = appServerInput;
+}
+
+__webpack_async_result__();
+} catch(e) { __webpack_async_result__(e); } }, 1);
+
+/***/ }),
+
+/***/ 9106:
+/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   Cs: () => (/* binding */ runAction),
+/* harmony export */   Q3: () => (/* binding */ getYamlInput),
+/* harmony export */   V4: () => (/* binding */ getInput)
+/* harmony export */ });
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(7484);
+/* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var yaml__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(8815);
+
+
+/**
+ * Run action and catch errors
+ * @param action - action to run
+ * @return void
+ */
+function runAction(action) {
+    action().catch(async (error) => {
+        console.error('Error:', error);
+        let failedMessage = 'Unhandled error, see job logs';
+        if (error != null && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+            failedMessage = error.message;
+        }
+        _actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed(failedMessage);
+    });
+}
+/**
+ * Gets the yaml value of an input.
+ * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
+ * Returns null if the value is not defined.
+ *
+ * @param     name     name of the input to get
+ * @param     options  optional. See InputOptions.
+ * @return   parsed input as object
+ */
+function getYamlInput(name, options) {
+    const input = getInput(name, options);
+    if (input === undefined)
+        return;
+    return yaml__WEBPACK_IMPORTED_MODULE_1__/* .parse */ .qg(input);
+}
+/**
+ * Get input value
+ * @param     name     name of the input to get
+ * @param     options  optional. See InputOptions.
+ * @return   input value
+ */
+function getInput(name, options) {
+    return _actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput(name, options) || undefined;
+}
+
+
+/***/ }),
+
+/***/ 4789:
+/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   F: () => (/* binding */ signHttpRequest)
+/* harmony export */ });
+/**
+ * Sign request to authenticate with AWS_IAM authentication
+ * @param request - request to sign
+ * @param signer - aws signer
+ * @return signed request
+ */
+async function signHttpRequest(request, signer) {
+    const canonicalRequestUrl = new URL(request.requestUrl);
+    const canonicalRequest = {
+        protocol: canonicalRequestUrl.protocol,
+        hostname: canonicalRequestUrl.hostname,
+        port: canonicalRequestUrl.port ? parseInt(canonicalRequestUrl.port) : undefined,
+        path: canonicalRequestUrl.pathname,
+        query: Object.fromEntries(canonicalRequestUrl.searchParams.entries()),
+        method: request.method,
+        body: request.data,
+        headers: {
+            ...canonicalHeadersOf(request.additionalHeaders || {}),
+            // authorization header is used for signing, so we need to move it to a custom authorization header
+            ...(request.additionalHeaders?.authorization && {
+                'x-authorization': request.additionalHeaders?.authorization,
+            }),
+            host: canonicalRequestUrl.hostname, // set mandatory host header for signing
+        },
+    };
+    const canonicalSignedRequest = await signer.sign(canonicalRequest);
+    return {
+        ...request,
+        data: canonicalSignedRequest.body,
+        additionalHeaders: canonicalSignedRequest.headers,
+    };
+}
+/**
+ * Convert http headers to canonical headers
+ * @param headers http headers
+ * @return canonical headers
+ */
+function canonicalHeadersOf(headers) {
+    return Object.entries(headers).reduce((result, [key, value]) => {
+        if (typeof value === 'string') {
+            result[key] = value;
+        }
+        else if (typeof value === 'number') {
+            result[key] = String(value);
+        }
+        else if (Array.isArray(value)) {
+            result[key] = value.join(', ');
+        }
+        return result;
+    }, {});
+}
+
+
+/***/ }),
+
 /***/ 2613:
 /***/ ((module) => {
 
@@ -59193,217 +59530,20 @@ exports.visitAsync = visitAsync;
 
 /***/ }),
 
-/***/ 7499:
-/***/ ((module) => {
+/***/ 3905:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __nccwpck_require__) => {
 
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-cognito-identity","description":"AWS SDK for JavaScript Cognito Identity Client for Node.js, Browser and React Native","version":"3.972.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-cognito-identity","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo cognito-identity","test:e2e":"yarn g:vitest run -c vitest.config.e2e.mts --mode development","test:e2e:watch":"yarn g:vitest watch -c vitest.config.e2e.mts","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/credential-provider-node":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@aws-sdk/client-iam":"3.972.0","@tsconfig/node20":"20.1.8","@types/chai":"^4.2.11","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-cognito-identity","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-cognito-identity"}}');
-
-/***/ }),
-
-/***/ 5188:
-/***/ ((module) => {
-
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-sso","description":"AWS SDK for JavaScript Sso Client for Node.js, Browser and React Native","version":"3.972.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-sso","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sso","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node20":"20.1.8","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sso","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sso"}}');
-
-/***/ }),
-
-/***/ 9955:
-/***/ ((module) => {
-
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/nested-clients","version":"3.972.0","description":"Nested clients for AWS SDK packages.","main":"./dist-cjs/index.js","module":"./dist-es/index.js","types":"./dist-types/index.d.ts","scripts":{"build":"yarn lint && concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline nested-clients","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","lint":"node ../../scripts/validation/submodules-linter.js --pkg nested-clients","test":"yarn g:vitest run","test:watch":"yarn g:vitest watch"},"engines":{"node":">=20.0.0"},"sideEffects":false,"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["./signin.d.ts","./signin.js","./sso-oidc.d.ts","./sso-oidc.js","./sts.d.ts","./sts.js","dist-*/**"],"browser":{"./dist-es/submodules/signin/runtimeConfig":"./dist-es/submodules/signin/runtimeConfig.browser","./dist-es/submodules/sso-oidc/runtimeConfig":"./dist-es/submodules/sso-oidc/runtimeConfig.browser","./dist-es/submodules/sts/runtimeConfig":"./dist-es/submodules/sts/runtimeConfig.browser"},"react-native":{},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"packages/nested-clients"},"exports":{"./package.json":"./package.json","./sso-oidc":{"types":"./dist-types/submodules/sso-oidc/index.d.ts","module":"./dist-es/submodules/sso-oidc/index.js","node":"./dist-cjs/submodules/sso-oidc/index.js","import":"./dist-es/submodules/sso-oidc/index.js","require":"./dist-cjs/submodules/sso-oidc/index.js"},"./sts":{"types":"./dist-types/submodules/sts/index.d.ts","module":"./dist-es/submodules/sts/index.js","node":"./dist-cjs/submodules/sts/index.js","import":"./dist-es/submodules/sts/index.js","require":"./dist-cjs/submodules/sts/index.js"},"./signin":{"types":"./dist-types/submodules/signin/index.d.ts","module":"./dist-es/submodules/signin/index.js","node":"./dist-cjs/submodules/signin/index.js","import":"./dist-es/submodules/signin/index.js","require":"./dist-cjs/submodules/signin/index.js"}}}');
-
-/***/ })
-
-/******/ });
-/************************************************************************/
-/******/ // The module cache
-/******/ var __webpack_module_cache__ = {};
-/******/ 
-/******/ // The require function
-/******/ function __nccwpck_require__(moduleId) {
-/******/ 	// Check if module is in cache
-/******/ 	var cachedModule = __webpack_module_cache__[moduleId];
-/******/ 	if (cachedModule !== undefined) {
-/******/ 		return cachedModule.exports;
-/******/ 	}
-/******/ 	// Create a new module (and put it into the cache)
-/******/ 	var module = __webpack_module_cache__[moduleId] = {
-/******/ 		// no module.id needed
-/******/ 		// no module.loaded needed
-/******/ 		exports: {}
-/******/ 	};
-/******/ 
-/******/ 	// Execute the module function
-/******/ 	var threw = true;
-/******/ 	try {
-/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __nccwpck_require__);
-/******/ 		threw = false;
-/******/ 	} finally {
-/******/ 		if(threw) delete __webpack_module_cache__[moduleId];
-/******/ 	}
-/******/ 
-/******/ 	// Return the exports of the module
-/******/ 	return module.exports;
-/******/ }
-/******/ 
-/******/ // expose the modules object (__webpack_modules__)
-/******/ __nccwpck_require__.m = __webpack_modules__;
-/******/ 
-/************************************************************************/
-/******/ /* webpack/runtime/create fake namespace object */
-/******/ (() => {
-/******/ 	var getProto = Object.getPrototypeOf ? (obj) => (Object.getPrototypeOf(obj)) : (obj) => (obj.__proto__);
-/******/ 	var leafPrototypes;
-/******/ 	// create a fake namespace object
-/******/ 	// mode & 1: value is a module id, require it
-/******/ 	// mode & 2: merge all properties of value into the ns
-/******/ 	// mode & 4: return value when already ns object
-/******/ 	// mode & 16: return value when it's Promise-like
-/******/ 	// mode & 8|1: behave like require
-/******/ 	__nccwpck_require__.t = function(value, mode) {
-/******/ 		if(mode & 1) value = this(value);
-/******/ 		if(mode & 8) return value;
-/******/ 		if(typeof value === 'object' && value) {
-/******/ 			if((mode & 4) && value.__esModule) return value;
-/******/ 			if((mode & 16) && typeof value.then === 'function') return value;
-/******/ 		}
-/******/ 		var ns = Object.create(null);
-/******/ 		__nccwpck_require__.r(ns);
-/******/ 		var def = {};
-/******/ 		leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];
-/******/ 		for(var current = mode & 2 && value; typeof current == 'object' && !~leafPrototypes.indexOf(current); current = getProto(current)) {
-/******/ 			Object.getOwnPropertyNames(current).forEach((key) => (def[key] = () => (value[key])));
-/******/ 		}
-/******/ 		def['default'] = () => (value);
-/******/ 		__nccwpck_require__.d(ns, def);
-/******/ 		return ns;
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/define property getters */
-/******/ (() => {
-/******/ 	// define getter functions for harmony exports
-/******/ 	__nccwpck_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/ensure chunk */
-/******/ (() => {
-/******/ 	__nccwpck_require__.f = {};
-/******/ 	// This file contains only the entry chunk.
-/******/ 	// The chunk loading function for additional chunks
-/******/ 	__nccwpck_require__.e = (chunkId) => {
-/******/ 		return Promise.all(Object.keys(__nccwpck_require__.f).reduce((promises, key) => {
-/******/ 			__nccwpck_require__.f[key](chunkId, promises);
-/******/ 			return promises;
-/******/ 		}, []));
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/get javascript chunk filename */
-/******/ (() => {
-/******/ 	// This function allow to reference async chunks
-/******/ 	__nccwpck_require__.u = (chunkId) => {
-/******/ 		// return url for filenames based on template
-/******/ 		return "" + chunkId + ".index.js";
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/hasOwnProperty shorthand */
-/******/ (() => {
-/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/make namespace object */
-/******/ (() => {
-/******/ 	// define __esModule on exports
-/******/ 	__nccwpck_require__.r = (exports) => {
-/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-/******/ 		}
-/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/compat */
-/******/ 
-/******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
-/******/ 
-/******/ /* webpack/runtime/import chunk loading */
-/******/ (() => {
-/******/ 	// no baseURI
-/******/ 	
-/******/ 	// object to store loaded and loading chunks
-/******/ 	// undefined = chunk not loaded, null = chunk preloaded/prefetched
-/******/ 	// [resolve, Promise] = chunk loading, 0 = chunk loaded
-/******/ 	var installedChunks = {
-/******/ 		792: 0
-/******/ 	};
-/******/ 	
-/******/ 	var installChunk = (data) => {
-/******/ 		var {ids, modules, runtime} = data;
-/******/ 		// add "modules" to the modules object,
-/******/ 		// then flag all "ids" as loaded and fire callback
-/******/ 		var moduleId, chunkId, i = 0;
-/******/ 		for(moduleId in modules) {
-/******/ 			if(__nccwpck_require__.o(modules, moduleId)) {
-/******/ 				__nccwpck_require__.m[moduleId] = modules[moduleId];
-/******/ 			}
-/******/ 		}
-/******/ 		if(runtime) runtime(__nccwpck_require__);
-/******/ 		for(;i < ids.length; i++) {
-/******/ 			chunkId = ids[i];
-/******/ 			if(__nccwpck_require__.o(installedChunks, chunkId) && installedChunks[chunkId]) {
-/******/ 				installedChunks[chunkId][0]();
-/******/ 			}
-/******/ 			installedChunks[ids[i]] = 0;
-/******/ 		}
-/******/ 	
-/******/ 	}
-/******/ 	
-/******/ 	__nccwpck_require__.f.j = (chunkId, promises) => {
-/******/ 			// import() chunk loading for javascript
-/******/ 			var installedChunkData = __nccwpck_require__.o(installedChunks, chunkId) ? installedChunks[chunkId] : undefined;
-/******/ 			if(installedChunkData !== 0) { // 0 means "already installed".
-/******/ 	
-/******/ 				// a Promise means "currently loading".
-/******/ 				if(installedChunkData) {
-/******/ 					promises.push(installedChunkData[1]);
-/******/ 				} else {
-/******/ 					if(true) { // all chunks have JS
-/******/ 						// setup Promise in chunk cache
-/******/ 						var promise = import("./" + __nccwpck_require__.u(chunkId)).then(installChunk, (e) => {
-/******/ 							if(installedChunks[chunkId] !== 0) installedChunks[chunkId] = undefined;
-/******/ 							throw e;
-/******/ 						});
-/******/ 						var promise = Promise.race([promise, new Promise((resolve) => (installedChunkData = installedChunks[chunkId] = [resolve]))])
-/******/ 						promises.push(installedChunkData[1] = promise);
-/******/ 					}
-/******/ 				}
-/******/ 			}
-/******/ 	};
-/******/ 	
-/******/ 	// no prefetching
-/******/ 	
-/******/ 	// no preloaded
-/******/ 	
-/******/ 	// no external install chunk
-/******/ 	
-/******/ 	// no on chunks loaded
-/******/ })();
-/******/ 
-/************************************************************************/
-var __webpack_exports__ = {};
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  s: () => (/* binding */ mapObjectEntries)
+  YOg: () => (/* reexport */ array),
+  euz: () => (/* reexport */ literal),
+  g1P: () => (/* reexport */ record),
+  YjP: () => (/* reexport */ schemas_string),
+  KCZ: () => (/* reexport */ union)
 });
+
+// UNUSED EXPORTS: $brand, $input, $output, NEVER, TimePrecision, ZodAny, ZodArray, ZodBase64, ZodBase64URL, ZodBigInt, ZodBigIntFormat, ZodBoolean, ZodCIDRv4, ZodCIDRv6, ZodCUID, ZodCUID2, ZodCatch, ZodCodec, ZodCustom, ZodCustomStringFormat, ZodDate, ZodDefault, ZodDiscriminatedUnion, ZodE164, ZodEmail, ZodEmoji, ZodEnum, ZodError, ZodExactOptional, ZodFile, ZodFirstPartyTypeKind, ZodFunction, ZodGUID, ZodIPv4, ZodIPv6, ZodISODate, ZodISODateTime, ZodISODuration, ZodISOTime, ZodIntersection, ZodIssueCode, ZodJWT, ZodKSUID, ZodLazy, ZodLiteral, ZodMAC, ZodMap, ZodNaN, ZodNanoID, ZodNever, ZodNonOptional, ZodNull, ZodNullable, ZodNumber, ZodNumberFormat, ZodObject, ZodOptional, ZodPipe, ZodPrefault, ZodPromise, ZodReadonly, ZodRealError, ZodRecord, ZodSet, ZodString, ZodStringFormat, ZodSuccess, ZodSymbol, ZodTemplateLiteral, ZodTransform, ZodTuple, ZodType, ZodULID, ZodURL, ZodUUID, ZodUndefined, ZodUnion, ZodUnknown, ZodVoid, ZodXID, ZodXor, _ZodString, _default, _function, any, base64, base64url, bigint, boolean, catch, check, cidrv4, cidrv6, clone, codec, coerce, config, core, cuid, cuid2, custom, date, decode, decodeAsync, describe, discriminatedUnion, e164, email, emoji, encode, encodeAsync, endsWith, enum, exactOptional, file, flattenError, float32, float64, formatError, fromJSONSchema, function, getErrorMap, globalRegistry, gt, gte, guid, hash, hex, hostname, httpUrl, includes, instanceof, int, int32, int64, intersection, ipv4, ipv6, iso, json, jwt, keyof, ksuid, lazy, length, locales, looseObject, looseRecord, lowercase, lt, lte, mac, map, maxLength, maxSize, meta, mime, minLength, minSize, multipleOf, nan, nanoid, nativeEnum, negative, never, nonnegative, nonoptional, nonpositive, normalize, null, nullable, nullish, number, object, optional, overwrite, parse, parseAsync, partialRecord, pipe, positive, prefault, preprocess, prettifyError, promise, property, readonly, refine, regex, regexes, registry, safeDecode, safeDecodeAsync, safeEncode, safeEncodeAsync, safeParse, safeParseAsync, set, setErrorMap, size, slugify, startsWith, strictObject, stringFormat, stringbool, success, superRefine, symbol, templateLiteral, toJSONSchema, toLowerCase, toUpperCase, transform, treeifyError, trim, tuple, uint32, uint64, ulid, undefined, unknown, uppercase, url, util, uuid, uuidv4, uuidv6, uuidv7, void, xid, xor
 
 // NAMESPACE OBJECT: ./node_modules/zod/v4/core/regexes.js
 var regexes_namespaceObject = {};
@@ -59687,61 +59827,6 @@ __nccwpck_require__.d(classic_schemas_namespaceObject, {
   xid: () => (schemas_xid),
   xor: () => (xor)
 });
-
-// EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
-var lib_core = __nccwpck_require__(7484);
-// EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
-var lib = __nccwpck_require__(4844);
-// EXTERNAL MODULE: ./node_modules/@smithy/signature-v4/dist-cjs/index.js
-var dist_cjs = __nccwpck_require__(5118);
-// EXTERNAL MODULE: ./node_modules/@aws-crypto/sha256-js/build/main/index.js
-var main = __nccwpck_require__(3156);
-// EXTERNAL MODULE: ./node_modules/@aws-sdk/credential-providers/dist-cjs/index.js
-var credential_providers_dist_cjs = __nccwpck_require__(9719);
-// EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
-var dist = __nccwpck_require__(8815);
-;// CONCATENATED MODULE: ./src/github-actions-utils.ts
-
-
-/**
- * Run action and catch errors
- * @param action - action to run
- * @return void
- */
-function runAction(action) {
-    action().catch(async (error) => {
-        console.error('Error:', error);
-        let failedMessage = 'Unhandled error, see job logs';
-        if (error != null && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-            failedMessage = error.message;
-        }
-        lib_core.setFailed(failedMessage);
-    });
-}
-/**
- * Gets the yaml value of an input.
- * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
- * Returns null if the value is not defined.
- *
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @return   parsed input as object
- */
-function getYamlInput(name, options) {
-    const input = getInput(name, options);
-    if (input === undefined)
-        return;
-    return dist/* parse */.qg(input);
-}
-/**
- * Get input value
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @return   input value
- */
-function getInput(name, options) {
-    return lib_core.getInput(name, options) || undefined;
-}
 
 ;// CONCATENATED MODULE: ./node_modules/zod/v4/core/core.js
 /** A special constant with type `never` */
@@ -73466,241 +73551,301 @@ config(en());
 
 
 
-;// CONCATENATED MODULE: ./src/signature4.ts
-/**
- * Sign request to authenticate with AWS_IAM authentication
- * @param request - request to sign
- * @param signer - aws signer
- * @return signed request
- */
-async function signHttpRequest(request, signer) {
-    const canonicalRequestUrl = new URL(request.requestUrl);
-    const canonicalRequest = {
-        protocol: canonicalRequestUrl.protocol,
-        hostname: canonicalRequestUrl.hostname,
-        port: canonicalRequestUrl.port ? parseInt(canonicalRequestUrl.port) : undefined,
-        path: canonicalRequestUrl.pathname,
-        query: Object.fromEntries(canonicalRequestUrl.searchParams.entries()),
-        method: request.method,
-        body: request.data,
-        headers: {
-            ...canonicalHeadersOf(request.additionalHeaders || {}),
-            // authorization header is used for signing, so we need to move it to a custom authorization header
-            ...(request.additionalHeaders?.authorization && {
-                'x-authorization': request.additionalHeaders?.authorization,
-            }),
-            host: canonicalRequestUrl.hostname, // set mandatory host header for signing
-        },
-    };
-    const canonicalSignedRequest = await signer.sign(canonicalRequest);
-    return {
-        ...request,
-        data: canonicalSignedRequest.body,
-        additionalHeaders: canonicalSignedRequest.headers,
-    };
-}
-/**
- * Convert http headers to canonical headers
- * @param headers http headers
- * @return canonical headers
- */
-function canonicalHeadersOf(headers) {
-    return Object.entries(headers).reduce((result, [key, value]) => {
-        if (typeof value === 'string') {
-            result[key] = value;
-        }
-        else if (typeof value === 'number') {
-            result[key] = String(value);
-        }
-        else if (Array.isArray(value)) {
-            result[key] = value.join(', ');
-        }
-        return result;
-    }, {});
-}
 
-;// CONCATENATED MODULE: ./src/config.ts
+/***/ }),
 
-const config_config = {
-    appServer: {
-        url: new URL('https://github-actions-access-token.qoo.monster'),
-        // url: new URL('https://github-actions-access-token.koyeb.app'),
-        // url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
-        // url: new URL('https://github-actions-access-token.netlify.app'),
-    },
-};
-const appServerInput = getYamlInput('app-server');
-if (appServerInput) {
-    if (typeof appServerInput !== 'object') {
-        throw new Error('input app-server must be an object');
-    }
-    if (!('url' in appServerInput)) {
-        throw new Error('input app-server.url is required');
-    }
-    appServerInput.url = new URL(appServerInput.url);
-    if ('auth' in appServerInput && appServerInput.auth !== null) {
-        if (typeof appServerInput.auth !== 'object') {
-            throw new Error('input app-server.auth must be an object');
-        }
-        if (!('type' in appServerInput.auth)) {
-            throw new Error('input app-server.auth.type is required');
-        }
-        if (appServerInput.auth.type === 'aws') {
-            if (!('roleArn' in appServerInput.auth)) {
-                throw new Error('input app-server.auth.roleArn is required for auth type aws');
-            }
-            if (!('region' in appServerInput.auth)) {
-                throw new Error('input app-server.auth.region is required for auth type aws');
-            }
-            if (!('service' in appServerInput.auth)) {
-                throw new Error('input app-server.auth.service is required for auth type aws');
-            }
-            if (appServerInput.auth.service !== 'lambda' && appServerInput.auth.service !== 'execute-api') {
-                throw new Error(`input app-server.auth.service must be 'lambda' or 'execute-api',` +
-                    ` got '${appServerInput.auth.service}'`);
-            }
-        }
-        else {
-            throw new Error(`input app-server.auth.type must be 'aws', got '${appServerInput.auth.type}'`);
-        }
-    }
-    config_config.appServer = appServerInput;
-}
+/***/ 7499:
+/***/ ((module) => {
 
-;// CONCATENATED MODULE: ./src/action-main.ts
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-cognito-identity","description":"AWS SDK for JavaScript Cognito Identity Client for Node.js, Browser and React Native","version":"3.972.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-cognito-identity","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo cognito-identity","test:e2e":"yarn g:vitest run -c vitest.config.e2e.mts --mode development","test:e2e:watch":"yarn g:vitest watch -c vitest.config.e2e.mts","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/credential-provider-node":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@aws-sdk/client-iam":"3.972.0","@tsconfig/node20":"20.1.8","@types/chai":"^4.2.11","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-cognito-identity","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-cognito-identity"}}');
 
+/***/ }),
 
+/***/ 5188:
+/***/ ((module) => {
 
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-sso","description":"AWS SDK for JavaScript Sso Client for Node.js, Browser and React Native","version":"3.972.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline client-sso","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sso","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node20":"20.1.8","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sso","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sso"}}');
 
+/***/ }),
 
+/***/ 9955:
+/***/ ((module) => {
 
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/nested-clients","version":"3.972.0","description":"Nested clients for AWS SDK packages.","main":"./dist-cjs/index.js","module":"./dist-es/index.js","types":"./dist-types/index.d.ts","scripts":{"build":"yarn lint && concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline nested-clients","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","lint":"node ../../scripts/validation/submodules-linter.js --pkg nested-clients","test":"yarn g:vitest run","test:watch":"yarn g:vitest watch"},"engines":{"node":">=20.0.0"},"sideEffects":false,"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"3.972.0","@aws-sdk/middleware-host-header":"3.972.0","@aws-sdk/middleware-logger":"3.972.0","@aws-sdk/middleware-recursion-detection":"3.972.0","@aws-sdk/middleware-user-agent":"3.972.0","@aws-sdk/region-config-resolver":"3.972.0","@aws-sdk/types":"3.972.0","@aws-sdk/util-endpoints":"3.972.0","@aws-sdk/util-user-agent-browser":"3.972.0","@aws-sdk/util-user-agent-node":"3.972.0","@smithy/config-resolver":"^4.4.6","@smithy/core":"^3.20.6","@smithy/fetch-http-handler":"^5.3.9","@smithy/hash-node":"^4.2.8","@smithy/invalid-dependency":"^4.2.8","@smithy/middleware-content-length":"^4.2.8","@smithy/middleware-endpoint":"^4.4.7","@smithy/middleware-retry":"^4.4.23","@smithy/middleware-serde":"^4.2.9","@smithy/middleware-stack":"^4.2.8","@smithy/node-config-provider":"^4.3.8","@smithy/node-http-handler":"^4.4.8","@smithy/protocol-http":"^5.3.8","@smithy/smithy-client":"^4.10.8","@smithy/types":"^4.12.0","@smithy/url-parser":"^4.2.8","@smithy/util-base64":"^4.3.0","@smithy/util-body-length-browser":"^4.2.0","@smithy/util-body-length-node":"^4.2.1","@smithy/util-defaults-mode-browser":"^4.3.22","@smithy/util-defaults-mode-node":"^4.2.25","@smithy/util-endpoints":"^3.2.8","@smithy/util-middleware":"^4.2.8","@smithy/util-retry":"^4.2.8","@smithy/util-utf8":"^4.2.0","tslib":"^2.6.2"},"devDependencies":{"concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["./signin.d.ts","./signin.js","./sso-oidc.d.ts","./sso-oidc.js","./sts.d.ts","./sts.js","dist-*/**"],"browser":{"./dist-es/submodules/signin/runtimeConfig":"./dist-es/submodules/signin/runtimeConfig.browser","./dist-es/submodules/sso-oidc/runtimeConfig":"./dist-es/submodules/sso-oidc/runtimeConfig.browser","./dist-es/submodules/sts/runtimeConfig":"./dist-es/submodules/sts/runtimeConfig.browser"},"react-native":{},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"packages/nested-clients"},"exports":{"./package.json":"./package.json","./sso-oidc":{"types":"./dist-types/submodules/sso-oidc/index.d.ts","module":"./dist-es/submodules/sso-oidc/index.js","node":"./dist-cjs/submodules/sso-oidc/index.js","import":"./dist-es/submodules/sso-oidc/index.js","require":"./dist-cjs/submodules/sso-oidc/index.js"},"./sts":{"types":"./dist-types/submodules/sts/index.d.ts","module":"./dist-es/submodules/sts/index.js","node":"./dist-cjs/submodules/sts/index.js","import":"./dist-es/submodules/sts/index.js","require":"./dist-cjs/submodules/sts/index.js"},"./signin":{"types":"./dist-types/submodules/signin/index.d.ts","module":"./dist-es/submodules/signin/index.js","node":"./dist-cjs/submodules/signin/index.js","import":"./dist-es/submodules/signin/index.js","require":"./dist-cjs/submodules/signin/index.js"}}}');
 
+/***/ })
 
-
-// --- Main ------------------------------------------------------------------------------------------------------------
-runAction(async () => {
-    const input = {
-        permissions: record(schemas_string(), schemas_string())
-            .parse(getYamlInput('permissions', { required: true })),
-        repository: getInput('repository'),
-        repositories: union([
-            array(schemas_string()),
-            schemas_string().toUpperCase().pipe(literal('ALL')),
-        ])
-            .default(() => [])
-            .parse(getYamlInput('repositories')),
-        owner: getInput('owner'),
-        // --- legacy support
-        scope: getInput('scope'),
-    };
-    // --- legacy support
-    {
-        // legacy support for owner input
-        if (input.scope === 'owner') {
-            if (Array.isArray(input.repositories) && input.repositories.length === 0) {
-                input.repositories = 'ALL';
-            }
-        }
-        // Legacy support for snake_case permissions
-        input.permissions = mapObjectEntries(input.permissions, ([key, value]) => [key.replace('_', '-'), value]);
-    }
-    if (Array.isArray(input.repositories) && input.repository) {
-        input.repositories.unshift(input.repository);
-    }
-    lib_core.info('Get access token...');
-    const accessToken = await getAccessToken({
-        permissions: input.permissions,
-        repositories: input.repositories,
-        owner: input.owner,
-    });
-    lib_core.info('Access token hash: ' + accessToken.token_hash);
-    lib_core.setSecret(accessToken.token);
-    lib_core.setOutput('token', accessToken.token);
-    // save token to state to be able to revoke it in post-action
-    lib_core.saveState('token', accessToken.token);
-});
-// ---------------------------------------------------------------------------------------------------------------------
-/**
- * Get access token from access manager endpoint
- * @param tokenRequest - token request
- * @param tokenRequest.organization - target organization
- * @param tokenRequest.repositories - target repositories
- * @param tokenRequest.permissions - target permissions
- * @return token
- */
-async function getAccessToken(tokenRequest) {
-    const idTokenForAccessManager = await lib_core.getIDToken(config_config.appServer.url.hostname)
-        .catch((error) => {
-        if (error.message === 'Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable') {
-            throw new Error(error.message + ' Probably job permission `id-token: write` is missing');
-        }
-        throw error;
-    });
-    let requestSigner;
-    if (config_config.appServer.auth) {
-        if (config_config.appServer.auth.type === 'aws') {
-            requestSigner = new dist_cjs.SignatureV4({
-                sha256: main.Sha256,
-                service: config_config.appServer.auth.service,
-                region: config_config.appServer.auth.region,
-                credentials: (0,credential_providers_dist_cjs.fromWebToken)({
-                    webIdentityToken: await lib_core.getIDToken('sts.amazonaws.com'),
-                    roleArn: config_config.appServer.auth.roleArn,
-                    durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
-                }),
-            });
-        }
-        else {
-            throw new Error(`Unsupported app server auth type: ${config_config.appServer.auth?.type}`);
-        }
-    }
-    return await httpRequest({
-        method: 'POST', requestUrl: new URL('/access_tokens', config_config.appServer.url).href,
-        data: JSON.stringify(tokenRequest),
-        additionalHeaders: {
-            'authorization': 'Bearer ' + idTokenForAccessManager,
-            'content-type': 'application/json',
-        },
-    }, {
-        signer: requestSigner,
-    })
-        .then(async (response) => response.readBody())
-        .then(async (body) => JSON.parse(body));
-}
-/**
- * Make http request
- * @param request - request to send
- * @param options - options
- * @return response - with parsed body if possible
- */
-async function httpRequest(request, options) {
-    const httpClient = new lib.HttpClient();
-    if (options?.signer) {
-        request = await signHttpRequest(request, options.signer);
-    }
-    return await httpClient.request(request.method, request.requestUrl, request.data, request.additionalHeaders)
-        .then(async (response) => {
-        if (!response.message.statusCode || response.message.statusCode < 200 || response.message.statusCode >= 300) {
-            const body = await response.readBody();
-            let bodyJson;
-            try {
-                bodyJson = JSON.parse(body);
-            }
-            catch {
-                // ignore
-            }
-            const msg = bodyJson?.message || body || 'Failed request';
-            const httpError = new lib.HttpClientError(msg, response.message.statusCode ?? 0);
-            httpError.result = bodyJson || body;
-            throw httpError;
-        }
-        return response;
-    });
-}
-// --- Utils -----------------------------------------------------------------------------------------------------------
-function mapObjectEntries(object, fn) {
-    return Object.fromEntries(Object.entries(object).map(fn));
-}
-
-var __webpack_exports__mapObjectEntries = __webpack_exports__.s;
-export { __webpack_exports__mapObjectEntries as mapObjectEntries };
+/******/ });
+/************************************************************************/
+/******/ // The module cache
+/******/ var __webpack_module_cache__ = {};
+/******/ 
+/******/ // The require function
+/******/ function __nccwpck_require__(moduleId) {
+/******/ 	// Check if module is in cache
+/******/ 	var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 	if (cachedModule !== undefined) {
+/******/ 		return cachedModule.exports;
+/******/ 	}
+/******/ 	// Create a new module (and put it into the cache)
+/******/ 	var module = __webpack_module_cache__[moduleId] = {
+/******/ 		// no module.id needed
+/******/ 		// no module.loaded needed
+/******/ 		exports: {}
+/******/ 	};
+/******/ 
+/******/ 	// Execute the module function
+/******/ 	var threw = true;
+/******/ 	try {
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __nccwpck_require__);
+/******/ 		threw = false;
+/******/ 	} finally {
+/******/ 		if(threw) delete __webpack_module_cache__[moduleId];
+/******/ 	}
+/******/ 
+/******/ 	// Return the exports of the module
+/******/ 	return module.exports;
+/******/ }
+/******/ 
+/******/ // expose the modules object (__webpack_modules__)
+/******/ __nccwpck_require__.m = __webpack_modules__;
+/******/ 
+/************************************************************************/
+/******/ /* webpack/runtime/async module */
+/******/ (() => {
+/******/ 	var webpackQueues = typeof Symbol === "function" ? Symbol("webpack queues") : "__webpack_queues__";
+/******/ 	var webpackExports = typeof Symbol === "function" ? Symbol("webpack exports") : "__webpack_exports__";
+/******/ 	var webpackError = typeof Symbol === "function" ? Symbol("webpack error") : "__webpack_error__";
+/******/ 	var resolveQueue = (queue) => {
+/******/ 		if(queue && queue.d < 1) {
+/******/ 			queue.d = 1;
+/******/ 			queue.forEach((fn) => (fn.r--));
+/******/ 			queue.forEach((fn) => (fn.r-- ? fn.r++ : fn()));
+/******/ 		}
+/******/ 	}
+/******/ 	var wrapDeps = (deps) => (deps.map((dep) => {
+/******/ 		if(dep !== null && typeof dep === "object") {
+/******/ 			if(dep[webpackQueues]) return dep;
+/******/ 			if(dep.then) {
+/******/ 				var queue = [];
+/******/ 				queue.d = 0;
+/******/ 				dep.then((r) => {
+/******/ 					obj[webpackExports] = r;
+/******/ 					resolveQueue(queue);
+/******/ 				}, (e) => {
+/******/ 					obj[webpackError] = e;
+/******/ 					resolveQueue(queue);
+/******/ 				});
+/******/ 				var obj = {};
+/******/ 				obj[webpackQueues] = (fn) => (fn(queue));
+/******/ 				return obj;
+/******/ 			}
+/******/ 		}
+/******/ 		var ret = {};
+/******/ 		ret[webpackQueues] = x => {};
+/******/ 		ret[webpackExports] = dep;
+/******/ 		return ret;
+/******/ 	}));
+/******/ 	__nccwpck_require__.a = (module, body, hasAwait) => {
+/******/ 		var queue;
+/******/ 		hasAwait && ((queue = []).d = -1);
+/******/ 		var depQueues = new Set();
+/******/ 		var exports = module.exports;
+/******/ 		var currentDeps;
+/******/ 		var outerResolve;
+/******/ 		var reject;
+/******/ 		var promise = new Promise((resolve, rej) => {
+/******/ 			reject = rej;
+/******/ 			outerResolve = resolve;
+/******/ 		});
+/******/ 		promise[webpackExports] = exports;
+/******/ 		promise[webpackQueues] = (fn) => (queue && fn(queue), depQueues.forEach(fn), promise["catch"](x => {}));
+/******/ 		module.exports = promise;
+/******/ 		body((deps) => {
+/******/ 			currentDeps = wrapDeps(deps);
+/******/ 			var fn;
+/******/ 			var getResult = () => (currentDeps.map((d) => {
+/******/ 				if(d[webpackError]) throw d[webpackError];
+/******/ 				return d[webpackExports];
+/******/ 			}))
+/******/ 			var promise = new Promise((resolve) => {
+/******/ 				fn = () => (resolve(getResult));
+/******/ 				fn.r = 0;
+/******/ 				var fnQueue = (q) => (q !== queue && !depQueues.has(q) && (depQueues.add(q), q && !q.d && (fn.r++, q.push(fn))));
+/******/ 				currentDeps.map((dep) => (dep[webpackQueues](fnQueue)));
+/******/ 			});
+/******/ 			return fn.r ? promise : getResult();
+/******/ 		}, (err) => ((err ? reject(promise[webpackError] = err) : outerResolve(exports)), resolveQueue(queue)));
+/******/ 		queue && queue.d < 0 && (queue.d = 0);
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/compat get default export */
+/******/ (() => {
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__nccwpck_require__.n = (module) => {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			() => (module['default']) :
+/******/ 			() => (module);
+/******/ 		__nccwpck_require__.d(getter, { a: getter });
+/******/ 		return getter;
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/create fake namespace object */
+/******/ (() => {
+/******/ 	var getProto = Object.getPrototypeOf ? (obj) => (Object.getPrototypeOf(obj)) : (obj) => (obj.__proto__);
+/******/ 	var leafPrototypes;
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 16: return value when it's Promise-like
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__nccwpck_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = this(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if(typeof value === 'object' && value) {
+/******/ 			if((mode & 4) && value.__esModule) return value;
+/******/ 			if((mode & 16) && typeof value.then === 'function') return value;
+/******/ 		}
+/******/ 		var ns = Object.create(null);
+/******/ 		__nccwpck_require__.r(ns);
+/******/ 		var def = {};
+/******/ 		leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];
+/******/ 		for(var current = mode & 2 && value; typeof current == 'object' && !~leafPrototypes.indexOf(current); current = getProto(current)) {
+/******/ 			Object.getOwnPropertyNames(current).forEach((key) => (def[key] = () => (value[key])));
+/******/ 		}
+/******/ 		def['default'] = () => (value);
+/******/ 		__nccwpck_require__.d(ns, def);
+/******/ 		return ns;
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/ensure chunk */
+/******/ (() => {
+/******/ 	__nccwpck_require__.f = {};
+/******/ 	// This file contains only the entry chunk.
+/******/ 	// The chunk loading function for additional chunks
+/******/ 	__nccwpck_require__.e = (chunkId) => {
+/******/ 		return Promise.all(Object.keys(__nccwpck_require__.f).reduce((promises, key) => {
+/******/ 			__nccwpck_require__.f[key](chunkId, promises);
+/******/ 			return promises;
+/******/ 		}, []));
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/get javascript chunk filename */
+/******/ (() => {
+/******/ 	// This function allow to reference async chunks
+/******/ 	__nccwpck_require__.u = (chunkId) => {
+/******/ 		// return url for filenames based on template
+/******/ 		return "" + chunkId + ".index.js";
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/make namespace object */
+/******/ (() => {
+/******/ 	// define __esModule on exports
+/******/ 	__nccwpck_require__.r = (exports) => {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/compat */
+/******/ 
+/******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
+/******/ 
+/******/ /* webpack/runtime/import chunk loading */
+/******/ (() => {
+/******/ 	// no baseURI
+/******/ 	
+/******/ 	// object to store loaded and loading chunks
+/******/ 	// undefined = chunk not loaded, null = chunk preloaded/prefetched
+/******/ 	// [resolve, Promise] = chunk loading, 0 = chunk loaded
+/******/ 	var installedChunks = {
+/******/ 		792: 0
+/******/ 	};
+/******/ 	
+/******/ 	var installChunk = (data) => {
+/******/ 		var {ids, modules, runtime} = data;
+/******/ 		// add "modules" to the modules object,
+/******/ 		// then flag all "ids" as loaded and fire callback
+/******/ 		var moduleId, chunkId, i = 0;
+/******/ 		for(moduleId in modules) {
+/******/ 			if(__nccwpck_require__.o(modules, moduleId)) {
+/******/ 				__nccwpck_require__.m[moduleId] = modules[moduleId];
+/******/ 			}
+/******/ 		}
+/******/ 		if(runtime) runtime(__nccwpck_require__);
+/******/ 		for(;i < ids.length; i++) {
+/******/ 			chunkId = ids[i];
+/******/ 			if(__nccwpck_require__.o(installedChunks, chunkId) && installedChunks[chunkId]) {
+/******/ 				installedChunks[chunkId][0]();
+/******/ 			}
+/******/ 			installedChunks[ids[i]] = 0;
+/******/ 		}
+/******/ 	
+/******/ 	}
+/******/ 	
+/******/ 	__nccwpck_require__.f.j = (chunkId, promises) => {
+/******/ 			// import() chunk loading for javascript
+/******/ 			var installedChunkData = __nccwpck_require__.o(installedChunks, chunkId) ? installedChunks[chunkId] : undefined;
+/******/ 			if(installedChunkData !== 0) { // 0 means "already installed".
+/******/ 	
+/******/ 				// a Promise means "currently loading".
+/******/ 				if(installedChunkData) {
+/******/ 					promises.push(installedChunkData[1]);
+/******/ 				} else {
+/******/ 					if(true) { // all chunks have JS
+/******/ 						// setup Promise in chunk cache
+/******/ 						var promise = import("./" + __nccwpck_require__.u(chunkId)).then(installChunk, (e) => {
+/******/ 							if(installedChunks[chunkId] !== 0) installedChunks[chunkId] = undefined;
+/******/ 							throw e;
+/******/ 						});
+/******/ 						var promise = Promise.race([promise, new Promise((resolve) => (installedChunkData = installedChunks[chunkId] = [resolve]))])
+/******/ 						promises.push(installedChunkData[1] = promise);
+/******/ 					}
+/******/ 				}
+/******/ 			}
+/******/ 	};
+/******/ 	
+/******/ 	// no prefetching
+/******/ 	
+/******/ 	// no preloaded
+/******/ 	
+/******/ 	// no external install chunk
+/******/ 	
+/******/ 	// no on chunks loaded
+/******/ })();
+/******/ 
+/************************************************************************/
+/******/ 
+/******/ // startup
+/******/ // Load entry module and return exports
+/******/ // This entry module used 'module' so it can't be inlined
+/******/ var __webpack_exports__ = __nccwpck_require__(1679);
+/******/ __webpack_exports__ = await __webpack_exports__;
+/******/ var __webpack_exports__mapObjectEntries = __webpack_exports__.s;
+/******/ export { __webpack_exports__mapObjectEntries as mapObjectEntries };
+/******/ 

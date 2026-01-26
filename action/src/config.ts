@@ -1,17 +1,18 @@
 import {getYamlInput} from './github-actions-utils.js';
 
-export const config : Config = {
+export const config: Config = {
   appServer: {
-    url: new URL('https://github-actions-access-token.qoo.monster'),
-    // url: new URL('https://github-actions-access-token.koyeb.app'),
-    // url: new URL('https://github-actions-access-token.qoomon.workers.dev'),
-    // url: new URL('https://github-actions-access-token.netlify.app'),
+    // Replace with your deployed server URL
+    // e.g. new URL('https://actions-access-token.example.com')
+    url: await fetch(
+        'https://raw.githubusercontent.com/qoomon/actions--access-token/refs/heads/main/server/public-host.json',
+    ).then(response => response.json()).then(publicHost => new URL(publicHost.url)),
   },
 };
 
-const appServerInput = getYamlInput('app-server') ;
-if(appServerInput) {
-  if(typeof appServerInput !== 'object') {
+const appServerInput = getYamlInput('app-server');
+if (appServerInput) {
+  if (typeof appServerInput !== 'object') {
     throw new Error('input app-server must be an object');
   }
 
@@ -27,7 +28,7 @@ if(appServerInput) {
     if (!('type' in appServerInput.auth)) {
       throw new Error('input app-server.auth.type is required');
     }
-    if(appServerInput.auth.type === 'aws') {
+    if (appServerInput.auth.type === 'aws') {
       if (!('roleArn' in appServerInput.auth)) {
         throw new Error('input app-server.auth.roleArn is required for auth type aws');
       }
@@ -48,7 +49,7 @@ if(appServerInput) {
     }
   }
 
-  config.appServer =  appServerInput as Config['appServer'];
+  config.appServer = appServerInput as Config['appServer'];
 }
 
 interface Config {
