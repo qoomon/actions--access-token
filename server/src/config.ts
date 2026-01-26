@@ -13,7 +13,9 @@ const configSchema = z.strictObject({
         .transform(formatPEMKey),
   }),
   githubActionsTokenVerifier: z.strictObject({
-    allowedAud: z.string().nonempty(),
+    allowedAud: z.array(
+        z.string().nonempty()
+    ).nonempty(),
     allowedSub: z.array(
         z.instanceof(RegExp)
     ).optional(),
@@ -42,7 +44,9 @@ export const config = validate({
     privateKey: formatPEMKey(env('GITHUB_APP_PRIVATE_KEY', true)),
   },
   githubActionsTokenVerifier: {
-    allowedAud: env('GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE', true),
+    allowedAud: env('GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE', true)
+        .split(',')
+        .map(aud => aud.trim()),
     allowedSub: env('GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS')
         ?.split(/\s*,\s*/)
         ?.map((subjectPattern) => regexpOfWildcardPattern(subjectPattern, 'i')),
