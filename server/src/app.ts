@@ -60,12 +60,14 @@ export function appInit(prepare?: (app: Hono) => void) {
         const callerIdentity = context.var.token;
         logger.info({
           identity: {
-            workflow_ref: callerIdentity.workflow_ref,
+            repository_owner: callerIdentity.repository_owner,
+            repository: callerIdentity.repository,
             job_workflow_ref: callerIdentity.job_workflow_ref,
             run_id: callerIdentity.run_id,
             attempts: callerIdentity.attempts,
           },
-          workflow_run_url: buildWorkflowRunUrl(callerIdentity),
+          // for debugging only:
+          // workflow_run_url: buildWorkflowRunUrl(callerIdentity),
         }, 'Caller Identity');
 
         const accessTokenRequest = await parseJsonBody(context.req, AccessTokenRequestBodySchema.check(
