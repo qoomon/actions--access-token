@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@actions/core": "^3.0.0",
-    "@actions/github": "^8.0.1",
+    "@actions/github": "^9.0.0",
     "@actions/http-client": "^4.0.0",
     "@aws-crypto/sha256-js": "^5.2.0",
     "@aws-sdk/credential-providers": "^3.980.0",
