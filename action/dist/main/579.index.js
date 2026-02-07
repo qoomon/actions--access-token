@@ -133,6 +133,11 @@ class EventStreamSerde {
                             [unionMember]: out,
                         };
                     }
+                    if (body.byteLength === 0) {
+                        return {
+                            [unionMember]: {},
+                        };
+                    }
                 }
                 return {
                     [unionMember]: await this.deserializer.read(eventStreamSchema, body),

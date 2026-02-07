@@ -3,6 +3,26 @@ import * as core from '@actions/core';
 import * as YAML from 'yaml';
 
 /**
+ * Get the name of the current GitHub Action in the format "owner/repo/ref"
+ * or "unknown" if it cannot be determined.
+ * @return name of the current GitHub Action
+ */
+export function getAction() {
+  let action;
+
+  if(process.env.GITHUB_ACTION_REF) {
+    action = `${process.env.GITHUB_ACTION_REPOSITORY}/${process.env.GITHUB_ACTION_REF}`;
+  } else if(process.env.GITHUB_ACTION_PATH) {
+    // WORKAROUND: https://github.com/actions/runner/issues/2473
+    action = process.env.GITHUB_ACTION_PATH
+        ?.match(/_actions\/(?<action>(?<owner>[^/]+)\/(?<repo>[^/]+)\/(?<ref>[^/]+))/)
+        ?.groups?.action;
+  }
+
+  return action || 'unknown';
+}
+
+/**
  * Run action and catch errors
  * @param action - action to run
  * @return void

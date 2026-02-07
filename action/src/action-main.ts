@@ -3,7 +3,7 @@ import {HttpClient, HttpClientError, HttpClientResponse} from '@actions/http-cli
 import {SignatureV4} from '@smithy/signature-v4';
 import {Sha256} from '@aws-crypto/sha256-js';
 import {fromWebToken} from '@aws-sdk/credential-providers';
-import {getInput, getYamlInput, runAction} from './github-actions-utils.js';
+import {getAction, getInput, getYamlInput, runAction} from './github-actions-utils.js';
 import {z} from 'zod';
 import {signHttpRequest} from './signature4.js';
 
@@ -125,7 +125,7 @@ async function getAccessToken(tokenRequest: {
 async function httpRequest(request: HttpRequest, options?: {
   signer?: SignatureV4
 }): Promise<HttpClientResponse> {
-  const httpClient = new HttpClient();
+  const httpClient = new HttpClient(getAction());
   if (options?.signer) {
     request = await signHttpRequest(request, options.signer);
   }
