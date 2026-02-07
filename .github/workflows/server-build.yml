@@ -52,24 +52,24 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  koyeb-trigger-redeploy:
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - run: |-
-          KOYEB_AUTH_HEADER="Authorization: Bearer ${KOYEB_API_KEY}"
-          SERVICE_NAME='github-actions-access-token'
-          # Determine Service ID
-          SERVICE_ID="$(
-            curl --request GET --header "$KOYEB_AUTH_HEADER" \
-              "https://app.koyeb.com/v1/services?name=${SERVICE_NAME}" \
-            | jq ".services.[] | select(.name=\"${SERVICE_NAME}\").id" \
-                --raw-output
-          )"
-          # Trigger redeploy
-          curl --request POST --header "$KOYEB_AUTH_HEADER" \
-            "https://app.koyeb.com/v1/services/${SERVICE_ID}/redeploy"
-        env:
-          KOYEB_API_KEY: ${{ secrets.KOYEB_API_KEY }}
+#  koyeb-trigger-redeploy:
+#    needs: build
+#    if: github.ref == 'refs/heads/main'
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 60
+#    steps:
+#      - run: |-
+#          KOYEB_AUTH_HEADER="Authorization: Bearer ${KOYEB_API_KEY}"
+#          SERVICE_NAME='github-actions-access-token'
+#          # Determine Service ID
+#          SERVICE_ID="$(
+#            curl --request GET --header "$KOYEB_AUTH_HEADER" \
+#              "https://app.koyeb.com/v1/services?name=${SERVICE_NAME}" \
+#            | jq ".services.[] | select(.name=\"${SERVICE_NAME}\").id" \
+#                --raw-output
+#          )"
+#          # Trigger redeploy
+#          curl --request POST --header "$KOYEB_AUTH_HEADER" \
+#            "https://app.koyeb.com/v1/services/${SERVICE_ID}/redeploy"
+#        env:
+#          KOYEB_API_KEY: ${{ secrets.KOYEB_API_KEY }}
