@@ -97,12 +97,18 @@ data "http" "lambda_zip" {
   url = "https://github.com/qoomon/actions--access-token/releases/download/v1.0.0/server-aws-lambda.zip"
 }
 
+resource "local_file" "lambda_zip" {
+  content_base64 = data.http.lambda_zip.response_body_base64
+  filename       = "${path.module}/server-aws-lambda.zip"
+}
+
 resource "aws_lambda_function" "access_token" {
-  filename      = data.http.lambda_zip.body
+  filename      = local_file.lambda_zip.filename
   function_name = "github-access-token"
   role          = aws_iam_role.lambda_role.arn
   handler       = "index.handler"
   runtime       = "nodejs24.x"
+  source_code_hash = data.http.lambda_zip.response_body_base64
   
   environment {
     variables = {
