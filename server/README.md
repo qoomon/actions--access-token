@@ -78,6 +78,41 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 
 ## Deploy Server
 
+### Using Prebuilt Release Artifacts
+
+> [!TIP]
+> For easier deployment and version pinning with tools like Terraform and Renovate, prebuilt server artifacts are available as zip files in each GitHub release.
+
+Each release includes the following prebuilt artifacts:
+- `server-aws-lambda.zip` - AWS Lambda deployment package
+- `server-vercel-function.zip` - Vercel Function deployment package
+- `server-netlify-function.zip` - Netlify Function deployment package
+- `server-cloudflare-worker.zip` - Cloudflare Worker deployment package
+
+These artifacts contain all the bundled code and dependencies needed to deploy the server. Simply download the appropriate zip file for your deployment target from the [releases page](https://github.com/qoomon/actions--access-token/releases).
+
+**Example: Using AWS Lambda artifact with Terraform**
+```hcl
+data "http" "lambda_zip" {
+  url = "https://github.com/qoomon/actions--access-token/releases/download/v1.0.0/server-aws-lambda.zip"
+}
+
+resource "aws_lambda_function" "access_token" {
+  filename      = data.http.lambda_zip.body
+  function_name = "github-access-token"
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "index.handler"
+  runtime       = "nodejs24.x"
+  
+  environment {
+    variables = {
+      GITHUB_APP_ID         = var.github_app_id
+      GITHUB_APP_PRIVATE_KEY = var.github_app_private_key
+    }
+  }
+}
+```
+
 ### Docker Container
 
 <details><summary>Click me</summary>
@@ -189,6 +224,21 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
 ---
 
 ## Development
+
+### Build Scripts
+
+The following npm scripts are available for building deployment targets:
+
+- `npm run build:aws-lambda` - Build AWS Lambda deployment package to `dist/aws-lambda/`
+- `npm run build:vercel-function` - Build Vercel Function to `dist/vercel-function/`
+- `npm run build:netlify-function` - Build Netlify Function to `dist/netlify-function/`
+- `npm run build:cloudflare-worker` - Build Cloudflare Worker to `dist/cloudflare-worker/`
+- `npm run build:all` - Build all deployment targets at once
+
+> [!NOTE]
+> The `dist/` directory is committed to the repository to ensure prebuilt artifacts are always available.
+> After making changes to server code, run `npm run build:all` and commit the updated `dist/` directory.
+
 ### Start Server
   ```shell
   GITHUB_APP_ID=[YOUR_GITHUB_APP_ID] \
