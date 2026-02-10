@@ -17,7 +17,13 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
       - name: Create Release
+        id: create_release
         uses: actions/github-script@v8
         env:
           INPUT_REF: ${{ inputs.ref }}
@@ -72,3 +78,73 @@ jobs:
               }
               throw err
             })
+            
+            core.setOutput('upload_url', release.upload_url)
+            core.setOutput('release_id', release.id)
+
+      - name: Create deployment artifacts
+        run: |
+          cd server
+          mkdir -p release-artifacts
+          
+          # Create zip for AWS Lambda
+          cd dist/aws-lambda
+          zip -r ../../release-artifacts/server-aws-lambda.zip .
+          cd ../..
+          
+          # Create zip for Vercel Function
+          cd dist/vercel-function
+          zip -r ../../release-artifacts/server-vercel-function.zip .
+          cd ../..
+          
+          # Create zip for Netlify Function
+          cd dist/netlify-function
+          zip -r ../../release-artifacts/server-netlify-function.zip .
+          cd ../..
+          
+          # Create zip for Cloudflare Worker
+          cd dist/cloudflare-worker
+          zip -r ../../release-artifacts/server-cloudflare-worker.zip .
+          cd ../..
+          
+          ls -lh release-artifacts/
+
+      - name: Upload AWS Lambda artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./server/release-artifacts/server-aws-lambda.zip
+          asset_name: server-aws-lambda.zip
+          asset_content_type: application/zip
+
+      - name: Upload Vercel Function artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./server/release-artifacts/server-vercel-function.zip
+          asset_name: server-vercel-function.zip
+          asset_content_type: application/zip
+
+      - name: Upload Netlify Function artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./server/release-artifacts/server-netlify-function.zip
+          asset_name: server-netlify-function.zip
+          asset_content_type: application/zip
+
+      - name: Upload Cloudflare Worker artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./server/release-artifacts/server-cloudflare-worker.zip
+          asset_name: server-cloudflare-worker.zip
+          asset_content_type: application/zip
