@@ -32,7 +32,18 @@ jobs:
 
       - run: npm ci
       - run: npm run test
-      - run: npm run build
+      - run: npm run build:all
+
+      # Verify that the dist/ is up-to-date
+      - name: Verify Server artifacts
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git_diff="$(git diff --ignore-cr-at-eol dist/)"
+          if [ -n "$git_diff" ]; then
+            echo "::error::Drift detected in dist/ directory"
+            echo "$git_diff"
+            exit 1
+          fi
 
   cloudflare-deploy:
     needs: build

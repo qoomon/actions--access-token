@@ -4,10 +4,12 @@
   "scripts": {
     "lint": "eslint .",
     "build": "ncc build src/server.ts",
-    "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts ",
+    "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts -o dist/aws-lambda",
     "build:docker-container": "docker build -t localhost/github-access-token-server:latest .",
-    "build:vercel-function": "ncc build deployments/vercel/api/index.ts",
-    "build:netlify-function": "ncc build deployments/netlify/functions/index.ts",
+    "build:vercel-function": "ncc build deployments/vercel/api/index.ts -o dist/vercel-function",
+    "build:netlify-function": "ncc build deployments/netlify/functions/index.ts -o dist/netlify-function",
+    "build:cloudflare-worker": "ncc build deployments/cloudflare/index.ts -o dist/cloudflare-worker",
+    "build:all": "npm run build:aws-lambda && npm run build:vercel-function && npm run build:netlify-function && npm run build:cloudflare-worker",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
     "start": "ncc run src/server.ts"
   },
