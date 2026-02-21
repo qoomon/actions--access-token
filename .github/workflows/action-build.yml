@@ -41,6 +41,5 @@ jobs:
           git_diff="$(git diff --ignore-cr-at-eol dist/)"
           if [ -n "$git_diff" ]; then
             echo "::error::Drift detected in dist/ directory"
-            echo "$git_diff"
             exit 1
           fi
