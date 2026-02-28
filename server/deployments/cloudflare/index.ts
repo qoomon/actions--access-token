@@ -1,7 +1,7 @@
 import {Hono} from 'hono';
 import process from 'process';
 
-process.env.REQUEST_ID_HEADER = 'cf-request-id';
+process.env.REQUEST_ID_HEADER = 'cf-ray';
 
 let app: Hono | null = null;
 export default {
