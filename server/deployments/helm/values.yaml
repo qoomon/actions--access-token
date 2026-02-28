@@ -1,0 +1,192 @@
+# Default values for github-access-token-server.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- Number of replicas for the deployment
+replicaCount: 1
+
+# -- Container image configuration
+image:
+  # -- Container image repository
+  repository: ""
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+# -- Secrets for pulling images from a private repository
+imagePullSecrets: []
+# -- Override the chart name
+nameOverride: ""
+# -- Override the full name of the release
+fullnameOverride: ""
+
+# -- GitHub App ID for authentication
+githubAppId: ""
+# -- GitHub App private key in PEM format
+githubAppPrivateKey: ""
+# githubAppPrivateKey: |
+
+# -- Additional environment variables to set in the container
+extraEnv:
+  - name: LOG_LEVEL
+    value: "info"
+  # GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE is taken by default from ingress host
+  # - name: GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE
+  #   value: "example.com"
+
+# -- Service account configuration
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Automatically mount a ServiceAccount's API credentials
+  automount: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# -- Annotations to add to the pod
+podAnnotations: {}
+# -- Labels to add to the pod
+podLabels: {}
+
+# -- Pod security context configuration
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# -- Container security context configuration
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# -- Service configuration
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 3000
+
+# -- Ingress configuration
+ingress:
+  # -- Enable ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Ingress annotations
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  # -- Ingress hosts configuration
+  hosts: []
+    # - host: example.com
+    #   paths:
+    #     - path: /
+    #       pathType: ImplementationSpecific
+  # -- Ingress TLS configuration
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# -- Gateway API HTTPRoute configuration. Requires Gateway API resources and suitable controller installed within the cluster (see: https://gateway-api.sigs.k8s.io/guides/)
+httpRoute:
+  # -- Enable HTTPRoute
+  enabled: false
+  # -- HTTPRoute annotations
+  annotations: {}
+  # -- Which Gateways this Route is attached to
+  parentRefs:
+  - name: gateway
+    sectionName: http
+    # namespace: default
+  # -- Hostnames matching HTTP header
+  hostnames:
+  - chart-example.local
+  # -- List of rules and filters applied
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /headers
+  #   filters:
+  #   - type: RequestHeaderModifier
+  #     requestHeaderModifier:
+  #       set:
+  #       - name: My-Overwrite-Header
+  #         value: this-is-the-only-value
+  #       remove:
+  #       - User-Agent
+  # - matches:
+  #   - path:
+  #       type: PathPrefix
+  #       value: /echo
+  #     headers:
+  #     - name: version
+  #       value: v2
+
+# -- Resource limits and requests for the container
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# -- Liveness probe configuration
+livenessProbe: {}
+  # httpGet:
+  #   path: /
+  #   port: http
+# -- Readiness probe configuration
+readinessProbe: {}
+  # httpGet:
+  #   path: /
+  #   port: http
+
+# -- Horizontal Pod Autoscaler configuration
+autoscaling:
+  # -- Enable autoscaling
+  enabled: false
+  # -- Minimum number of replicas
+  minReplicas: 1
+  # -- Maximum number of replicas
+  maxReplicas: 5
+  # -- Target CPU utilization percentage
+  targetCPUUtilizationPercentage: 80
+  # -- Target memory utilization percentage
+  targetMemoryUtilizationPercentage: 80
+
+# -- Additional volumes on the output Deployment definition
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# -- Additional volumeMounts on the output Deployment definition
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+# -- Node selector for pod assignment
+nodeSelector: {}
+
+# -- Tolerations for pod assignment
+tolerations: []
+
+# -- Affinity rules for pod assignment
+affinity: {}
+
+# -- Extra Kubernetes objects to deploy (e.g., ConfigMaps, Secrets)
+extraObjects: []

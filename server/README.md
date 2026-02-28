@@ -92,6 +92,7 @@ This readme describes how to deploy a GitHub Actions Access Token Server.
     docker run --rm
      -e GITHUB_APP_ID=[YOUR_GITHUB_APP_ID]> \
      -e GITHUB_APP_PRIVATE_KEY=$(cat [YOUR_GITHUB_APP.pem]>) \
+     -e GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE=localhost:3000 \
      -p 3000:3000 \
      localhost/github-access-token-server
     ```
