@@ -160,7 +160,7 @@ export async function accessTokenManager(options: {
       }).catch((error) => {
         if (error instanceof GithubAccessPolicyError) {
           logger.info({owner: tokenRequest.owner, issues: error.issues},
-              'Owner access policy - invalid');
+              `Owner access policy - ${error.message}`);
           throw new GitHubAccessTokenError([{
             owner: tokenRequest.owner,
             // BE AWARE to prevent leaking owner existence
@@ -294,7 +294,7 @@ export async function accessTokenManager(options: {
               const error = accessPolicyResult.error;
               if (error instanceof GithubAccessPolicyError) {
                 logger.info({owner: tokenRequest.owner, repo, issues: error.issues},
-                    'Repository access policy - invalid');
+                    `Repository access policy - ${error.message}`);
                 if (callerIdentity.repository_owner === tokenRequest.owner) {
                   result.issues.push(formatAccessPolicyError(error))
                 } else {
