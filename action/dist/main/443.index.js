@@ -97,8 +97,107 @@ util_endpoints_2.customEndpointFunctions.aws = util_endpoints_1.awsEndpointFunct
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ruleSet = void 0;
 const u = "required", v = "fn", w = "argv", x = "ref";
-const a = true, b = "isSet", c = "booleanEquals", d = "error", e = "endpoint", f = "tree", g = "PartitionResult", h = "getAttr", i = { [u]: false, "type": "string" }, j = { [u]: true, "default": false, "type": "boolean" }, k = { [x]: "Endpoint" }, l = { [v]: c, [w]: [{ [x]: "UseFIPS" }, true] }, m = { [v]: c, [w]: [{ [x]: "UseDualStack" }, true] }, n = {}, o = { [v]: h, [w]: [{ [x]: g }, "supportsFIPS"] }, p = { [x]: g }, q = { [v]: c, [w]: [true, { [v]: h, [w]: [p, "supportsDualStack"] }] }, r = [l], s = [m], t = [{ [x]: "Region" }];
-const _data = { version: "1.0", parameters: { Region: i, UseDualStack: j, UseFIPS: j, Endpoint: i }, rules: [{ conditions: [{ [v]: b, [w]: [k] }], rules: [{ conditions: r, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d }, { conditions: s, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d }, { endpoint: { url: k, properties: n, headers: n }, type: e }], type: f }, { conditions: [{ [v]: b, [w]: t }], rules: [{ conditions: [{ [v]: "aws.partition", [w]: t, assign: g }], rules: [{ conditions: [l, m], rules: [{ conditions: [{ [v]: c, [w]: [a, o] }, q], rules: [{ endpoint: { url: "https://oidc-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d }], type: f }, { conditions: r, rules: [{ conditions: [{ [v]: c, [w]: [o, a] }], rules: [{ conditions: [{ [v]: "stringEquals", [w]: [{ [v]: h, [w]: [p, "name"] }, "aws-us-gov"] }], endpoint: { url: "https://oidc.{Region}.amazonaws.com", properties: n, headers: n }, type: e }, { endpoint: { url: "https://oidc-fips.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "FIPS is enabled but this partition does not support FIPS", type: d }], type: f }, { conditions: s, rules: [{ conditions: [q], rules: [{ endpoint: { url: "https://oidc.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "DualStack is enabled but this partition does not support DualStack", type: d }], type: f }, { endpoint: { url: "https://oidc.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n }, type: e }], type: f }], type: f }, { error: "Invalid Configuration: Missing Region", type: d }] };
+const a = true, b = "isSet", c = "booleanEquals", d = "error", e = "endpoint", f = "tree", g = "PartitionResult", h = "getAttr", i = { [u]: false, type: "string" }, j = { [u]: true, default: false, type: "boolean" }, k = { [x]: "Endpoint" }, l = { [v]: c, [w]: [{ [x]: "UseFIPS" }, true] }, m = { [v]: c, [w]: [{ [x]: "UseDualStack" }, true] }, n = {}, o = { [v]: h, [w]: [{ [x]: g }, "supportsFIPS"] }, p = { [x]: g }, q = { [v]: c, [w]: [true, { [v]: h, [w]: [p, "supportsDualStack"] }] }, r = [l], s = [m], t = [{ [x]: "Region" }];
+const _data = {
+    version: "1.0",
+    parameters: { Region: i, UseDualStack: j, UseFIPS: j, Endpoint: i },
+    rules: [
+        {
+            conditions: [{ [v]: b, [w]: [k] }],
+            rules: [
+                { conditions: r, error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d },
+                { conditions: s, error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d },
+                { endpoint: { url: k, properties: n, headers: n }, type: e },
+            ],
+            type: f,
+        },
+        {
+            conditions: [{ [v]: b, [w]: t }],
+            rules: [
+                {
+                    conditions: [{ [v]: "aws.partition", [w]: t, assign: g }],
+                    rules: [
+                        {
+                            conditions: [l, m],
+                            rules: [
+                                {
+                                    conditions: [{ [v]: c, [w]: [a, o] }, q],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://oidc-fips.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: n,
+                                                headers: n,
+                                            },
+                                            type: e,
+                                        },
+                                    ],
+                                    type: f,
+                                },
+                                { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d },
+                            ],
+                            type: f,
+                        },
+                        {
+                            conditions: r,
+                            rules: [
+                                {
+                                    conditions: [{ [v]: c, [w]: [o, a] }],
+                                    rules: [
+                                        {
+                                            conditions: [{ [v]: "stringEquals", [w]: [{ [v]: h, [w]: [p, "name"] }, "aws-us-gov"] }],
+                                            endpoint: { url: "https://oidc.{Region}.amazonaws.com", properties: n, headers: n },
+                                            type: e,
+                                        },
+                                        {
+                                            endpoint: {
+                                                url: "https://oidc-fips.{Region}.{PartitionResult#dnsSuffix}",
+                                                properties: n,
+                                                headers: n,
+                                            },
+                                            type: e,
+                                        },
+                                    ],
+                                    type: f,
+                                },
+                                { error: "FIPS is enabled but this partition does not support FIPS", type: d },
+                            ],
+                            type: f,
+                        },
+                        {
+                            conditions: s,
+                            rules: [
+                                {
+                                    conditions: [q],
+                                    rules: [
+                                        {
+                                            endpoint: {
+                                                url: "https://oidc.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                properties: n,
+                                                headers: n,
+                                            },
+                                            type: e,
+                                        },
+                                    ],
+                                    type: f,
+                                },
+                                { error: "DualStack is enabled but this partition does not support DualStack", type: d },
+                            ],
+                            type: f,
+                        },
+                        {
+                            endpoint: { url: "https://oidc.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n },
+                            type: e,
+                        },
+                    ],
+                    type: f,
+                },
+            ],
+            type: f,
+        },
+        { error: "Invalid Configuration: Missing Region", type: d },
+    ],
+};
 exports.ruleSet = _data;
 
 
@@ -107,7 +206,6 @@ exports.ruleSet = _data;
 /***/ 9443:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
-var __webpack_unused_export__;
 
 
 var middlewareHostHeader = __webpack_require__(2590);
@@ -125,6 +223,9 @@ var httpAuthSchemeProvider = __webpack_require__(8396);
 var runtimeConfig = __webpack_require__(6901);
 var regionConfigResolver = __webpack_require__(6463);
 var protocolHttp = __webpack_require__(2356);
+var schemas_0 = __webpack_require__(7143);
+var errors = __webpack_require__(5843);
+var SSOOIDCServiceException = __webpack_require__(3952);
 
 const resolveClientEndpointParameters = (options) => {
     return Object.assign(options, {
@@ -220,325 +321,6 @@ class SSOOIDCClient extends smithyClient.Client {
     }
 }
 
-class SSOOIDCServiceException extends smithyClient.ServiceException {
-    constructor(options) {
-        super(options);
-        Object.setPrototypeOf(this, SSOOIDCServiceException.prototype);
-    }
-}
-
-class AccessDeniedException extends SSOOIDCServiceException {
-    name = "AccessDeniedException";
-    $fault = "client";
-    error;
-    reason;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "AccessDeniedException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, AccessDeniedException.prototype);
-        this.error = opts.error;
-        this.reason = opts.reason;
-        this.error_description = opts.error_description;
-    }
-}
-class AuthorizationPendingException extends SSOOIDCServiceException {
-    name = "AuthorizationPendingException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "AuthorizationPendingException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, AuthorizationPendingException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class ExpiredTokenException extends SSOOIDCServiceException {
-    name = "ExpiredTokenException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "ExpiredTokenException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, ExpiredTokenException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class InternalServerException extends SSOOIDCServiceException {
-    name = "InternalServerException";
-    $fault = "server";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "InternalServerException",
-            $fault: "server",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InternalServerException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class InvalidClientException extends SSOOIDCServiceException {
-    name = "InvalidClientException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "InvalidClientException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidClientException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class InvalidGrantException extends SSOOIDCServiceException {
-    name = "InvalidGrantException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "InvalidGrantException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidGrantException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class InvalidRequestException extends SSOOIDCServiceException {
-    name = "InvalidRequestException";
-    $fault = "client";
-    error;
-    reason;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "InvalidRequestException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidRequestException.prototype);
-        this.error = opts.error;
-        this.reason = opts.reason;
-        this.error_description = opts.error_description;
-    }
-}
-class InvalidScopeException extends SSOOIDCServiceException {
-    name = "InvalidScopeException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "InvalidScopeException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidScopeException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class SlowDownException extends SSOOIDCServiceException {
-    name = "SlowDownException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "SlowDownException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, SlowDownException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class UnauthorizedClientException extends SSOOIDCServiceException {
-    name = "UnauthorizedClientException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "UnauthorizedClientException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, UnauthorizedClientException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-class UnsupportedGrantTypeException extends SSOOIDCServiceException {
-    name = "UnsupportedGrantTypeException";
-    $fault = "client";
-    error;
-    error_description;
-    constructor(opts) {
-        super({
-            name: "UnsupportedGrantTypeException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, UnsupportedGrantTypeException.prototype);
-        this.error = opts.error;
-        this.error_description = opts.error_description;
-    }
-}
-
-const _ADE = "AccessDeniedException";
-const _APE = "AuthorizationPendingException";
-const _AT = "AccessToken";
-const _CS = "ClientSecret";
-const _CT = "CreateToken";
-const _CTR = "CreateTokenRequest";
-const _CTRr = "CreateTokenResponse";
-const _CV = "CodeVerifier";
-const _ETE = "ExpiredTokenException";
-const _ICE = "InvalidClientException";
-const _IGE = "InvalidGrantException";
-const _IRE = "InvalidRequestException";
-const _ISE = "InternalServerException";
-const _ISEn = "InvalidScopeException";
-const _IT = "IdToken";
-const _RT = "RefreshToken";
-const _SDE = "SlowDownException";
-const _UCE = "UnauthorizedClientException";
-const _UGTE = "UnsupportedGrantTypeException";
-const _aT = "accessToken";
-const _c = "client";
-const _cI = "clientId";
-const _cS = "clientSecret";
-const _cV = "codeVerifier";
-const _co = "code";
-const _dC = "deviceCode";
-const _e = "error";
-const _eI = "expiresIn";
-const _ed = "error_description";
-const _gT = "grantType";
-const _h = "http";
-const _hE = "httpError";
-const _iT = "idToken";
-const _r = "reason";
-const _rT = "refreshToken";
-const _rU = "redirectUri";
-const _s = "scope";
-const _se = "server";
-const _sm = "smithy.ts.sdk.synthetic.com.amazonaws.ssooidc";
-const _tT = "tokenType";
-const n0 = "com.amazonaws.ssooidc";
-var AccessToken = [0, n0, _AT, 8, 0];
-var ClientSecret = [0, n0, _CS, 8, 0];
-var CodeVerifier = [0, n0, _CV, 8, 0];
-var IdToken = [0, n0, _IT, 8, 0];
-var RefreshToken = [0, n0, _RT, 8, 0];
-var AccessDeniedException$ = [
-    -3,
-    n0,
-    _ADE,
-    { [_e]: _c, [_hE]: 400 },
-    [_e, _r, _ed],
-    [0, 0, 0],
-];
-schema.TypeRegistry.for(n0).registerError(AccessDeniedException$, AccessDeniedException);
-var AuthorizationPendingException$ = [
-    -3,
-    n0,
-    _APE,
-    { [_e]: _c, [_hE]: 400 },
-    [_e, _ed],
-    [0, 0],
-];
-schema.TypeRegistry.for(n0).registerError(AuthorizationPendingException$, AuthorizationPendingException);
-var CreateTokenRequest$ = [
-    3,
-    n0,
-    _CTR,
-    0,
-    [_cI, _cS, _gT, _dC, _co, _rT, _s, _rU, _cV],
-    [0, [() => ClientSecret, 0], 0, 0, 0, [() => RefreshToken, 0], 64 | 0, 0, [() => CodeVerifier, 0]],
-    3,
-];
-var CreateTokenResponse$ = [
-    3,
-    n0,
-    _CTRr,
-    0,
-    [_aT, _tT, _eI, _rT, _iT],
-    [[() => AccessToken, 0], 0, 1, [() => RefreshToken, 0], [() => IdToken, 0]],
-];
-var ExpiredTokenException$ = [-3, n0, _ETE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(ExpiredTokenException$, ExpiredTokenException);
-var InternalServerException$ = [-3, n0, _ISE, { [_e]: _se, [_hE]: 500 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InternalServerException$, InternalServerException);
-var InvalidClientException$ = [-3, n0, _ICE, { [_e]: _c, [_hE]: 401 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InvalidClientException$, InvalidClientException);
-var InvalidGrantException$ = [-3, n0, _IGE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InvalidGrantException$, InvalidGrantException);
-var InvalidRequestException$ = [
-    -3,
-    n0,
-    _IRE,
-    { [_e]: _c, [_hE]: 400 },
-    [_e, _r, _ed],
-    [0, 0, 0],
-];
-schema.TypeRegistry.for(n0).registerError(InvalidRequestException$, InvalidRequestException);
-var InvalidScopeException$ = [-3, n0, _ISEn, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(InvalidScopeException$, InvalidScopeException);
-var SlowDownException$ = [-3, n0, _SDE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
-schema.TypeRegistry.for(n0).registerError(SlowDownException$, SlowDownException);
-var UnauthorizedClientException$ = [
-    -3,
-    n0,
-    _UCE,
-    { [_e]: _c, [_hE]: 400 },
-    [_e, _ed],
-    [0, 0],
-];
-schema.TypeRegistry.for(n0).registerError(UnauthorizedClientException$, UnauthorizedClientException);
-var UnsupportedGrantTypeException$ = [
-    -3,
-    n0,
-    _UGTE,
-    { [_e]: _c, [_hE]: 400 },
-    [_e, _ed],
-    [0, 0],
-];
-schema.TypeRegistry.for(n0).registerError(UnsupportedGrantTypeException$, UnsupportedGrantTypeException);
-var SSOOIDCServiceException$ = [-3, _sm, "SSOOIDCServiceException", 0, [], []];
-schema.TypeRegistry.for(_sm).registerError(SSOOIDCServiceException$, SSOOIDCServiceException);
-var CreateToken$ = [
-    9,
-    n0,
-    _CT,
-    { [_h]: ["POST", "/token", 200] },
-    () => CreateTokenRequest$,
-    () => CreateTokenResponse$,
-];
-
 class CreateTokenCommand extends smithyClient.Command
     .classBuilder()
     .ep(commonParams)
@@ -547,7 +329,7 @@ class CreateTokenCommand extends smithyClient.Command
 })
     .s("AWSSSOOIDCService", "CreateToken", {})
     .n("SSOOIDCClient", "CreateTokenCommand")
-    .sc(CreateToken$)
+    .sc(schemas_0.CreateToken$)
     .build() {
 }
 
@@ -568,46 +350,255 @@ const InvalidRequestExceptionReason = {
     KMS_KEY_NOT_FOUND: "KMS_NotFoundException",
 };
 
-__webpack_unused_export__ = ({
-    enumerable: true,
-    get: function () { return smithyClient.Command; }
-});
-__webpack_unused_export__ = ({
-    enumerable: true,
-    get: function () { return smithyClient.Client; }
-});
-__webpack_unused_export__ = AccessDeniedException;
-__webpack_unused_export__ = AccessDeniedException$;
-__webpack_unused_export__ = AccessDeniedExceptionReason;
-__webpack_unused_export__ = AuthorizationPendingException;
-__webpack_unused_export__ = AuthorizationPendingException$;
-__webpack_unused_export__ = CreateToken$;
+exports.$Command = smithyClient.Command;
+exports.__Client = smithyClient.Client;
+exports.SSOOIDCServiceException = SSOOIDCServiceException.SSOOIDCServiceException;
+exports.AccessDeniedExceptionReason = AccessDeniedExceptionReason;
 exports.CreateTokenCommand = CreateTokenCommand;
-__webpack_unused_export__ = CreateTokenRequest$;
-__webpack_unused_export__ = CreateTokenResponse$;
-__webpack_unused_export__ = ExpiredTokenException;
-__webpack_unused_export__ = ExpiredTokenException$;
-__webpack_unused_export__ = InternalServerException;
-__webpack_unused_export__ = InternalServerException$;
-__webpack_unused_export__ = InvalidClientException;
-__webpack_unused_export__ = InvalidClientException$;
-__webpack_unused_export__ = InvalidGrantException;
-__webpack_unused_export__ = InvalidGrantException$;
-__webpack_unused_export__ = InvalidRequestException;
-__webpack_unused_export__ = InvalidRequestException$;
-__webpack_unused_export__ = InvalidRequestExceptionReason;
-__webpack_unused_export__ = InvalidScopeException;
-__webpack_unused_export__ = InvalidScopeException$;
-__webpack_unused_export__ = SSOOIDC;
+exports.InvalidRequestExceptionReason = InvalidRequestExceptionReason;
+exports.SSOOIDC = SSOOIDC;
 exports.SSOOIDCClient = SSOOIDCClient;
-__webpack_unused_export__ = SSOOIDCServiceException;
-__webpack_unused_export__ = SSOOIDCServiceException$;
-__webpack_unused_export__ = SlowDownException;
-__webpack_unused_export__ = SlowDownException$;
-__webpack_unused_export__ = UnauthorizedClientException;
-__webpack_unused_export__ = UnauthorizedClientException$;
-__webpack_unused_export__ = UnsupportedGrantTypeException;
-__webpack_unused_export__ = UnsupportedGrantTypeException$;
+Object.prototype.hasOwnProperty.call(schemas_0, '__proto__') &&
+    !Object.prototype.hasOwnProperty.call(exports, '__proto__') &&
+    Object.defineProperty(exports, '__proto__', {
+        enumerable: true,
+        value: schemas_0['__proto__']
+    });
+
+Object.keys(schemas_0).forEach(function (k) {
+    if (k !== 'default' && !Object.prototype.hasOwnProperty.call(exports, k)) exports[k] = schemas_0[k];
+});
+Object.prototype.hasOwnProperty.call(errors, '__proto__') &&
+    !Object.prototype.hasOwnProperty.call(exports, '__proto__') &&
+    Object.defineProperty(exports, '__proto__', {
+        enumerable: true,
+        value: errors['__proto__']
+    });
+
+Object.keys(errors).forEach(function (k) {
+    if (k !== 'default' && !Object.prototype.hasOwnProperty.call(exports, k)) exports[k] = errors[k];
+});
+
+
+/***/ }),
+
+/***/ 3952:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SSOOIDCServiceException = exports.__ServiceException = void 0;
+const smithy_client_1 = __webpack_require__(1411);
+Object.defineProperty(exports, "__ServiceException", ({ enumerable: true, get: function () { return smithy_client_1.ServiceException; } }));
+class SSOOIDCServiceException extends smithy_client_1.ServiceException {
+    constructor(options) {
+        super(options);
+        Object.setPrototypeOf(this, SSOOIDCServiceException.prototype);
+    }
+}
+exports.SSOOIDCServiceException = SSOOIDCServiceException;
+
+
+/***/ }),
+
+/***/ 5843:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.UnsupportedGrantTypeException = exports.UnauthorizedClientException = exports.SlowDownException = exports.InvalidScopeException = exports.InvalidRequestException = exports.InvalidGrantException = exports.InvalidClientException = exports.InternalServerException = exports.ExpiredTokenException = exports.AuthorizationPendingException = exports.AccessDeniedException = void 0;
+const SSOOIDCServiceException_1 = __webpack_require__(3952);
+class AccessDeniedException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "AccessDeniedException";
+    $fault = "client";
+    error;
+    reason;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "AccessDeniedException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AccessDeniedException.prototype);
+        this.error = opts.error;
+        this.reason = opts.reason;
+        this.error_description = opts.error_description;
+    }
+}
+exports.AccessDeniedException = AccessDeniedException;
+class AuthorizationPendingException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "AuthorizationPendingException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "AuthorizationPendingException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AuthorizationPendingException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.AuthorizationPendingException = AuthorizationPendingException;
+class ExpiredTokenException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "ExpiredTokenException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "ExpiredTokenException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, ExpiredTokenException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.ExpiredTokenException = ExpiredTokenException;
+class InternalServerException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "InternalServerException";
+    $fault = "server";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "InternalServerException",
+            $fault: "server",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InternalServerException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.InternalServerException = InternalServerException;
+class InvalidClientException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "InvalidClientException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "InvalidClientException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidClientException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.InvalidClientException = InvalidClientException;
+class InvalidGrantException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "InvalidGrantException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "InvalidGrantException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidGrantException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.InvalidGrantException = InvalidGrantException;
+class InvalidRequestException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "InvalidRequestException";
+    $fault = "client";
+    error;
+    reason;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "InvalidRequestException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidRequestException.prototype);
+        this.error = opts.error;
+        this.reason = opts.reason;
+        this.error_description = opts.error_description;
+    }
+}
+exports.InvalidRequestException = InvalidRequestException;
+class InvalidScopeException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "InvalidScopeException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "InvalidScopeException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidScopeException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.InvalidScopeException = InvalidScopeException;
+class SlowDownException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "SlowDownException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "SlowDownException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, SlowDownException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.SlowDownException = SlowDownException;
+class UnauthorizedClientException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "UnauthorizedClientException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "UnauthorizedClientException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, UnauthorizedClientException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.UnauthorizedClientException = UnauthorizedClientException;
+class UnsupportedGrantTypeException extends SSOOIDCServiceException_1.SSOOIDCServiceException {
+    name = "UnsupportedGrantTypeException";
+    $fault = "client";
+    error;
+    error_description;
+    constructor(opts) {
+        super({
+            name: "UnsupportedGrantTypeException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, UnsupportedGrantTypeException.prototype);
+        this.error = opts.error;
+        this.error_description = opts.error_description;
+    }
+}
+exports.UnsupportedGrantTypeException = UnsupportedGrantTypeException;
 
 
 /***/ }),
@@ -687,6 +678,7 @@ const util_base64_1 = __webpack_require__(8385);
 const util_utf8_1 = __webpack_require__(6090);
 const httpAuthSchemeProvider_1 = __webpack_require__(8396);
 const endpointResolver_1 = __webpack_require__(546);
+const schemas_0_1 = __webpack_require__(7143);
 const getRuntimeConfig = (config) => {
     return {
         apiVersion: "2019-06-10",
@@ -712,6 +704,7 @@ const getRuntimeConfig = (config) => {
         protocol: config?.protocol ?? protocols_1.AwsRestJsonProtocol,
         protocolSettings: config?.protocolSettings ?? {
             defaultNamespace: "com.amazonaws.ssooidc",
+            errorTypeRegistries: schemas_0_1.errorTypeRegistries,
             version: "2019-06-10",
             serviceTarget: "AWSSSOOIDCService",
         },
@@ -722,6 +715,153 @@ const getRuntimeConfig = (config) => {
     };
 };
 exports.getRuntimeConfig = getRuntimeConfig;
+
+
+/***/ }),
+
+/***/ 7143:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateToken$ = exports.CreateTokenResponse$ = exports.CreateTokenRequest$ = exports.errorTypeRegistries = exports.UnsupportedGrantTypeException$ = exports.UnauthorizedClientException$ = exports.SlowDownException$ = exports.InvalidScopeException$ = exports.InvalidRequestException$ = exports.InvalidGrantException$ = exports.InvalidClientException$ = exports.InternalServerException$ = exports.ExpiredTokenException$ = exports.AuthorizationPendingException$ = exports.AccessDeniedException$ = exports.SSOOIDCServiceException$ = void 0;
+const _ADE = "AccessDeniedException";
+const _APE = "AuthorizationPendingException";
+const _AT = "AccessToken";
+const _CS = "ClientSecret";
+const _CT = "CreateToken";
+const _CTR = "CreateTokenRequest";
+const _CTRr = "CreateTokenResponse";
+const _CV = "CodeVerifier";
+const _ETE = "ExpiredTokenException";
+const _ICE = "InvalidClientException";
+const _IGE = "InvalidGrantException";
+const _IRE = "InvalidRequestException";
+const _ISE = "InternalServerException";
+const _ISEn = "InvalidScopeException";
+const _IT = "IdToken";
+const _RT = "RefreshToken";
+const _SDE = "SlowDownException";
+const _UCE = "UnauthorizedClientException";
+const _UGTE = "UnsupportedGrantTypeException";
+const _aT = "accessToken";
+const _c = "client";
+const _cI = "clientId";
+const _cS = "clientSecret";
+const _cV = "codeVerifier";
+const _co = "code";
+const _dC = "deviceCode";
+const _e = "error";
+const _eI = "expiresIn";
+const _ed = "error_description";
+const _gT = "grantType";
+const _h = "http";
+const _hE = "httpError";
+const _iT = "idToken";
+const _r = "reason";
+const _rT = "refreshToken";
+const _rU = "redirectUri";
+const _s = "smithy.ts.sdk.synthetic.com.amazonaws.ssooidc";
+const _sc = "scope";
+const _se = "server";
+const _tT = "tokenType";
+const n0 = "com.amazonaws.ssooidc";
+const schema_1 = __webpack_require__(6890);
+const errors_1 = __webpack_require__(5843);
+const SSOOIDCServiceException_1 = __webpack_require__(3952);
+const _s_registry = schema_1.TypeRegistry.for(_s);
+exports.SSOOIDCServiceException$ = [-3, _s, "SSOOIDCServiceException", 0, [], []];
+_s_registry.registerError(exports.SSOOIDCServiceException$, SSOOIDCServiceException_1.SSOOIDCServiceException);
+const n0_registry = schema_1.TypeRegistry.for(n0);
+exports.AccessDeniedException$ = [
+    -3,
+    n0,
+    _ADE,
+    { [_e]: _c, [_hE]: 400 },
+    [_e, _r, _ed],
+    [0, 0, 0],
+];
+n0_registry.registerError(exports.AccessDeniedException$, errors_1.AccessDeniedException);
+exports.AuthorizationPendingException$ = [
+    -3,
+    n0,
+    _APE,
+    { [_e]: _c, [_hE]: 400 },
+    [_e, _ed],
+    [0, 0],
+];
+n0_registry.registerError(exports.AuthorizationPendingException$, errors_1.AuthorizationPendingException);
+exports.ExpiredTokenException$ = [-3, n0, _ETE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+n0_registry.registerError(exports.ExpiredTokenException$, errors_1.ExpiredTokenException);
+exports.InternalServerException$ = [-3, n0, _ISE, { [_e]: _se, [_hE]: 500 }, [_e, _ed], [0, 0]];
+n0_registry.registerError(exports.InternalServerException$, errors_1.InternalServerException);
+exports.InvalidClientException$ = [-3, n0, _ICE, { [_e]: _c, [_hE]: 401 }, [_e, _ed], [0, 0]];
+n0_registry.registerError(exports.InvalidClientException$, errors_1.InvalidClientException);
+exports.InvalidGrantException$ = [-3, n0, _IGE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+n0_registry.registerError(exports.InvalidGrantException$, errors_1.InvalidGrantException);
+exports.InvalidRequestException$ = [
+    -3,
+    n0,
+    _IRE,
+    { [_e]: _c, [_hE]: 400 },
+    [_e, _r, _ed],
+    [0, 0, 0],
+];
+n0_registry.registerError(exports.InvalidRequestException$, errors_1.InvalidRequestException);
+exports.InvalidScopeException$ = [-3, n0, _ISEn, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+n0_registry.registerError(exports.InvalidScopeException$, errors_1.InvalidScopeException);
+exports.SlowDownException$ = [-3, n0, _SDE, { [_e]: _c, [_hE]: 400 }, [_e, _ed], [0, 0]];
+n0_registry.registerError(exports.SlowDownException$, errors_1.SlowDownException);
+exports.UnauthorizedClientException$ = [
+    -3,
+    n0,
+    _UCE,
+    { [_e]: _c, [_hE]: 400 },
+    [_e, _ed],
+    [0, 0],
+];
+n0_registry.registerError(exports.UnauthorizedClientException$, errors_1.UnauthorizedClientException);
+exports.UnsupportedGrantTypeException$ = [
+    -3,
+    n0,
+    _UGTE,
+    { [_e]: _c, [_hE]: 400 },
+    [_e, _ed],
+    [0, 0],
+];
+n0_registry.registerError(exports.UnsupportedGrantTypeException$, errors_1.UnsupportedGrantTypeException);
+exports.errorTypeRegistries = [_s_registry, n0_registry];
+var AccessToken = [0, n0, _AT, 8, 0];
+var ClientSecret = [0, n0, _CS, 8, 0];
+var CodeVerifier = [0, n0, _CV, 8, 0];
+var IdToken = [0, n0, _IT, 8, 0];
+var RefreshToken = [0, n0, _RT, 8, 0];
+exports.CreateTokenRequest$ = [
+    3,
+    n0,
+    _CTR,
+    0,
+    [_cI, _cS, _gT, _dC, _co, _rT, _sc, _rU, _cV],
+    [0, [() => ClientSecret, 0], 0, 0, 0, [() => RefreshToken, 0], 64 | 0, 0, [() => CodeVerifier, 0]],
+    3,
+];
+exports.CreateTokenResponse$ = [
+    3,
+    n0,
+    _CTRr,
+    0,
+    [_aT, _tT, _eI, _rT, _iT],
+    [[() => AccessToken, 0], 0, 1, [() => RefreshToken, 0], [() => IdToken, 0]],
+];
+var Scopes = (/* unused pure expression or super */ null && (64 | 0));
+exports.CreateToken$ = [
+    9,
+    n0,
+    _CT,
+    { [_h]: ["POST", "/token", 200] },
+    () => exports.CreateTokenRequest$,
+    () => exports.CreateTokenResponse$,
+];
 
 
 /***/ })

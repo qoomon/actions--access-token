@@ -97,8 +97,134 @@ util_endpoints_2.customEndpointFunctions.aws = util_endpoints_1.awsEndpointFunct
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ruleSet = void 0;
 const u = "required", v = "fn", w = "argv", x = "ref";
-const a = true, b = "isSet", c = "booleanEquals", d = "error", e = "endpoint", f = "tree", g = "PartitionResult", h = "stringEquals", i = { [u]: true, "default": false, "type": "boolean" }, j = { [u]: false, "type": "string" }, k = { [x]: "Endpoint" }, l = { [v]: c, [w]: [{ [x]: "UseFIPS" }, true] }, m = { [v]: c, [w]: [{ [x]: "UseDualStack" }, true] }, n = {}, o = { [v]: "getAttr", [w]: [{ [x]: g }, "name"] }, p = { [v]: c, [w]: [{ [x]: "UseFIPS" }, false] }, q = { [v]: c, [w]: [{ [x]: "UseDualStack" }, false] }, r = { [v]: "getAttr", [w]: [{ [x]: g }, "supportsFIPS"] }, s = { [v]: c, [w]: [true, { [v]: "getAttr", [w]: [{ [x]: g }, "supportsDualStack"] }] }, t = [{ [x]: "Region" }];
-const _data = { version: "1.0", parameters: { UseDualStack: i, UseFIPS: i, Endpoint: j, Region: j }, rules: [{ conditions: [{ [v]: b, [w]: [k] }], rules: [{ conditions: [l], error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d }, { rules: [{ conditions: [m], error: "Invalid Configuration: Dualstack and custom endpoint are not supported", type: d }, { endpoint: { url: k, properties: n, headers: n }, type: e }], type: f }], type: f }, { rules: [{ conditions: [{ [v]: b, [w]: t }], rules: [{ conditions: [{ [v]: "aws.partition", [w]: t, assign: g }], rules: [{ conditions: [{ [v]: h, [w]: [o, "aws"] }, p, q], endpoint: { url: "https://{Region}.signin.aws.amazon.com", properties: n, headers: n }, type: e }, { conditions: [{ [v]: h, [w]: [o, "aws-cn"] }, p, q], endpoint: { url: "https://{Region}.signin.amazonaws.cn", properties: n, headers: n }, type: e }, { conditions: [{ [v]: h, [w]: [o, "aws-us-gov"] }, p, q], endpoint: { url: "https://{Region}.signin.amazonaws-us-gov.com", properties: n, headers: n }, type: e }, { conditions: [l, m], rules: [{ conditions: [{ [v]: c, [w]: [a, r] }, s], rules: [{ endpoint: { url: "https://signin-fips.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "FIPS and DualStack are enabled, but this partition does not support one or both", type: d }], type: f }, { conditions: [l, q], rules: [{ conditions: [{ [v]: c, [w]: [r, a] }], rules: [{ endpoint: { url: "https://signin-fips.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "FIPS is enabled but this partition does not support FIPS", type: d }], type: f }, { conditions: [p, m], rules: [{ conditions: [s], rules: [{ endpoint: { url: "https://signin.{Region}.{PartitionResult#dualStackDnsSuffix}", properties: n, headers: n }, type: e }], type: f }, { error: "DualStack is enabled but this partition does not support DualStack", type: d }], type: f }, { endpoint: { url: "https://signin.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n }, type: e }], type: f }], type: f }, { error: "Invalid Configuration: Missing Region", type: d }], type: f }] };
+const a = true, b = "isSet", c = "booleanEquals", d = "error", e = "endpoint", f = "tree", g = "PartitionResult", h = "stringEquals", i = { [u]: true, default: false, type: "boolean" }, j = { [u]: false, type: "string" }, k = { [x]: "Endpoint" }, l = { [v]: c, [w]: [{ [x]: "UseFIPS" }, true] }, m = { [v]: c, [w]: [{ [x]: "UseDualStack" }, true] }, n = {}, o = { [v]: "getAttr", [w]: [{ [x]: g }, "name"] }, p = { [v]: c, [w]: [{ [x]: "UseFIPS" }, false] }, q = { [v]: c, [w]: [{ [x]: "UseDualStack" }, false] }, r = { [v]: "getAttr", [w]: [{ [x]: g }, "supportsFIPS"] }, s = { [v]: c, [w]: [true, { [v]: "getAttr", [w]: [{ [x]: g }, "supportsDualStack"] }] }, t = [{ [x]: "Region" }];
+const _data = {
+    version: "1.0",
+    parameters: { UseDualStack: i, UseFIPS: i, Endpoint: j, Region: j },
+    rules: [
+        {
+            conditions: [{ [v]: b, [w]: [k] }],
+            rules: [
+                { conditions: [l], error: "Invalid Configuration: FIPS and custom endpoint are not supported", type: d },
+                {
+                    rules: [
+                        {
+                            conditions: [m],
+                            error: "Invalid Configuration: Dualstack and custom endpoint are not supported",
+                            type: d,
+                        },
+                        { endpoint: { url: k, properties: n, headers: n }, type: e },
+                    ],
+                    type: f,
+                },
+            ],
+            type: f,
+        },
+        {
+            rules: [
+                {
+                    conditions: [{ [v]: b, [w]: t }],
+                    rules: [
+                        {
+                            conditions: [{ [v]: "aws.partition", [w]: t, assign: g }],
+                            rules: [
+                                {
+                                    conditions: [{ [v]: h, [w]: [o, "aws"] }, p, q],
+                                    endpoint: { url: "https://{Region}.signin.aws.amazon.com", properties: n, headers: n },
+                                    type: e,
+                                },
+                                {
+                                    conditions: [{ [v]: h, [w]: [o, "aws-cn"] }, p, q],
+                                    endpoint: { url: "https://{Region}.signin.amazonaws.cn", properties: n, headers: n },
+                                    type: e,
+                                },
+                                {
+                                    conditions: [{ [v]: h, [w]: [o, "aws-us-gov"] }, p, q],
+                                    endpoint: { url: "https://{Region}.signin.amazonaws-us-gov.com", properties: n, headers: n },
+                                    type: e,
+                                },
+                                {
+                                    conditions: [l, m],
+                                    rules: [
+                                        {
+                                            conditions: [{ [v]: c, [w]: [a, r] }, s],
+                                            rules: [
+                                                {
+                                                    endpoint: {
+                                                        url: "https://signin-fips.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                        properties: n,
+                                                        headers: n,
+                                                    },
+                                                    type: e,
+                                                },
+                                            ],
+                                            type: f,
+                                        },
+                                        {
+                                            error: "FIPS and DualStack are enabled, but this partition does not support one or both",
+                                            type: d,
+                                        },
+                                    ],
+                                    type: f,
+                                },
+                                {
+                                    conditions: [l, q],
+                                    rules: [
+                                        {
+                                            conditions: [{ [v]: c, [w]: [r, a] }],
+                                            rules: [
+                                                {
+                                                    endpoint: {
+                                                        url: "https://signin-fips.{Region}.{PartitionResult#dnsSuffix}",
+                                                        properties: n,
+                                                        headers: n,
+                                                    },
+                                                    type: e,
+                                                },
+                                            ],
+                                            type: f,
+                                        },
+                                        { error: "FIPS is enabled but this partition does not support FIPS", type: d },
+                                    ],
+                                    type: f,
+                                },
+                                {
+                                    conditions: [p, m],
+                                    rules: [
+                                        {
+                                            conditions: [s],
+                                            rules: [
+                                                {
+                                                    endpoint: {
+                                                        url: "https://signin.{Region}.{PartitionResult#dualStackDnsSuffix}",
+                                                        properties: n,
+                                                        headers: n,
+                                                    },
+                                                    type: e,
+                                                },
+                                            ],
+                                            type: f,
+                                        },
+                                        { error: "DualStack is enabled but this partition does not support DualStack", type: d },
+                                    ],
+                                    type: f,
+                                },
+                                {
+                                    endpoint: { url: "https://signin.{Region}.{PartitionResult#dnsSuffix}", properties: n, headers: n },
+                                    type: e,
+                                },
+                            ],
+                            type: f,
+                        },
+                    ],
+                    type: f,
+                },
+                { error: "Invalid Configuration: Missing Region", type: d },
+            ],
+            type: f,
+        },
+    ],
+};
 exports.ruleSet = _data;
 
 
@@ -107,7 +233,6 @@ exports.ruleSet = _data;
 /***/ 9762:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
-var __webpack_unused_export__;
 
 
 var middlewareHostHeader = __webpack_require__(2590);
@@ -125,6 +250,9 @@ var httpAuthSchemeProvider = __webpack_require__(7709);
 var runtimeConfig = __webpack_require__(2836);
 var regionConfigResolver = __webpack_require__(6463);
 var protocolHttp = __webpack_require__(2356);
+var schemas_0 = __webpack_require__(890);
+var errors = __webpack_require__(7214);
+var SigninServiceException = __webpack_require__(2831);
 
 const resolveClientEndpointParameters = (options) => {
     return Object.assign(options, {
@@ -220,187 +348,6 @@ class SigninClient extends smithyClient.Client {
     }
 }
 
-class SigninServiceException extends smithyClient.ServiceException {
-    constructor(options) {
-        super(options);
-        Object.setPrototypeOf(this, SigninServiceException.prototype);
-    }
-}
-
-class AccessDeniedException extends SigninServiceException {
-    name = "AccessDeniedException";
-    $fault = "client";
-    error;
-    constructor(opts) {
-        super({
-            name: "AccessDeniedException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, AccessDeniedException.prototype);
-        this.error = opts.error;
-    }
-}
-class InternalServerException extends SigninServiceException {
-    name = "InternalServerException";
-    $fault = "server";
-    error;
-    constructor(opts) {
-        super({
-            name: "InternalServerException",
-            $fault: "server",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InternalServerException.prototype);
-        this.error = opts.error;
-    }
-}
-class TooManyRequestsError extends SigninServiceException {
-    name = "TooManyRequestsError";
-    $fault = "client";
-    error;
-    constructor(opts) {
-        super({
-            name: "TooManyRequestsError",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, TooManyRequestsError.prototype);
-        this.error = opts.error;
-    }
-}
-class ValidationException extends SigninServiceException {
-    name = "ValidationException";
-    $fault = "client";
-    error;
-    constructor(opts) {
-        super({
-            name: "ValidationException",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, ValidationException.prototype);
-        this.error = opts.error;
-    }
-}
-
-const _ADE = "AccessDeniedException";
-const _AT = "AccessToken";
-const _COAT = "CreateOAuth2Token";
-const _COATR = "CreateOAuth2TokenRequest";
-const _COATRB = "CreateOAuth2TokenRequestBody";
-const _COATRBr = "CreateOAuth2TokenResponseBody";
-const _COATRr = "CreateOAuth2TokenResponse";
-const _ISE = "InternalServerException";
-const _RT = "RefreshToken";
-const _TMRE = "TooManyRequestsError";
-const _VE = "ValidationException";
-const _aKI = "accessKeyId";
-const _aT = "accessToken";
-const _c = "client";
-const _cI = "clientId";
-const _cV = "codeVerifier";
-const _co = "code";
-const _e = "error";
-const _eI = "expiresIn";
-const _gT = "grantType";
-const _h = "http";
-const _hE = "httpError";
-const _iT = "idToken";
-const _jN = "jsonName";
-const _m = "message";
-const _rT = "refreshToken";
-const _rU = "redirectUri";
-const _s = "server";
-const _sAK = "secretAccessKey";
-const _sT = "sessionToken";
-const _sm = "smithy.ts.sdk.synthetic.com.amazonaws.signin";
-const _tI = "tokenInput";
-const _tO = "tokenOutput";
-const _tT = "tokenType";
-const n0 = "com.amazonaws.signin";
-var RefreshToken = [0, n0, _RT, 8, 0];
-var AccessDeniedException$ = [-3, n0, _ADE, { [_e]: _c }, [_e, _m], [0, 0], 2];
-schema.TypeRegistry.for(n0).registerError(AccessDeniedException$, AccessDeniedException);
-var AccessToken$ = [
-    3,
-    n0,
-    _AT,
-    8,
-    [_aKI, _sAK, _sT],
-    [
-        [0, { [_jN]: _aKI }],
-        [0, { [_jN]: _sAK }],
-        [0, { [_jN]: _sT }],
-    ],
-    3,
-];
-var CreateOAuth2TokenRequest$ = [
-    3,
-    n0,
-    _COATR,
-    0,
-    [_tI],
-    [[() => CreateOAuth2TokenRequestBody$, 16]],
-    1,
-];
-var CreateOAuth2TokenRequestBody$ = [
-    3,
-    n0,
-    _COATRB,
-    0,
-    [_cI, _gT, _co, _rU, _cV, _rT],
-    [
-        [0, { [_jN]: _cI }],
-        [0, { [_jN]: _gT }],
-        0,
-        [0, { [_jN]: _rU }],
-        [0, { [_jN]: _cV }],
-        [() => RefreshToken, { [_jN]: _rT }],
-    ],
-    2,
-];
-var CreateOAuth2TokenResponse$ = [
-    3,
-    n0,
-    _COATRr,
-    0,
-    [_tO],
-    [[() => CreateOAuth2TokenResponseBody$, 16]],
-    1,
-];
-var CreateOAuth2TokenResponseBody$ = [
-    3,
-    n0,
-    _COATRBr,
-    0,
-    [_aT, _tT, _eI, _rT, _iT],
-    [
-        [() => AccessToken$, { [_jN]: _aT }],
-        [0, { [_jN]: _tT }],
-        [1, { [_jN]: _eI }],
-        [() => RefreshToken, { [_jN]: _rT }],
-        [0, { [_jN]: _iT }],
-    ],
-    4,
-];
-var InternalServerException$ = [-3, n0, _ISE, { [_e]: _s, [_hE]: 500 }, [_e, _m], [0, 0], 2];
-schema.TypeRegistry.for(n0).registerError(InternalServerException$, InternalServerException);
-var TooManyRequestsError$ = [-3, n0, _TMRE, { [_e]: _c, [_hE]: 429 }, [_e, _m], [0, 0], 2];
-schema.TypeRegistry.for(n0).registerError(TooManyRequestsError$, TooManyRequestsError);
-var ValidationException$ = [-3, n0, _VE, { [_e]: _c, [_hE]: 400 }, [_e, _m], [0, 0], 2];
-schema.TypeRegistry.for(n0).registerError(ValidationException$, ValidationException);
-var SigninServiceException$ = [-3, _sm, "SigninServiceException", 0, [], []];
-schema.TypeRegistry.for(_sm).registerError(SigninServiceException$, SigninServiceException);
-var CreateOAuth2Token$ = [
-    9,
-    n0,
-    _COAT,
-    { [_h]: ["POST", "/v1/token", 200] },
-    () => CreateOAuth2TokenRequest$,
-    () => CreateOAuth2TokenResponse$,
-];
-
 class CreateOAuth2TokenCommand extends smithyClient.Command
     .classBuilder()
     .ep(commonParams)
@@ -409,7 +356,7 @@ class CreateOAuth2TokenCommand extends smithyClient.Command
 })
     .s("Signin", "CreateOAuth2Token", {})
     .n("SigninClient", "CreateOAuth2TokenCommand")
-    .sc(CreateOAuth2Token$)
+    .sc(schemas_0.CreateOAuth2Token$)
     .build() {
 }
 
@@ -429,34 +376,123 @@ const OAuth2ErrorCode = {
     USER_CREDENTIALS_CHANGED: "USER_CREDENTIALS_CHANGED",
 };
 
-__webpack_unused_export__ = ({
-    enumerable: true,
-    get: function () { return smithyClient.Command; }
-});
-__webpack_unused_export__ = ({
-    enumerable: true,
-    get: function () { return smithyClient.Client; }
-});
-__webpack_unused_export__ = AccessDeniedException;
-__webpack_unused_export__ = AccessDeniedException$;
-__webpack_unused_export__ = AccessToken$;
-__webpack_unused_export__ = CreateOAuth2Token$;
+exports.$Command = smithyClient.Command;
+exports.__Client = smithyClient.Client;
+exports.SigninServiceException = SigninServiceException.SigninServiceException;
 exports.CreateOAuth2TokenCommand = CreateOAuth2TokenCommand;
-__webpack_unused_export__ = CreateOAuth2TokenRequest$;
-__webpack_unused_export__ = CreateOAuth2TokenRequestBody$;
-__webpack_unused_export__ = CreateOAuth2TokenResponse$;
-__webpack_unused_export__ = CreateOAuth2TokenResponseBody$;
-__webpack_unused_export__ = InternalServerException;
-__webpack_unused_export__ = InternalServerException$;
-__webpack_unused_export__ = OAuth2ErrorCode;
-__webpack_unused_export__ = Signin;
+exports.OAuth2ErrorCode = OAuth2ErrorCode;
+exports.Signin = Signin;
 exports.SigninClient = SigninClient;
-__webpack_unused_export__ = SigninServiceException;
-__webpack_unused_export__ = SigninServiceException$;
-__webpack_unused_export__ = TooManyRequestsError;
-__webpack_unused_export__ = TooManyRequestsError$;
-__webpack_unused_export__ = ValidationException;
-__webpack_unused_export__ = ValidationException$;
+Object.prototype.hasOwnProperty.call(schemas_0, '__proto__') &&
+    !Object.prototype.hasOwnProperty.call(exports, '__proto__') &&
+    Object.defineProperty(exports, '__proto__', {
+        enumerable: true,
+        value: schemas_0['__proto__']
+    });
+
+Object.keys(schemas_0).forEach(function (k) {
+    if (k !== 'default' && !Object.prototype.hasOwnProperty.call(exports, k)) exports[k] = schemas_0[k];
+});
+Object.prototype.hasOwnProperty.call(errors, '__proto__') &&
+    !Object.prototype.hasOwnProperty.call(exports, '__proto__') &&
+    Object.defineProperty(exports, '__proto__', {
+        enumerable: true,
+        value: errors['__proto__']
+    });
+
+Object.keys(errors).forEach(function (k) {
+    if (k !== 'default' && !Object.prototype.hasOwnProperty.call(exports, k)) exports[k] = errors[k];
+});
+
+
+/***/ }),
+
+/***/ 2831:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SigninServiceException = exports.__ServiceException = void 0;
+const smithy_client_1 = __webpack_require__(1411);
+Object.defineProperty(exports, "__ServiceException", ({ enumerable: true, get: function () { return smithy_client_1.ServiceException; } }));
+class SigninServiceException extends smithy_client_1.ServiceException {
+    constructor(options) {
+        super(options);
+        Object.setPrototypeOf(this, SigninServiceException.prototype);
+    }
+}
+exports.SigninServiceException = SigninServiceException;
+
+
+/***/ }),
+
+/***/ 7214:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ValidationException = exports.TooManyRequestsError = exports.InternalServerException = exports.AccessDeniedException = void 0;
+const SigninServiceException_1 = __webpack_require__(2831);
+class AccessDeniedException extends SigninServiceException_1.SigninServiceException {
+    name = "AccessDeniedException";
+    $fault = "client";
+    error;
+    constructor(opts) {
+        super({
+            name: "AccessDeniedException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AccessDeniedException.prototype);
+        this.error = opts.error;
+    }
+}
+exports.AccessDeniedException = AccessDeniedException;
+class InternalServerException extends SigninServiceException_1.SigninServiceException {
+    name = "InternalServerException";
+    $fault = "server";
+    error;
+    constructor(opts) {
+        super({
+            name: "InternalServerException",
+            $fault: "server",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InternalServerException.prototype);
+        this.error = opts.error;
+    }
+}
+exports.InternalServerException = InternalServerException;
+class TooManyRequestsError extends SigninServiceException_1.SigninServiceException {
+    name = "TooManyRequestsError";
+    $fault = "client";
+    error;
+    constructor(opts) {
+        super({
+            name: "TooManyRequestsError",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, TooManyRequestsError.prototype);
+        this.error = opts.error;
+    }
+}
+exports.TooManyRequestsError = TooManyRequestsError;
+class ValidationException extends SigninServiceException_1.SigninServiceException {
+    name = "ValidationException";
+    $fault = "client";
+    error;
+    constructor(opts) {
+        super({
+            name: "ValidationException",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, ValidationException.prototype);
+        this.error = opts.error;
+    }
+}
+exports.ValidationException = ValidationException;
 
 
 /***/ }),
@@ -536,6 +572,7 @@ const util_base64_1 = __webpack_require__(8385);
 const util_utf8_1 = __webpack_require__(6090);
 const httpAuthSchemeProvider_1 = __webpack_require__(7709);
 const endpointResolver_1 = __webpack_require__(2547);
+const schemas_0_1 = __webpack_require__(890);
 const getRuntimeConfig = (config) => {
     return {
         apiVersion: "2023-01-01",
@@ -561,6 +598,7 @@ const getRuntimeConfig = (config) => {
         protocol: config?.protocol ?? protocols_1.AwsRestJsonProtocol,
         protocolSettings: config?.protocolSettings ?? {
             defaultNamespace: "com.amazonaws.signin",
+            errorTypeRegistries: schemas_0_1.errorTypeRegistries,
             version: "2023-01-01",
             serviceTarget: "Signin",
         },
@@ -571,6 +609,138 @@ const getRuntimeConfig = (config) => {
     };
 };
 exports.getRuntimeConfig = getRuntimeConfig;
+
+
+/***/ }),
+
+/***/ 890:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CreateOAuth2Token$ = exports.CreateOAuth2TokenResponseBody$ = exports.CreateOAuth2TokenResponse$ = exports.CreateOAuth2TokenRequestBody$ = exports.CreateOAuth2TokenRequest$ = exports.AccessToken$ = exports.errorTypeRegistries = exports.ValidationException$ = exports.TooManyRequestsError$ = exports.InternalServerException$ = exports.AccessDeniedException$ = exports.SigninServiceException$ = void 0;
+const _ADE = "AccessDeniedException";
+const _AT = "AccessToken";
+const _COAT = "CreateOAuth2Token";
+const _COATR = "CreateOAuth2TokenRequest";
+const _COATRB = "CreateOAuth2TokenRequestBody";
+const _COATRBr = "CreateOAuth2TokenResponseBody";
+const _COATRr = "CreateOAuth2TokenResponse";
+const _ISE = "InternalServerException";
+const _RT = "RefreshToken";
+const _TMRE = "TooManyRequestsError";
+const _VE = "ValidationException";
+const _aKI = "accessKeyId";
+const _aT = "accessToken";
+const _c = "client";
+const _cI = "clientId";
+const _cV = "codeVerifier";
+const _co = "code";
+const _e = "error";
+const _eI = "expiresIn";
+const _gT = "grantType";
+const _h = "http";
+const _hE = "httpError";
+const _iT = "idToken";
+const _jN = "jsonName";
+const _m = "message";
+const _rT = "refreshToken";
+const _rU = "redirectUri";
+const _s = "smithy.ts.sdk.synthetic.com.amazonaws.signin";
+const _sAK = "secretAccessKey";
+const _sT = "sessionToken";
+const _se = "server";
+const _tI = "tokenInput";
+const _tO = "tokenOutput";
+const _tT = "tokenType";
+const n0 = "com.amazonaws.signin";
+const schema_1 = __webpack_require__(6890);
+const errors_1 = __webpack_require__(7214);
+const SigninServiceException_1 = __webpack_require__(2831);
+const _s_registry = schema_1.TypeRegistry.for(_s);
+exports.SigninServiceException$ = [-3, _s, "SigninServiceException", 0, [], []];
+_s_registry.registerError(exports.SigninServiceException$, SigninServiceException_1.SigninServiceException);
+const n0_registry = schema_1.TypeRegistry.for(n0);
+exports.AccessDeniedException$ = [-3, n0, _ADE, { [_e]: _c }, [_e, _m], [0, 0], 2];
+n0_registry.registerError(exports.AccessDeniedException$, errors_1.AccessDeniedException);
+exports.InternalServerException$ = [-3, n0, _ISE, { [_e]: _se, [_hE]: 500 }, [_e, _m], [0, 0], 2];
+n0_registry.registerError(exports.InternalServerException$, errors_1.InternalServerException);
+exports.TooManyRequestsError$ = [-3, n0, _TMRE, { [_e]: _c, [_hE]: 429 }, [_e, _m], [0, 0], 2];
+n0_registry.registerError(exports.TooManyRequestsError$, errors_1.TooManyRequestsError);
+exports.ValidationException$ = [-3, n0, _VE, { [_e]: _c, [_hE]: 400 }, [_e, _m], [0, 0], 2];
+n0_registry.registerError(exports.ValidationException$, errors_1.ValidationException);
+exports.errorTypeRegistries = [_s_registry, n0_registry];
+var RefreshToken = [0, n0, _RT, 8, 0];
+exports.AccessToken$ = [
+    3,
+    n0,
+    _AT,
+    8,
+    [_aKI, _sAK, _sT],
+    [
+        [0, { [_jN]: _aKI }],
+        [0, { [_jN]: _sAK }],
+        [0, { [_jN]: _sT }],
+    ],
+    3,
+];
+exports.CreateOAuth2TokenRequest$ = [
+    3,
+    n0,
+    _COATR,
+    0,
+    [_tI],
+    [[() => exports.CreateOAuth2TokenRequestBody$, 16]],
+    1,
+];
+exports.CreateOAuth2TokenRequestBody$ = [
+    3,
+    n0,
+    _COATRB,
+    0,
+    [_cI, _gT, _co, _rU, _cV, _rT],
+    [
+        [0, { [_jN]: _cI }],
+        [0, { [_jN]: _gT }],
+        0,
+        [0, { [_jN]: _rU }],
+        [0, { [_jN]: _cV }],
+        [() => RefreshToken, { [_jN]: _rT }],
+    ],
+    2,
+];
+exports.CreateOAuth2TokenResponse$ = [
+    3,
+    n0,
+    _COATRr,
+    0,
+    [_tO],
+    [[() => exports.CreateOAuth2TokenResponseBody$, 16]],
+    1,
+];
+exports.CreateOAuth2TokenResponseBody$ = [
+    3,
+    n0,
+    _COATRBr,
+    0,
+    [_aT, _tT, _eI, _rT, _iT],
+    [
+        [() => exports.AccessToken$, { [_jN]: _aT }],
+        [0, { [_jN]: _tT }],
+        [1, { [_jN]: _eI }],
+        [() => RefreshToken, { [_jN]: _rT }],
+        [0, { [_jN]: _iT }],
+    ],
+    4,
+];
+exports.CreateOAuth2Token$ = [
+    9,
+    n0,
+    _COAT,
+    { [_h]: ["POST", "/v1/token", 200] },
+    () => exports.CreateOAuth2TokenRequest$,
+    () => exports.CreateOAuth2TokenResponse$,
+];
 
 
 /***/ })

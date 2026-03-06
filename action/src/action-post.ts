@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
+import {RequestError} from "@octokit/request-error";
 import {runAction} from './github-actions-utils.js';
 
 runAction(async () => {
@@ -8,11 +9,13 @@ runAction(async () => {
     core.info('Revoke access token.');
     // revoke access token
     // https://docs.github.com/en/rest/apps/installations?apiVersion=2022-11-28#revoke-an-installation-access-token
+
     await github.getOctokit(token)
         .request('DELETE /installation/token', {
           headers: {'X-GitHub-Api-Version': '2022-11-28'},
-        }).catch((err) => {
-          if(err.response.status === 401) {
+        })
+        .catch((err: unknown) => {
+          if (err instanceof RequestError && err.status === 404) {
             // ignore already expired or revoked token
             return;
           }
