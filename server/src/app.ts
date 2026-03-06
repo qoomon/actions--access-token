@@ -8,7 +8,6 @@ import {z} from 'zod';
 import process from 'process';
 import {hasEntries, toBase64} from './common/common-utils.js';
 import {
-  buildWorkflowRunUrl,
   GitHubActionsJwtPayload,
   GitHubAppPermissionsSchema,
   GitHubRepositoryNameSchema,
