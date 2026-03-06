@@ -33,7 +33,9 @@ export function errorHandler(logger: Logger): ErrorHandler {
     const requestId = context.var.requestId;
 
     if (err instanceof HTTPException && err.status < Status.INTERNAL_SERVER_ERROR) {
-      logger.debug({err}, 'Http Request Client Error');
+      logger.debug({
+        error: String(err),
+      }, 'Http Request Client Error');
       context.status(err.status);
       return context.json({
         requestId,
@@ -42,7 +44,10 @@ export function errorHandler(logger: Logger): ErrorHandler {
         message: err.message,
       });
     }
-    logger.error({err}, 'Http Request Internal Server Error');
+
+    logger.error({
+      error: String(err),
+    }, 'Http Request Internal Server Error');
     context.status(Status.INTERNAL_SERVER_ERROR);
     return context.json({
       requestId,

@@ -603,8 +603,14 @@ async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client
   schema: T,
   preprocessor: (value: unknown) => unknown,
 }): Promise<z.infer<T>> {
-  const policyValue = await findFirstNotNull(paths, (path) =>
-      getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE}));
+  const policyValue = await findFirstNotNull(paths, async (path) => {
+    try {
+      return await getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE});
+    } catch (error) {
+      logger.error({owner, repo, path, error: String(error)}, 'Failed to get access policy file content');
+      return null;
+    }
+  });
   if (!policyValue) {
     throw new GithubAccessPolicyError(`Access policy not found`);
   }
