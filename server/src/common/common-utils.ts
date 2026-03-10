@@ -188,14 +188,17 @@ export async function retry<T>(
   for (let attempts = 0; attempts < retries; attempts++) {
     try {
       const result = await fn();
-      if (!options.onRetry || !options.onRetry(result)) {
+      if (!options.onRetry || !await options.onRetry(result)) {
         return result;
       }
+      if (attempts < retries - 1) {
+        await sleep(delay);
+      }
     } catch (error: unknown) {
-      if (options.onError && !options.onError(error)) {
+      if (options.onError && !await options.onError(error)) {
         throw error;
       }
-      if (attempts >= retries) {
+      if (attempts >= retries - 1) {
         throw error;
       }
       await sleep(delay);

@@ -604,12 +604,15 @@ async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client
   preprocessor: (value: unknown) => unknown,
 }): Promise<z.infer<T>> {
   const policyValue = await findFirstNotNull(paths, async (path) => {
-    try {
-      return await getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE});
-    } catch (error) {
+    // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
+    // therefore, we retry on any error
+    return retry(
+        () => getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE}),
+        {retries: 3, delay: 1000},
+    ).catch((error) => {
       logger.error({owner, repo, path, error: String(error)}, 'Failed to get access policy file content');
       return null;
-    }
+    });
   });
   if (!policyValue) {
     throw new GithubAccessPolicyError(`Access policy not found`);
@@ -947,15 +950,20 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
   repositories?: string[],
   permissions: GitHubAppPermissions
 }): Promise<GitHubAppInstallationAccessToken> {
+  // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
+  // therefore, we retry on any error
   // noinspection TypeScriptValidateJSTypes
-  return client.rest.apps.createInstallationAccessToken({
-    installation_id: installation.id,
-    // BE AWARE that an empty object will result in a token with all app installation permissions
-    permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
-      scope.replaceAll('-', '_'), permission,
-    ])),
-    repositories,
-  }).then((res) => res.data);
+  return retry(
+      () => client.rest.apps.createInstallationAccessToken({
+        installation_id: installation.id,
+        // BE AWARE that an empty object will result in a token with all app installation permissions
+        permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
+          scope.replaceAll('-', '_'), permission,
+        ])),
+        repositories,
+      }).then((res) => res.data),
+      {retries: 3, delay: 1000},
+  );
 }
 
 /**
