@@ -42,10 +42,11 @@ const Octokit = OctokitCore
     .plugin(restEndpointMethods).plugin(paginateRest).plugin(retryPlugin);
 
 // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
-// therefore, we configure Octokit to retry on any error including network-level connection failures.
-// @octokit/plugin-retry handles HTTP 4xx/5xx via its errorRequest hook (3 retries by default).
+// therefore, we configure individual requests to retry on any error including network-level failures.
+// @octokit/plugin-retry handles HTTP 4xx/5xx via its errorRequest hook.
 // For raw network errors, the plugin's Bottleneck scheduler retries when request.retries > 0.
-const OCTOKIT_REQUEST_DEFAULTS = {retries: 3, retryAfter: 1 /* seconds */} as const;
+// Per-request retry options for @octokit/plugin-retry (spread with ...OCTOKIT_RETRY_OPTIONS into each request params object).
+const OCTOKIT_RETRY_OPTIONS = {request: {retries: 3, retryAfter: 1 /* seconds */}} as const;
 
 const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
 const GITHUB_API_CONCURRENCY_LIMIT = limit(8);
@@ -70,7 +71,6 @@ export async function accessTokenManager(options: {
   const GITHUB_APP_CLIENT = new Octokit({
     authStrategy: createAppAuth,
     auth: options.githubAppAuth,
-    request: OCTOKIT_REQUEST_DEFAULTS,
   });
   const GITHUB_APP = await GITHUB_APP_CLIENT.rest.apps.getAuthenticated()
       .then((res) => res.data ?? _throw(new Error('GitHub app not found')));
@@ -926,7 +926,7 @@ function formatAccessPolicyError(error: GithubAccessPolicyError) {
 async function getAppInstallation(client: Octokit, {owner}: {
   owner: string
 }): Promise<GitHubAppInstallation | null> {
-  return client.rest.apps.getUserInstallation({username: owner})
+  return client.rest.apps.getUserInstallation({username: owner, ...OCTOKIT_RETRY_OPTIONS})
       .then((res) => res.data)
       .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error)));
 }
@@ -953,6 +953,7 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
       scope.replaceAll('-', '_'), permission,
     ])),
     repositories,
+    ...OCTOKIT_RETRY_OPTIONS,
   }).then((res) => res.data);
 }
 
@@ -972,7 +973,7 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
     permissions,
     repositories,
   });
-  return new Octokit({auth: installationAccessToken.token, request: OCTOKIT_REQUEST_DEFAULTS});
+  return new Octokit({auth: installationAccessToken.token});
 }
 
 /**
@@ -992,7 +993,7 @@ async function getRepositoryFileContent(client: Octokit, {
   path: string,
   maxSize?: number
 }): Promise<string | null> {
-  return client.rest.repos.getContent({owner, repo, path})
+  return client.rest.repos.getContent({owner, repo, path, ...OCTOKIT_RETRY_OPTIONS})
       .then((res) => {
         if ('type' in res.data && res.data.type === 'file') {
           if (maxSize !== undefined && res.data.size > maxSize) {
