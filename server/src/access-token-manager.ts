@@ -39,14 +39,7 @@ import {logger} from './logger.js';
 import {RestEndpointMethodTypes} from '@octokit/rest';
 
 const Octokit = OctokitCore
-    .plugin(restEndpointMethods).plugin(paginateRest).plugin(retryPlugin);
-
-// WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
-// therefore, we configure individual requests to retry on any error including network-level failures.
-// @octokit/plugin-retry handles HTTP 4xx/5xx via its errorRequest hook.
-// For raw network errors, the plugin's Bottleneck scheduler retries when request.retries > 0.
-// Per-request retry options for @octokit/plugin-retry (spread with ...OCTOKIT_RETRY_OPTIONS into each request params object).
-const OCTOKIT_RETRY_OPTIONS = {request: {retries: 3, retryAfter: 1 /* seconds */}} as const;
+    .plugin(restEndpointMethods, paginateRest, retryPlugin);
 
 const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
 const GITHUB_API_CONCURRENCY_LIMIT = limit(8);
@@ -926,7 +919,7 @@ function formatAccessPolicyError(error: GithubAccessPolicyError) {
 async function getAppInstallation(client: Octokit, {owner}: {
   owner: string
 }): Promise<GitHubAppInstallation | null> {
-  return client.rest.apps.getUserInstallation({username: owner, ...OCTOKIT_RETRY_OPTIONS})
+  return client.rest.apps.getUserInstallation({username: owner})
       .then((res) => res.data)
       .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error)));
 }
@@ -953,7 +946,6 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
       scope.replaceAll('-', '_'), permission,
     ])),
     repositories,
-    ...OCTOKIT_RETRY_OPTIONS,
   }).then((res) => res.data);
 }
 
@@ -993,7 +985,7 @@ async function getRepositoryFileContent(client: Octokit, {
   path: string,
   maxSize?: number
 }): Promise<string | null> {
-  return client.rest.repos.getContent({owner, repo, path, ...OCTOKIT_RETRY_OPTIONS})
+  return client.rest.repos.getContent({owner, repo, path})
       .then((res) => {
         if ('type' in res.data && res.data.type === 'file') {
           if (maxSize !== undefined && res.data.size > maxSize) {
