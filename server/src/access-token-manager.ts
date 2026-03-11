@@ -1,6 +1,7 @@
 import {Octokit as OctokitCore} from '@octokit/core';
 import {paginateRest} from "@octokit/plugin-paginate-rest";
 import {restEndpointMethods} from "@octokit/plugin-rest-endpoint-methods";
+import {retry as retryPlugin} from '@octokit/plugin-retry';
 import {z} from 'zod';
 import type {components} from '@octokit/openapi-types';
 import {createAppAuth} from '@octokit/auth-app';
@@ -17,7 +18,6 @@ import {
   isRecord,
   mapObjectEntries,
   resultOf,
-  retry,
   unique,
 } from './common/common-utils.js';
 import {
@@ -39,7 +39,7 @@ import {logger} from './logger.js';
 import {RestEndpointMethodTypes} from '@octokit/rest';
 
 const Octokit = OctokitCore
-    .plugin(restEndpointMethods).plugin(paginateRest);
+    .plugin(restEndpointMethods, paginateRest, retryPlugin);
 
 const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
 const GITHUB_API_CONCURRENCY_LIMIT = limit(8);
@@ -604,12 +604,11 @@ async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client
   preprocessor: (value: unknown) => unknown,
 }): Promise<z.infer<T>> {
   const policyValue = await findFirstNotNull(paths, async (path) => {
-    try {
-      return await getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE});
-    } catch (error) {
-      logger.error({owner, repo, path, error: String(error)}, 'Failed to get access policy file content');
-      return null;
-    }
+    return getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE})
+        .catch((error) => {
+          logger.error({owner, repo, path, error: String(error)}, 'Failed to get access policy file content');
+          return null;
+        });
   });
   if (!policyValue) {
     throw new GithubAccessPolicyError(`Access policy not found`);
@@ -920,17 +919,9 @@ function formatAccessPolicyError(error: GithubAccessPolicyError) {
 async function getAppInstallation(client: Octokit, {owner}: {
   owner: string
 }): Promise<GitHubAppInstallation | null> {
-  // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
-  // therefore, we retry on any error
-  return retry(
-      async () => client.rest.apps.getUserInstallation({username: owner})
-          .then((res) => res.data)
-          .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error))),
-      {
-        delay: 1000,
-        retries: 3,
-      },
-  );
+  return client.rest.apps.getUserInstallation({username: owner})
+      .then((res) => res.data)
+      .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error)));
 }
 
 /**
