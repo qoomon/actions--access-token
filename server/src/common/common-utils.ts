@@ -154,60 +154,6 @@ export function filterObjectEntries<V>(
 }
 
 /**
- * This function will return a promise that will resolve after the given time
- * @param ms - time in milliseconds
- * @return promise
- */
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * This function will return a promise that will resolve after the given time
- * @param fn - function to retry
- * @param options - retry options
- * @param options.retries - number of retries
- * @param options.delay - delay between retries
- * @param options.onRetry - function to call on retry, return false to stop retrying
- * @param options.onError - function to call on error, return false to stop retrying
- * @return promise
- */
-export async function retry<T>(
-    fn: () => Promise<T>,
-    options: {
-      retries: number,
-      delay: number,
-      onRetry?: (result: T) => boolean | Promise<boolean>,
-      onError?: (error: unknown) => boolean | Promise<boolean>,
-    } = {
-      retries: 1,
-      delay: 1000,
-    },
-): Promise<T> {
-  const {retries, delay} = options;
-  for (let attempts = 0; attempts < retries; attempts++) {
-    try {
-      const result = await fn();
-      if (!options.onRetry || !await options.onRetry(result)) {
-        return result;
-      }
-      if (attempts < retries - 1) {
-        await sleep(delay);
-      }
-    } catch (error: unknown) {
-      if (options.onError && !await options.onError(error)) {
-        throw error;
-      }
-      if (attempts >= retries - 1) {
-        throw error;
-      }
-      await sleep(delay);
-    }
-  }
-  throw Error('Illegal state');
-}
-
-/**
  * Indent string
  * @param string - string to indent
  * @param indent - indent string

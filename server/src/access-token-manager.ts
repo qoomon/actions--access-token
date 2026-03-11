@@ -1,6 +1,7 @@
 import {Octokit as OctokitCore} from '@octokit/core';
 import {paginateRest} from "@octokit/plugin-paginate-rest";
 import {restEndpointMethods} from "@octokit/plugin-rest-endpoint-methods";
+import {retry as retryPlugin} from '@octokit/plugin-retry';
 import {z} from 'zod';
 import type {components} from '@octokit/openapi-types';
 import {createAppAuth} from '@octokit/auth-app';
@@ -17,7 +18,6 @@ import {
   isRecord,
   mapObjectEntries,
   resultOf,
-  retry,
   unique,
 } from './common/common-utils.js';
 import {
@@ -39,7 +39,13 @@ import {logger} from './logger.js';
 import {RestEndpointMethodTypes} from '@octokit/rest';
 
 const Octokit = OctokitCore
-    .plugin(restEndpointMethods).plugin(paginateRest);
+    .plugin(restEndpointMethods).plugin(paginateRest).plugin(retryPlugin);
+
+// WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
+// therefore, we configure Octokit to retry on any error including network-level connection failures.
+// @octokit/plugin-retry handles HTTP 4xx/5xx via its errorRequest hook (3 retries by default).
+// For raw network errors, the plugin's Bottleneck scheduler retries when request.retries > 0.
+const OCTOKIT_REQUEST_DEFAULTS = {retries: 3, retryAfter: 1 /* seconds */} as const;
 
 const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
 const GITHUB_API_CONCURRENCY_LIMIT = limit(8);
@@ -64,6 +70,7 @@ export async function accessTokenManager(options: {
   const GITHUB_APP_CLIENT = new Octokit({
     authStrategy: createAppAuth,
     auth: options.githubAppAuth,
+    request: OCTOKIT_REQUEST_DEFAULTS,
   });
   const GITHUB_APP = await GITHUB_APP_CLIENT.rest.apps.getAuthenticated()
       .then((res) => res.data ?? _throw(new Error('GitHub app not found')));
@@ -604,15 +611,11 @@ async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client
   preprocessor: (value: unknown) => unknown,
 }): Promise<z.infer<T>> {
   const policyValue = await findFirstNotNull(paths, async (path) => {
-    // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
-    // therefore, we retry on any error
-    return retry(
-        () => getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE}),
-        {retries: 3, delay: 1000},
-    ).catch((error) => {
-      logger.error({owner, repo, path, error: String(error)}, 'Failed to get access policy file content');
-      return null;
-    });
+    return getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE})
+        .catch((error) => {
+          logger.error({owner, repo, path, error: String(error)}, 'Failed to get access policy file content');
+          return null;
+        });
   });
   if (!policyValue) {
     throw new GithubAccessPolicyError(`Access policy not found`);
@@ -923,17 +926,9 @@ function formatAccessPolicyError(error: GithubAccessPolicyError) {
 async function getAppInstallation(client: Octokit, {owner}: {
   owner: string
 }): Promise<GitHubAppInstallation | null> {
-  // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
-  // therefore, we retry on any error
-  return retry(
-      async () => client.rest.apps.getUserInstallation({username: owner})
-          .then((res) => res.data)
-          .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error))),
-      {
-        delay: 1000,
-        retries: 3,
-      },
-  );
+  return client.rest.apps.getUserInstallation({username: owner})
+      .then((res) => res.data)
+      .catch(async (error) => (error.status === Status.NOT_FOUND ? null : _throw(error)));
 }
 
 /**
@@ -950,20 +945,15 @@ async function createInstallationAccessToken(client: Octokit, installation: GitH
   repositories?: string[],
   permissions: GitHubAppPermissions
 }): Promise<GitHubAppInstallationAccessToken> {
-  // WORKAROUND: for some reason sometimes the request connection gets closed unexpectedly (line closed),
-  // therefore, we retry on any error
   // noinspection TypeScriptValidateJSTypes
-  return retry(
-      () => client.rest.apps.createInstallationAccessToken({
-        installation_id: installation.id,
-        // BE AWARE that an empty object will result in a token with all app installation permissions
-        permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
-          scope.replaceAll('-', '_'), permission,
-        ])),
-        repositories,
-      }).then((res) => res.data),
-      {retries: 3, delay: 1000},
-  );
+  return client.rest.apps.createInstallationAccessToken({
+    installation_id: installation.id,
+    // BE AWARE that an empty object will result in a token with all app installation permissions
+    permissions: ensureHasEntries(mapObjectEntries(permissions, ([scope, permission]) => [
+      scope.replaceAll('-', '_'), permission,
+    ])),
+    repositories,
+  }).then((res) => res.data);
 }
 
 /**
@@ -982,7 +972,7 @@ async function createOctokit(client: Octokit, installation: GitHubAppInstallatio
     permissions,
     repositories,
   });
-  return new Octokit({auth: installationAccessToken.token});
+  return new Octokit({auth: installationAccessToken.token, request: OCTOKIT_REQUEST_DEFAULTS});
 }
 
 /**
