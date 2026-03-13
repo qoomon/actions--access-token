@@ -2,7 +2,7 @@ import {Stack, StackProps} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
 import {ManagedPolicy, OpenIdConnectPrincipal, OpenIdConnectProvider, Role} from 'aws-cdk-lib/aws-iam';
 
-const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS = ['repo:qoomon/actions--access-token:ref:refs/heads/main'];
+const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS = ['repo:qoomon/actions--access-token:*'];
 
 export class DeploymentStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
