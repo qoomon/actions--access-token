@@ -1,47 +1,62 @@
-import {DIM_COLOR} from 'jest-matcher-utils';
+import {expect} from '@jest/globals';
+import type {MatcherContext} from 'expect';
 
-/**
- * Wrap test with hints
- * @param test - test function
- * @param hints - hint messages
- * @return void
- */
-export async function withHint(
-    test: () => void | Promise<void>,
-    hints: () => Record<string, unknown> | Promise<Record<string, unknown>>,
-) {
-  try {
-    await test();
-  } catch (e: unknown) {
-    if (e instanceof Error && e.constructor.name === 'JestAssertionError') {
-      const hintMessage = `Hints:\n${indent(
-          Object.entries(await hints()).map(([name, message]) => {
-            let formattedMessage;
-            if (typeof message === 'string') {
-              formattedMessage = message.includes('\n') ?
-                  `\n${indent(message)}` :
-                  ` ${message}`;
-            } else {
-              formattedMessage = JSON.stringify(message, null, 2);
-            }
-            return DIM_COLOR(`${name}:${formattedMessage}`);
-          }).join('\n'),
-      )}`;
-      e.message = `${e.message}\n${hintMessage}`;
-    }
+export interface ResponseExpectation {
+  status: number;
+  body?: Record<string, unknown>;
+}
 
-    throw e;
+declare module '@jest/globals' {
+  // noinspection JSUnusedGlobalSymbols
+  interface Matchers<R> {
+    toMatchResponse(expected: ResponseExpectation): Promise<R>;
   }
 }
 
-/**
- * Indent string
- * @param string - string to indent
- * @param indention - indention string
- * @return indented string
- */
-function indent(string: string, indention = '  ') {
-  return string.split('\n')
-      .map((line) => `${indention}${line}`)
-      .join('\n');
-}
+expect.extend({
+  /**
+   * Assert that a Response has the expected HTTP status and, optionally, that
+   * its JSON body matches a subset of the expected object.  On failure the
+   * full parsed body is always included in the error message, so there is no
+   * need to fetch and print it separately in tests.
+   */
+  async toMatchResponse(this: MatcherContext, received: Response, expected: ResponseExpectation) {
+    const body = await received.json().catch(() => null);
+
+    if (received.status !== expected.status) {
+      return {
+        pass: false,
+        message: () => [
+          this.utils.matcherHint('toMatchResponse', 'response', ''),
+          '',
+          `Expected status: ${this.utils.printExpected(expected.status)}`,
+          `Received status: ${this.utils.printReceived(received.status)}`,
+          '',
+          `Response body:\n${JSON.stringify(body, null, 2)}`,
+        ].join('\n'),
+      };
+    }
+
+    if (expected.body !== undefined) {
+      const pass = this.equals(body, expected.body, [
+        this.utils.iterableEquality,
+        this.utils.subsetEquality,
+      ]);
+      if (!pass) {
+        return {
+          pass: false,
+          message: () => [
+            this.utils.matcherHint('toMatchResponse', 'response', ''),
+            '',
+            this.utils.diff(expected.body, body) ?? '',
+          ].join('\n'),
+        };
+      }
+    }
+
+    return {
+      pass: true,
+      message: () => this.utils.matcherHint('.not.toMatchResponse', 'response', ''),
+    };
+  },
+});
