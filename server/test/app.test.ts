@@ -9,7 +9,7 @@ import {GitHubAppRepositoryPermissions, parseRepository, verifyPermission} from 
 import * as Fixtures from './fixtures.js';
 import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, GITHUB_ACTIONS_TOKEN_SIGNING, Repository} from './fixtures.js';
 import {joinRegExp, Optional} from '../src/common/common-utils.js';
-import {withHint} from './jest-utils.js';
+import './jest-utils.js';
 import {Status} from '../src/common/http-utils.js';
 import {
   GitHubOwnerAccessPolicy,
@@ -38,14 +38,12 @@ describe('App path /unknown', () => {
   const path = '/unknown';
 
   describe('GET request', () => {
-    it('should response with status FORBIDDEN', async () => {
-      // --- Given ---
-
+    it('should respond with status NOT_FOUND', async () => {
       // --- When ---
       const response = await app.request(path, {method: 'GET'});
 
       // --- Then ---
-      expect(response.status).toEqual(Status.NOT_FOUND);
+      await expect(response).toMatchResponse({status: Status.NOT_FOUND});
     });
   });
 });
@@ -55,28 +53,30 @@ describe('App path /access_tokens', () => {
   const path = '/access_tokens';
 
   describe('GET request', () => {
-    it('should response with status NOT_FOUND', async () => {
+    it('should respond with status NOT_FOUND', async () => {
       // --- When ---
       const response = await app.request(path, {method: 'GET'});
 
       // --- Then ---
-      expect(response.status).toEqual(Status.NOT_FOUND);
+      await expect(response).toMatchResponse({status: Status.NOT_FOUND});
     });
   });
 
   describe('POST request', () => {
 
-    describe('should response with status UNAUTHORIZED', () => {
+    describe('should respond with status UNAUTHORIZED', () => {
       it('if authorization header is missing', async () => {
         // --- When ---
         const response = await app.request(path, {method: 'POST'});
 
         // --- Then ---
-        expect(response.status).toEqual(Status.UNAUTHORIZED);
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Unauthorized',
-          message: 'Missing authorization header',
+        await expect(response).toMatchResponse({
+          status: Status.UNAUTHORIZED,
+          body: {
+            requestId: expect.any(String),
+            error: 'Unauthorized',
+            message: 'Missing authorization header',
+          },
         });
       });
 
@@ -88,11 +88,13 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        expect(response.status).toEqual(Status.UNAUTHORIZED);
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Unauthorized',
-          message: 'Unexpected authorization scheme Invalid',
+        await expect(response).toMatchResponse({
+          status: Status.UNAUTHORIZED,
+          body: {
+            requestId: expect.any(String),
+            error: 'Unauthorized',
+            message: 'Unexpected authorization scheme Invalid',
+          },
         });
       });
 
@@ -104,11 +106,13 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        expect(response.status).toEqual(Status.UNAUTHORIZED);
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Unauthorized',
-          message: 'Invalid token: Invalid Compact JWS',
+        await expect(response).toMatchResponse({
+          status: Status.UNAUTHORIZED,
+          body: {
+            requestId: expect.any(String),
+            error: 'Unauthorized',
+            message: 'Invalid token: Invalid Compact JWS',
+          },
         });
       });
 
@@ -127,13 +131,13 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.UNAUTHORIZED);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Unauthorized',
-          message: 'Invalid token: signature verification failed',
+        await expect(response).toMatchResponse({
+          status: Status.UNAUTHORIZED,
+          body: {
+            requestId: expect.any(String),
+            error: 'Unauthorized',
+            message: 'Invalid token: signature verification failed',
+          },
         });
       });
 
@@ -150,24 +154,22 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.UNAUTHORIZED);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Unauthorized',
-          message: 'Invalid token: "exp" claim timestamp check failed',
+        await expect(response).toMatchResponse({
+          status: Status.UNAUTHORIZED,
+          body: {
+            requestId: expect.any(String),
+            error: 'Unauthorized',
+            message: 'Invalid token: "exp" claim timestamp check failed',
+          },
         });
       });
     });
 
-    describe('should response with status BAD REQUEST', () => {
+    describe('should respond with status BAD REQUEST', () => {
       // --- Given ---
       const githubTokenPromise = Fixtures.createGitHubActionsToken({});
 
       it('if request body is invalid json', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -176,22 +178,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body:\n/,
-            / {2}- Unexpected token 'i', "invalid json" is not valid JSON$/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body:\n/,
+              / {2}- Unexpected token 'i', "invalid json" is not valid JSON$/,
+            ])),
+          },
         });
       });
 
       it('if token request does not contain any permission', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -202,22 +202,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body:\n/,
-            / {2}- permissions: Invalid object: must have at least one entry$/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body:\n/,
+              / {2}- permissions: Invalid object: must have at least one entry$/,
+            ])),
+          },
         });
       });
 
       it('if token request permission scope is unexpected', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -228,22 +226,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body:\n/,
-            / {2}- permissions: Unrecognized key: "unexpected"$/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body:\n/,
+              / {2}- permissions: Unrecognized key: "unexpected"$/,
+            ])),
+          },
         });
       });
 
       it('if token request permission value is invalid', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -254,22 +250,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body:\n/,
-            / {2}- permissions.secrets: Invalid option: expected one of .*$/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body:\n/,
+              / {2}- permissions.secrets: Invalid option: expected one of .*$/,
+            ])),
+          },
         });
       });
 
       it('if token request repositories are invalid', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -281,22 +275,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body:\n/,
-            / {2}- repositories: Union errors:/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body:\n/,
+              / {2}- repositories: Union errors:/,
+            ])),
+          },
         });
       });
 
       it('if token request owner is invalid', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -308,22 +300,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body.\n/,
-            / {2}- owner: Invalid string: must match pattern .*$/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body.\n/,
+              / {2}- owner: Invalid string: must match pattern .*$/,
+            ])),
+          },
         });
       });
 
       it('if token request repositories owners differ from request owner', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -336,22 +326,20 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body.\n/,
-            / {2}- repositories.0: Owner must match the specified owner 'octocat'$/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body.\n/,
+              / {2}- repositories.0: Owner must match the specified owner 'octocat'$/,
+            ])),
+          },
         });
       });
 
       it('if token request repositories have different owners', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -363,21 +351,21 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Bad Request',
-          message: expect.stringMatching(joinRegExp([
-            /^Invalid request body.\n/,
-            / {2}- repositories: Must have one common owner$/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.BAD_REQUEST,
+          body: {
+            requestId: expect.any(String),
+            error: 'Bad Request',
+            message: expect.stringMatching(joinRegExp([
+              /^Invalid request body.\n/,
+              / {2}- repositories: Must have one common owner$/,
+            ])),
+          },
         });
       });
     });
 
-    describe('should response with status FORBIDDEN', () => {
+    describe('should respond with status FORBIDDEN', () => {
 
       it('if GitHub app has not been installed for target repo', async () => {
         // --- Given ---
@@ -396,16 +384,16 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Forbidden',
-          message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-            `- ${actionRepo.owner}:\n`,
-            / {2}- 'GitHub Actions Access Manager' has not been installed\./,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.FORBIDDEN,
+          body: {
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+              `- ${actionRepo.owner}:\n`,
+              / {2}- 'GitHub Actions Access Manager' has not been installed\./,
+            ])),
+          },
         });
       });
 
@@ -430,16 +418,16 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Forbidden',
-          message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-            `- ${actionRepo.owner}:\n`,
-            / {2}- secrets: write - '[^']+' installation not authorized\n/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.FORBIDDEN,
+          body: {
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+              `- ${actionRepo.owner}:\n`,
+              / {2}- secrets: write - '[^']+' installation not authorized\n/,
+            ])),
+          },
         });
       });
 
@@ -464,16 +452,16 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Forbidden',
-          message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-            `- ${actionRepo.owner}:\n`,
-            / {2}- Access policy not found\n/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.FORBIDDEN,
+          body: {
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+              `- ${actionRepo.owner}:\n`,
+              / {2}- Access policy not found\n/,
+            ])),
+          },
         });
       });
 
@@ -508,16 +496,16 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Forbidden',
-          message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-            `- ${actionRepo.owner}:\n`,
-            / {2}- Invalid access policy\n/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.FORBIDDEN,
+          body: {
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+              `- ${actionRepo.owner}:\n`,
+              / {2}- Invalid access policy\n/,
+            ])),
+          },
         });
       });
 
@@ -548,16 +536,16 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await withHint(() => {
-          expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
-          requestId: expect.any(String),
-          error: 'Forbidden',
-          message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-            `- ${actionRepo.owner}:\n`,
-            / {2}- OIDC token subject is not allowed by owner access policy\n/,
-          ])),
+        await expect(response).toMatchResponse({
+          status: Status.FORBIDDEN,
+          body: {
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+              `- ${actionRepo.owner}:\n`,
+              / {2}- OIDC token subject is not allowed by owner access policy\n/,
+            ])),
+          },
         });
       });
 
@@ -597,16 +585,16 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.owner}:\n`,
-              / {2}- contents: write - Not allowed by owner access policy\n/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.owner}:\n`,
+                / {2}- contents: write - Not allowed by owner access policy\n/,
+              ])),
+            },
           });
         });
 
@@ -627,16 +615,16 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.name}:\n`,
-              / {2}- Access policy not found\n/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.name}:\n`,
+                / {2}- Access policy not found\n/,
+              ])),
+            },
           });
         });
 
@@ -665,16 +653,16 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.name}:\n`,
-              / {2}- Invalid access policy\n/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.name}:\n`,
+                / {2}- Invalid access policy\n/,
+              ])),
+            },
           });
         });
 
@@ -702,16 +690,16 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.name}:\n`,
-              / {2}- contents: write - Not authorized/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.name}:\n`,
+                / {2}- contents: write - Not authorized/,
+              ])),
+            },
           });
         });
 
@@ -739,16 +727,16 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.name}:\n`,
-              / {2}- Not authorized/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.name}:\n`,
+                / {2}- Not authorized/,
+              ])),
+            },
           });
         });
 
@@ -776,16 +764,16 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.name}:\n`,
-              / {2}- Not authorized\n/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.name}:\n`,
+                / {2}- Not authorized\n/,
+              ])),
+            },
           });
         });
 
@@ -815,16 +803,16 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.name}:\n`,
-              / {2}- contents: read - Not authorized\n/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.name}:\n`,
+                / {2}- contents: read - Not authorized\n/,
+              ])),
+            },
           });
         });
       });
@@ -860,22 +848,22 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            requestId: expect.any(String),
-            error: 'Forbidden',
-            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
-              `- ${actionRepo.owner}:\n`,
-              / {2}- contents: write - Not allowed by owner access policy\n/,
-            ])),
+          await expect(response).toMatchResponse({
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.owner}:\n`,
+                / {2}- contents: write - Not allowed by owner access policy\n/,
+              ])),
+            },
           });
         });
       });
     });
 
-    describe('should response with status OK', () => {
+    describe('should respond with status OK', () => {
 
       beforeEach(() => {
         githubMockEnvironment.addAppInstallation({
@@ -926,15 +914,15 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {secrets: 'write'},
-            repositories: [parseRepository(actionRepo.name).repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [parseRepository(actionRepo.name).repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -962,15 +950,15 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {secrets: 'write'},
-            repositories: [parseRepository(actionRepo.name).repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [parseRepository(actionRepo.name).repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -998,15 +986,15 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {secrets: 'write'},
-            repositories: [parseRepository(actionRepo.name).repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [parseRepository(actionRepo.name).repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -1037,15 +1025,15 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {secrets: 'write'},
-            repositories: [actionRepo.repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [actionRepo.repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -1073,15 +1061,15 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {secrets: 'write'},
-            repositories: [actionRepo.repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [actionRepo.repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -1113,15 +1101,15 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {secrets: 'write'},
-            repositories: [actionRepo.repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [actionRepo.repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -1153,15 +1141,15 @@ describe('App path /access_tokens', () => {
             }),
           });
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {secrets: 'write'},
-            repositories: [actionRepo.repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [actionRepo.repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -1191,15 +1179,15 @@ describe('App path /access_tokens', () => {
             }),
           });
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {'pull-requests': 'write'},
-            repositories: [actionRepo.repo],
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {'pull-requests': 'write'},
+              repositories: [actionRepo.repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
       });
@@ -1233,14 +1221,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {'organization-secrets': 'write'},
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {'organization-secrets': 'write'},
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
 
@@ -1271,14 +1259,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await withHint(() => {
-            expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
-            owner: actionRepo.owner,
-            permissions: {'pull-requests': 'write'},
-            token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
-            expires_at: expect.stringMatching(/Z$/),
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {'pull-requests': 'write'},
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
           });
         });
       });
@@ -1521,18 +1509,6 @@ function mockGithub() {
 }
 
 // --- Utils ------------------------------------------------------------------
-
-/**
- * Normalize permissions by replacing all '-' with '_'
- * @param permissions - permissions object
- * @return normalized permissions
- */
-// function normalizePermissions(permissions: Record<string, string>) {
-//   return mapObject(permissions, ([key, value]) => [
-//     key.replaceAll('-', '_'),
-//     value,
-//   ])
-// }
 
 /**
  * Create and modify date relative to now

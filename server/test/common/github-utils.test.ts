@@ -2,7 +2,7 @@ import {describe, expect, it} from '@jest/globals';
 import {parseRepository} from '../../src/common/github-utils.js';
 
 describe('parseRepository', () => {
-  it('should response with status FORBIDDEN', async () => {
+  it('should throw an Error for an invalid repository format', () => {
     // --- Given ---
     const invalidRepository = 'invalid';
 
