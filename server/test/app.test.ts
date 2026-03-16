@@ -38,9 +38,7 @@ describe('App path /unknown', () => {
   const path = '/unknown';
 
   describe('GET request', () => {
-    it('should response with status FORBIDDEN', async () => {
-      // --- Given ---
-
+    it('should response with status NOT_FOUND', async () => {
       // --- When ---
       const response = await app.request(path, {method: 'GET'});
 
@@ -127,10 +125,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.UNAUTHORIZED);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
           message: 'Invalid token: signature verification failed',
@@ -150,10 +149,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.UNAUTHORIZED);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Unauthorized',
           message: 'Invalid token: "exp" claim timestamp check failed',
@@ -166,8 +166,6 @@ describe('App path /access_tokens', () => {
       const githubTokenPromise = Fixtures.createGitHubActionsToken({});
 
       it('if request body is invalid json', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -176,10 +174,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -190,8 +189,6 @@ describe('App path /access_tokens', () => {
       });
 
       it('if token request does not contain any permission', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -202,10 +199,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -216,8 +214,6 @@ describe('App path /access_tokens', () => {
       });
 
       it('if token request permission scope is unexpected', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -228,10 +224,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -242,8 +239,6 @@ describe('App path /access_tokens', () => {
       });
 
       it('if token request permission value is invalid', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -254,10 +249,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -268,8 +264,6 @@ describe('App path /access_tokens', () => {
       });
 
       it('if token request repositories are invalid', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -281,10 +275,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -295,8 +290,6 @@ describe('App path /access_tokens', () => {
       });
 
       it('if token request owner is invalid', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -308,10 +301,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -322,8 +316,6 @@ describe('App path /access_tokens', () => {
       });
 
       it('if token request repositories owners differ from request owner', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -336,10 +328,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -350,8 +343,6 @@ describe('App path /access_tokens', () => {
       });
 
       it('if token request repositories have different owners', async () => {
-        // --- Given ---
-
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -363,10 +354,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.BAD_REQUEST);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Bad Request',
           message: expect.stringMatching(joinRegExp([
@@ -396,10 +388,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Forbidden',
           message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -430,10 +423,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Forbidden',
           message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -464,10 +458,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Forbidden',
           message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -508,10 +503,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Forbidden',
           message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -548,10 +544,11 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
+        const responseBody = await response.json();
         await withHint(() => {
           expect(response.status).toEqual(Status.FORBIDDEN);
-        }, async () => ({'response.json()': await response.json()}));
-        expect(await response.json()).toMatchObject({
+        }, () => ({'response.json()': responseBody}));
+        expect(responseBody).toMatchObject({
           requestId: expect.any(String),
           error: 'Forbidden',
           message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -597,10 +594,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -627,10 +625,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -665,10 +664,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -702,10 +702,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -739,10 +740,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -776,10 +778,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -815,10 +818,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -860,10 +864,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.FORBIDDEN);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             requestId: expect.any(String),
             error: 'Forbidden',
             message: expect.stringMatching(joinRegExp([/^Issues:\n/,
@@ -926,10 +931,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {secrets: 'write'},
             repositories: [parseRepository(actionRepo.name).repo],
@@ -962,10 +968,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {secrets: 'write'},
             repositories: [parseRepository(actionRepo.name).repo],
@@ -998,10 +1005,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {secrets: 'write'},
             repositories: [parseRepository(actionRepo.name).repo],
@@ -1037,10 +1045,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {secrets: 'write'},
             repositories: [actionRepo.repo],
@@ -1073,10 +1082,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {secrets: 'write'},
             repositories: [actionRepo.repo],
@@ -1113,10 +1123,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {secrets: 'write'},
             repositories: [actionRepo.repo],
@@ -1153,10 +1164,11 @@ describe('App path /access_tokens', () => {
             }),
           });
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {secrets: 'write'},
             repositories: [actionRepo.repo],
@@ -1191,10 +1203,11 @@ describe('App path /access_tokens', () => {
             }),
           });
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'pull-requests': 'write'},
             repositories: [actionRepo.repo],
@@ -1233,10 +1246,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'organization-secrets': 'write'},
             token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
@@ -1271,10 +1285,11 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
+          const responseBody = await response.json();
           await withHint(() => {
             expect(response.status).toEqual(Status.OK);
-          }, async () => ({'response.json()': await response.json()}));
-          expect(await response.json()).toMatchObject({
+          }, () => ({'response.json()': responseBody}));
+          expect(responseBody).toMatchObject({
             owner: actionRepo.owner,
             permissions: {'pull-requests': 'write'},
             token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
@@ -1521,18 +1536,6 @@ function mockGithub() {
 }
 
 // --- Utils ------------------------------------------------------------------
-
-/**
- * Normalize permissions by replacing all '-' with '_'
- * @param permissions - permissions object
- * @return normalized permissions
- */
-// function normalizePermissions(permissions: Record<string, string>) {
-//   return mapObject(permissions, ([key, value]) => [
-//     key.replaceAll('-', '_'),
-//     value,
-//   ])
-// }
 
 /**
  * Create and modify date relative to now
