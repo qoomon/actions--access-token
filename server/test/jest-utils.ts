@@ -6,9 +6,9 @@ export interface ResponseExpectation {
   body?: Record<string, unknown>;
 }
 
-declare module '@jest/globals' {
+declare module 'expect' {
   // noinspection JSUnusedGlobalSymbols
-  interface Matchers<R> {
+  interface Matchers<R, T = unknown> {
     toMatchResponse(expected: ResponseExpectation): Promise<R>;
   }
 }
