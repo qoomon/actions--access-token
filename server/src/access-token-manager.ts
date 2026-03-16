@@ -873,10 +873,13 @@ function matchSubject(subjectPattern: string | string[], subject: string | strin
 
   // subject pattern claims must not contain wildcards to prevent granting access accidentally
   //   repo:foo/bar:*  is NOT allowed
+  //   repo:foo/bar:?  is NOT allowed
   //   repo:foo/bar:** is allowed
   //   repo:foo/*:**   is allowed
+  //   repo:foo/?:**   is allowed
   const explicitSubjectPattern = subjectPattern.replace(/:\*\*$/, '')
-  if (Object.keys(parseOIDCSubject(explicitSubjectPattern)).some((claim) => claim.includes('*'))) {
+  if (Object.keys(parseOIDCSubject(explicitSubjectPattern))
+      .some((claim) => claim.includes('*') || claim.includes('?'))) {
     return false;
   }
 

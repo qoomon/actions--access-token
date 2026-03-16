@@ -752,6 +752,44 @@ describe('App path /access_tokens', () => {
           });
         });
 
+        it('if requested target repo grants access with a subject claim containing a ? wildcard', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                // '?ep?' would match 'repo' via regex [^:]ep[^:] - this must be rejected
+                subjects: ['?ep?:${origin}:ref:refs/heads/**'],
+                permissions: {contents: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {contents: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await withHint(() => {
+            expect(response.status).toEqual(Status.FORBIDDEN);
+          }, async () => ({'response.json()': await response.json()}));
+          expect(await response.json()).toMatchObject({
+            requestId: expect.any(String),
+            error: 'Forbidden',
+            message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+              `- ${actionRepo.name}:\n`,
+              / {2}- Not authorized/,
+            ])),
+          });
+        });
+
         it('if requested target repo grants access with a subject pattern is not complete', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({

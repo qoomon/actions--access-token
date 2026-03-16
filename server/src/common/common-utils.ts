@@ -113,8 +113,9 @@ export function tuplesOf<T>(iterable: Iterable<T>): [T, T | undefined][] {
  */
 export function regexpOfWildcardPattern(pattern: string, flags?: string): RegExp {
   const regexp = escapeRegexp(pattern)
-      .replace(/\\\*/g, '.+') // replace * with match one or more characters
-      .replace(/\\\?/g, '.'); // replace ? with match one characters
+      .replace(/\\\*\\\*/g, '.*') // replace ** with match zero or more characters
+      .replace(/\\\*/g, '.*') // replace * with match zero or more characters
+      .replace(/\\\?/g, '.'); // replace ? with match one character
   return RegExp(`^${regexp}$`, flags);
 }
 
