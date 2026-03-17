@@ -1,5 +1,5 @@
 import {env, regexpOfWildcardPattern} from './common/common-utils.js';
-import {formatPEMKey} from './common/ras-key-utils.js';
+import {formatPEMKey} from './common/rsa-key-utils.js';
 import {z} from 'zod';
 import {GitHubRepositoryNameSchema} from './common/github-utils.js';
 
@@ -40,8 +40,8 @@ export const config = validate({
   githubAppAuth: {
     appId: env('GITHUB_APP_ID', true),
     // depending on the environment multiline environment variables are not supported,
-    // due to this limitation formatPEMKey ensure the right format, even if the key formatted as a single line
-    privateKey: formatPEMKey(env('GITHUB_APP_PRIVATE_KEY', true)),
+    // due to this limitation the schema applies formatPEMKey, even if the key is on a single line
+    privateKey: env('GITHUB_APP_PRIVATE_KEY', true),
   },
   githubActionsTokenVerifier: {
     allowedAud: env('GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE', true)

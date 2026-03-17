@@ -44,14 +44,13 @@ export function parseOIDCSubject(subject: string): Record<string, string | undef
  * @return aggregated permissions
  */
 export function aggregatePermissions(permissionSets: Record<string, string>[]) {
-  return permissionSets.reduce((result, permissions) => {
+  return permissionSets.reduce((result: Record<string, string>, permissions) => {
     Object.entries(permissions).forEach(([scope, permission]) => {
-      const _scope = scope;
-      if (!result[_scope] || verifyPermission({
+      if (!result[scope] || verifyPermission({
         granted: permission,
-        requested: result[_scope],
+        requested: result[scope],
       })) {
-        (result[_scope] satisfies string | undefined) = permission;
+        result[scope] = permission;
       }
     });
     return result;

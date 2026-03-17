@@ -802,21 +802,10 @@ function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
   callerIdentitySubjects: string[],
 }): Record<string, string> {
   const permissions = statements
-      .filter(statementSubjectPredicate(callerIdentitySubjects))
+      .filter((statement) => matchSubject(statement.subjects, callerIdentitySubjects))
       .map((it) => it.permissions);
 
   return aggregatePermissions(permissions);
-
-  /**
-   * Create statement subject predicate
-   * @param subjects - caller identity subjects
-   * @return true if statement subjects match any of the given subject patterns
-   */
-  function statementSubjectPredicate(subjects: string[]) {
-    return (statement: GitHubAccessStatement) => subjects
-        .some((subject) => statement.subjects
-            .some((subjectPattern) => matchSubject(subjectPattern, subject)));
-  }
 }
 
 /**
