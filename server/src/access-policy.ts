@@ -306,14 +306,15 @@ function buildLegacyArtificialSubjects(subjects: string[], {owner, repo}: {
         `repo:${subjectRepo}:${artificialSubject}`;
 
     // prefix (job_)workflow_ref claim value with repo, if not already prefixed
-    artificialSubject = artificialSubject.replace(
-        /(?<=^|:)(?<claim>(job_)?workflow_ref):(?<value>[^:]+)/,
-        (match, ...args) => {
-          const {claim, value} = args.at(-1);
-          if (value.startsWith('/')) return `${claim}:${subjectRepo}${value}`;
-          return match;
-        },
-    );
+    const workflowRefPattern = /(?<=^|:)(?<claim>(job_)?workflow_ref):(?<value>[^:]+)/;
+    const workflowRefMatch = workflowRefPattern.exec(artificialSubject);
+    if (workflowRefMatch?.groups) {
+      const {claim, value} = workflowRefMatch.groups;
+      if (value.startsWith('/')) {
+        artificialSubject = artificialSubject.replace(
+            `${claim}:${value}`, `${claim}:${subjectRepo}${value}`);
+      }
+    }
 
     if (artificialSubject !== it) {
       artificialSubjects.push(artificialSubject);

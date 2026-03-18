@@ -1,5 +1,6 @@
 import limit from 'p-limit';
 import {createAppAuth} from '@octokit/auth-app';
+import {RestEndpointMethodTypes} from '@octokit/rest';
 import {
   ensureHasEntries,
   escapeRegexp,
@@ -51,7 +52,7 @@ const GITHUB_API_CONCURRENCY_LIMIT = limit(8);
 // otherwise, unintended leaks of repository existence could happen.
 const NOT_AUTHORIZED_MESSAGE = 'Not authorized';
 
-type GitHubApp = { name: string; html_url: string };
+type GitHubApp = RestEndpointMethodTypes['apps']['getAuthenticated']['response']['data'];
 type AccessPolicyOptions = {
   owner: { paths: string[], repo: string },
   repo: { paths: string[] }
@@ -596,8 +597,8 @@ export function matchSubject(subjectPattern: string | string[], subject: string 
   //   repo:foo/bar:*  is NOT allowed
   //   repo:foo/bar:** is allowed
   //   repo:foo/*:**   is allowed
-  const explicitSubjectPattern = subjectPattern.replace(/:\*\*$/, '');
-  if (Object.keys(parseOIDCSubject(explicitSubjectPattern)).some((claim) => claim.includes('*'))) {
+  const patternWithoutGlobSuffix = subjectPattern.replace(/:\*\*$/, '');
+  if (Object.keys(parseOIDCSubject(patternWithoutGlobSuffix)).some((claim) => claim.includes('*'))) {
     return false;
   }
 

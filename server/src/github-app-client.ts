@@ -97,7 +97,7 @@ export async function getRepositoryFileContent(client: Octokit, {
         if ('type' in res.data && res.data.type === 'file') {
           if (maxSize !== undefined && res.data.size > maxSize) {
             throw new Error(`Expect file size to be less than ${maxSize}b, but was ${res.data.size}b` +
-                `${owner}/${repo}/${path}`);
+                ` for file ${owner}/${repo}/${path}`);
           }
           return Buffer.from(res.data.content, 'base64').toString();
         }
