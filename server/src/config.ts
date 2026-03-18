@@ -39,8 +39,6 @@ const configSchema = z.strictObject({
 export const config = validate({
   githubAppAuth: {
     appId: env('GITHUB_APP_ID', true),
-    // depending on the environment multiline environment variables are not supported,
-    // due to this limitation the schema applies formatPEMKey, even if the key is on a single line
     privateKey: env('GITHUB_APP_PRIVATE_KEY', true),
   },
   githubActionsTokenVerifier: {
