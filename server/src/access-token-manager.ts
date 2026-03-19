@@ -15,7 +15,6 @@ import {
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
   normalizePermissionScopes,
-  parseOIDCSubject,
   parseRepository,
   validatePermissions,
   verifyPermissions,
