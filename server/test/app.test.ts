@@ -1264,7 +1264,8 @@ describe('App path /access_tokens', () => {
           await expect(response).toMatchResponse({
             status: Status.OK,
             body: {
-              token_hash: expect.stringMatching(/^[A-Za-z0-9+/]+=*$/),
+              // sha256 returns a 64-char hex string; base64-encoding that hex text yields exactly 88 chars ending with ==
+              token_hash: expect.stringMatching(/^[A-Za-z0-9+/]{86}==$/),
             },
           });
         });
