@@ -1264,7 +1264,7 @@ describe('App path /access_tokens', () => {
           await expect(response).toMatchResponse({
             status: Status.OK,
             body: {
-              token_hash: expect.stringMatching(/^[A-Za-z0-9+/]+=*$/),
+              token_hash: expect.stringMatching(/^[A-Za-z0-9+/]{43}=$/),
             },
           });
         });
