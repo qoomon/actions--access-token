@@ -3,7 +3,6 @@ import {createAppAuth} from '@octokit/auth-app';
 import {RestEndpointMethodTypes} from '@octokit/rest';
 import {
   ensureHasEntries,
-  escapeRegexp,
   filterObjectEntries,
   hasEntries,
   indent,
