@@ -63,7 +63,7 @@ export function appInit(prepare?: (app: Hono) => void) {
             repository: callerIdentity.repository,
             job_workflow_ref: callerIdentity.job_workflow_ref,
             run_id: callerIdentity.run_id,
-            attempts: callerIdentity.attempts,
+            run_attempt: callerIdentity.run_attempt,
           },
           // for debugging only:
           // workflow_run_url: buildWorkflowRunUrl(callerIdentity),
@@ -124,8 +124,6 @@ export function appInit(prepare?: (app: Hono) => void) {
         logger.info({
           request: accessTokenRequest
         }, 'Access Token Request');
-
-        // TODO check if all repositories belong to the same owner
 
         const githubActionsAccessToken = await GITHUB_ACTIONS_ACCESS_MANAGER
             .createAccessToken(callerIdentity, accessTokenRequest)

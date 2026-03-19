@@ -4,7 +4,6 @@ import process from "process";
 
 type Bindings = Record<string, unknown>;
 const asyncBindings = new asyncHooks.AsyncLocalStorage<{
-  bindingsSources: Map<string, Bindings>,
   bindings: Bindings,
 }>();
 
@@ -29,7 +28,6 @@ async function withAsyncBindings<T>(bindings: Bindings, fn: () => Promise<T>): P
   const current = asyncBindings.getStore();
   const baseBindings = current?.bindings ?? {};
   const store = {
-    bindingsSources: new Map<string, Bindings>(),
     bindings: {...baseBindings, ...bindings},
   };
 

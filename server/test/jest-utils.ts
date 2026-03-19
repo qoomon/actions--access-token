@@ -7,8 +7,7 @@ export interface ResponseExpectation {
 }
 
 declare module 'expect' {
-  // noinspection JSUnusedGlobalSymbols
-  interface Matchers<R, T = unknown> {
+  interface Matchers<R> {
     toMatchResponse(expected: ResponseExpectation): Promise<R>;
   }
 }
