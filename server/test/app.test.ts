@@ -33,6 +33,22 @@ const app = appInit();
 
 beforeEach(() => githubMockEnvironment.reset());
 
+
+
+describe('App path /', () => {
+
+  describe('GET request', () => {
+    it('should respond with the GitHub project URL', async () => {
+      // --- When ---
+      const response = await app.request('/', {method: 'GET'});
+
+      // --- Then ---
+      expect(response.status).toBe(Status.OK);
+      expect(await response.text()).toContain('https://github.com/qoomon/actions--access-token');
+    });
+  });
+});
+
 describe('App path /unknown', () => {
 
   const path = '/unknown';
@@ -64,8 +80,8 @@ describe('App path /access_tokens', () => {
 
   describe('POST request', () => {
 
-    describe('should respond with status UNAUTHORIZED', () => {
-      it('if authorization header is missing', async () => {
+    describe('authentication', () => {
+      it('should respond with UNAUTHORIZED if authorization header is missing', async () => {
         // --- When ---
         const response = await app.request(path, {method: 'POST'});
 
@@ -80,7 +96,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if authorization scheme is invalid', async () => {
+      it('should respond with UNAUTHORIZED if authorization scheme is invalid', async () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -98,7 +114,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if authorization token value is malformed', async () => {
+      it('should respond with UNAUTHORIZED if authorization token value is malformed', async () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
@@ -116,7 +132,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if authorization token signature is invalid', async () => {
+      it('should respond with UNAUTHORIZED if authorization token signature is invalid', async () => {
         // --- Given ---
         const githubToken = await Fixtures.createGitHubActionsToken({
           signing: {
@@ -141,7 +157,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if authorization token has expired', async () => {
+      it('should respond with UNAUTHORIZED if authorization token has expired', async () => {
         // --- Given ---
         const githubToken = await Fixtures.createGitHubActionsToken({
           expirationTime: 0,
@@ -165,112 +181,290 @@ describe('App path /access_tokens', () => {
       });
     });
 
-    describe('should respond with status BAD REQUEST', () => {
+    describe('request body validation', () => {
       // --- Given ---
       const githubTokenPromise = Fixtures.createGitHubActionsToken({});
 
-      it('if request body is invalid json', async () => {
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
-          body: 'invalid json',
+      describe('body format', () => {
+        it('should respond with REQUEST_TOO_LONG if request body exceeds the size limit', async () => {
+          // --- Given ---
+          const largeBody = 'x'.repeat(101 * 1024); // > 100 KB
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {'Content-Length': String(largeBody.length)},
+            body: largeBody,
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({status: Status.REQUEST_TOO_LONG});
         });
 
-        // --- Then ---
-        await expect(response).toMatchResponse({
-          status: Status.BAD_REQUEST,
-          body: {
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid request body:\n/,
-              / {2}- Unexpected token 'i', "invalid json" is not valid JSON$/,
-            ])),
-          },
+        it('should respond with BAD_REQUEST if request body is invalid json', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: 'invalid json',
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body:\n/,
+                / {2}- Unexpected token 'i', "invalid json" is not valid JSON$/,
+              ])),
+            },
+          });
         });
       });
 
-      it('if token request does not contain any permission', async () => {
+      describe('permissions', () => {
+        it('should respond with BAD_REQUEST if token request does not contain any permission', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              permissions: {},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body:\n/,
+                / {2}- permissions: Invalid object: must have at least one entry$/,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with BAD_REQUEST if token request permission scope is unexpected', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              permissions: {unexpected: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body:\n/,
+                / {2}- permissions: Unrecognized key: "unexpected"$/,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with BAD_REQUEST if token request permission value is invalid', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              permissions: {secrets: 'invalid'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body:\n/,
+                / {2}- permissions.secrets: Invalid option: expected one of .*$/,
+              ])),
+            },
+          });
+        });
+      });
+
+      describe('repositories', () => {
+        it('should respond with BAD_REQUEST if token request repositories are invalid', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              repositories: ['invalid/invalid/invalid'],
+              permissions: {actions: 'read'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body:\n/,
+                / {2}- repositories: Union errors:/,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with BAD_REQUEST if repositories count exceeds the maximum allowed', async () => {
+          // --- Given ---
+          const tooManyRepos = Array.from({length: config.maxTargetRepositoriesPerRequest + 1}, (_, i) => `repo-${i}`);
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              repositories: tooManyRepos,
+              permissions: {actions: 'read'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body:\n/,
+                / {2}- repositories: Too big: /,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with BAD_REQUEST if token request repositories owners differ from request owner', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              owner: 'octocat',
+              repositories: ['spongebob/sandbox'],
+              permissions: {actions: 'read'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body.\n/,
+                / {2}- repositories.0: Owner must match the specified owner 'octocat'$/,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with BAD_REQUEST if token request repositories have different owners', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              repositories: ['spongebob/sandbox', 'patrick/sandbox'],
+              permissions: {actions: 'read'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body.\n/,
+                / {2}- repositories: Must have one common owner$/,
+              ])),
+            },
+          });
+        });
+      });
+
+      describe('owner', () => {
+        it('should respond with BAD_REQUEST if token request owner is invalid', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              owner: 'invalid/invalid',
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body.\n/,
+                / {2}- owner: Invalid string: must match pattern .*$/,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with BAD_REQUEST if owner is specified but repositories is empty', async () => {
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            body: JSON.stringify({
+              owner: DEFAULT_OWNER,
+              repositories: [],
+              permissions: {actions: 'read'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.BAD_REQUEST,
+            body: {
+              requestId: expect.any(String),
+              error: 'Bad Request',
+              message: expect.stringMatching(joinRegExp([
+                /^Invalid request body.\n/,
+                / {2}- repositories: Must have at least one entry if owner is specified$/,
+              ])),
+            },
+          });
+        });
+      });
+
+      it('should respond with BAD_REQUEST if request body has an unknown field', async () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
           headers: {Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
-            permissions: {},
-          }),
-        });
-
-        // --- Then ---
-        await expect(response).toMatchResponse({
-          status: Status.BAD_REQUEST,
-          body: {
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid request body:\n/,
-              / {2}- permissions: Invalid object: must have at least one entry$/,
-            ])),
-          },
-        });
-      });
-
-      it('if token request permission scope is unexpected', async () => {
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
-          body: JSON.stringify({
-            permissions: {unexpected: 'write'},
-          }),
-        });
-
-        // --- Then ---
-        await expect(response).toMatchResponse({
-          status: Status.BAD_REQUEST,
-          body: {
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid request body:\n/,
-              / {2}- permissions: Unrecognized key: "unexpected"$/,
-            ])),
-          },
-        });
-      });
-
-      it('if token request permission value is invalid', async () => {
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
-          body: JSON.stringify({
-            permissions: {secrets: 'invalid'},
-          }),
-        });
-
-        // --- Then ---
-        await expect(response).toMatchResponse({
-          status: Status.BAD_REQUEST,
-          body: {
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid request body:\n/,
-              / {2}- permissions.secrets: Invalid option: expected one of .*$/,
-            ])),
-          },
-        });
-      });
-
-      it('if token request repositories are invalid', async () => {
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
-          body: JSON.stringify({
-            repositories: ['invalid/invalid/invalid'],
             permissions: {actions: 'read'},
+            unknownField: 'value',
           }),
         });
 
@@ -282,92 +476,16 @@ describe('App path /access_tokens', () => {
             error: 'Bad Request',
             message: expect.stringMatching(joinRegExp([
               /^Invalid request body:\n/,
-              / {2}- repositories: Union errors:/,
-            ])),
-          },
-        });
-      });
-
-      it('if token request owner is invalid', async () => {
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
-          body: JSON.stringify({
-            owner: 'invalid/invalid',
-            permissions: {secrets: 'write'},
-          }),
-        });
-
-        // --- Then ---
-        await expect(response).toMatchResponse({
-          status: Status.BAD_REQUEST,
-          body: {
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid request body.\n/,
-              / {2}- owner: Invalid string: must match pattern .*$/,
-            ])),
-          },
-        });
-      });
-
-      it('if token request repositories owners differ from request owner', async () => {
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
-          body: JSON.stringify({
-            owner: 'octocat',
-            repositories: ['spongebob/sandbox'],
-            permissions: {actions: 'read'},
-          }),
-        });
-
-        // --- Then ---
-        await expect(response).toMatchResponse({
-          status: Status.BAD_REQUEST,
-          body: {
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid request body.\n/,
-              / {2}- repositories.0: Owner must match the specified owner 'octocat'$/,
-            ])),
-          },
-        });
-      });
-
-      it('if token request repositories have different owners', async () => {
-        // --- When ---
-        const response = await app.request(path, {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
-          body: JSON.stringify({
-            repositories: ['spongebob/sandbox', 'patrick/sandbox'],
-            permissions: {actions: 'read'},
-          }),
-        });
-
-        // --- Then ---
-        await expect(response).toMatchResponse({
-          status: Status.BAD_REQUEST,
-          body: {
-            requestId: expect.any(String),
-            error: 'Bad Request',
-            message: expect.stringMatching(joinRegExp([
-              /^Invalid request body.\n/,
-              / {2}- repositories: Must have one common owner$/,
+              / {2}- Unrecognized key: "unknownField"$/,
             ])),
           },
         });
       });
     });
 
-    describe('should respond with status FORBIDDEN', () => {
+    describe('access control', () => {
 
-      it('if GitHub app has not been installed for target repo', async () => {
+      it('should respond with FORBIDDEN if GitHub app has not been installed for target owner', async () => {
         // --- Given ---
         const actionRepo = githubMockEnvironment.addRepository({});
         const githubToken = await Fixtures.createGitHubActionsToken({
@@ -397,7 +515,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if GitHub app is missing requested permission', async () => {
+      it('should respond with FORBIDDEN if GitHub app is missing requested permission', async () => {
         // --- Given ---
         githubMockEnvironment.addAppInstallation({
           permissions: {single_file: 'read', contents: 'write'},
@@ -431,7 +549,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if requested target owner has no access policy', async () => {
+      it('should respond with FORBIDDEN if requested target owner has no access policy', async () => {
         // --- Given ---
         githubMockEnvironment.addAppInstallation({
           permissions: {single_file: 'read', contents: 'write'},
@@ -465,7 +583,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if requested target owner has an invalid access policy', async () => {
+      it('should respond with FORBIDDEN if requested target owner has an invalid access policy', async () => {
         // --- Given ---
         githubMockEnvironment.addAppInstallation({
           permissions: {single_file: 'read', contents: 'write'},
@@ -509,7 +627,7 @@ describe('App path /access_tokens', () => {
         });
       });
 
-      it('if identity subject is not allowed by owner access policy', async () => {
+      it('should respond with FORBIDDEN if identity subject is not allowed by owner access policy', async () => {
         // --- Given ---
         githubMockEnvironment.addAppInstallation({
           permissions: {single_file: 'read', contents: 'write'},
@@ -562,7 +680,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo permission is not allowed by owner policy', async () => {
+        it('should respond with FORBIDDEN if requested target repo permission is not allowed by owner policy', async () => {
           // --- Given ---
           githubMockEnvironment.addOwnerRepository({
             ownerAccessPolicy: {
@@ -598,7 +716,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo has no access policy', async () => {
+        it('should respond with FORBIDDEN if requested target repo has no access policy', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({});
           const githubToken = await Fixtures.createGitHubActionsToken({
@@ -628,7 +746,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo has an invalid access policy', async () => {
+        it('should respond with FORBIDDEN if requested target repo has an invalid access policy', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -666,7 +784,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo scope permission are not granted by repo', async () => {
+        it('should respond with FORBIDDEN if requested target repo scope permission are not granted by repo', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -703,7 +821,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo grants access with a subject claim contains a wildcard', async () => {
+        it('should respond with FORBIDDEN if requested target repo grants access with a subject claim that contains a wildcard', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -740,7 +858,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo grants access with a subject pattern is not complete', async () => {
+        it('should respond with FORBIDDEN if requested target repo grants access with a subject pattern that is not complete', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -777,7 +895,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo permission scope was not granted by repo', async () => {
+        it('should respond with FORBIDDEN if requested target repo permission scope was not granted by repo', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -824,7 +942,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested target repo permissions not granted by owner', async () => {
+        it('should respond with FORBIDDEN if requested target repo permissions not granted by owner', async () => {
           // --- Given ---
           githubMockEnvironment.addOwnerRepository({
             ownerAccessPolicy: {
@@ -863,7 +981,7 @@ describe('App path /access_tokens', () => {
       });
     });
 
-    describe('should respond with status OK', () => {
+    describe('successful token creation', () => {
 
       beforeEach(() => {
         githubMockEnvironment.addAppInstallation({
@@ -890,7 +1008,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested repo permissions are granted by repo', async () => {
+        it('should respond with OK if requested repo permissions are granted by repo', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -926,7 +1044,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested repo permissions are granted by repo with * wildcard', async () => {
+        it('should respond with OK if requested repo permissions are granted by repo with * wildcard', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -962,7 +1080,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested repo permissions are granted by repo with ** wildcard', async () => {
+        it('should respond with OK if requested repo permissions are granted by repo with ** wildcard', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -998,9 +1116,8 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('if requested repo permissions are granted by owner', async () => {
+        it('should respond with OK if requested repo permissions are granted by owner', async () => {
           // --- Given ---
-
           const actionRepo = githubMockEnvironment.addRepository({});
           const githubToken = await Fixtures.createGitHubActionsToken({
             claims: {repository: actionRepo.name},
@@ -1037,7 +1154,122 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('even if target access policy has invalid permissions', async () => {
+        it('should respond with OK when explicit owner field matches requested repositories', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:${origin}:ref:refs/heads/*'],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              owner: actionRepo.owner,
+              repositories: [actionRepo.repo],
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [actionRepo.repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
+          });
+        });
+
+        it('should respond with OK for multiple repositories from the same owner', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:${origin}:ref:refs/heads/*'],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const targetRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              repositories: [actionRepo.repo, targetRepo.repo],
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: expect.arrayContaining([actionRepo.repo, targetRepo.repo]),
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
+          });
+        });
+
+        it('should respond with OK and include a token_hash in the response', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:${origin}:ref:refs/heads/*'],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              token_hash: expect.stringMatching(/^[A-Za-z0-9+/]+=*$/),
+            },
+          });
+        });
+
+        it('should respond with OK even if target access policy has invalid permissions', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -1073,7 +1305,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('even if target access policy has invalid statements', async () => {
+        it('should respond with OK even if target access policy has invalid statements', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -1113,7 +1345,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('even if requested repositories contains owner prefix', async () => {
+        it('should respond with OK even if requested repositories contains owner prefix', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -1153,7 +1385,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('even if requested repository policy uses underscore permissions scopes', async () => {
+        it('should respond with OK even if requested repository policy uses underscore permissions scopes', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
             accessPolicy: {
@@ -1194,7 +1426,7 @@ describe('App path /access_tokens', () => {
 
       describe('ALL repositories', () => {
 
-        it('if requested org permissions are granted', async () => {
+        it('should respond with OK if requested org permissions are granted', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({});
           const githubToken = await Fixtures.createGitHubActionsToken({
@@ -1232,7 +1464,7 @@ describe('App path /access_tokens', () => {
           });
         });
 
-        it('even if requested org policy uses underscore permissions scopes', async () => {
+        it('should respond with OK even if requested org policy uses underscore permissions scopes', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({});
           const githubToken = await Fixtures.createGitHubActionsToken({
@@ -1270,9 +1502,96 @@ describe('App path /access_tokens', () => {
           });
         });
       });
+
+      describe('legacy request body support', () => {
+
+        it('should respond with OK when legacy scope=owner with empty repositories converts to ALL', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({});
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          githubMockEnvironment.addOwnerRepository({
+            ownerAccessPolicy: {
+              statements: [{
+                subjects: [`repo:${actionRepo.name}:ref:refs/heads/*`],
+                permissions: {'organization-secrets': 'write'},
+              }],
+            },
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              scope: 'owner',
+              repositories: [],
+              permissions: {'organization-secrets': 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {'organization-secrets': 'write'},
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
+          });
+        });
+
+        it('should respond with OK when legacy scope=owner with non-empty repositories proceeds as selected repos', async () => {
+          // --- Given ---
+          githubMockEnvironment.addOwnerRepository({
+            ownerAccessPolicy: {
+              'allowed-repository-permissions': {secrets: 'write'},
+            },
+          });
+
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:${origin}:ref:refs/heads/*'],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              scope: 'owner',
+              repositories: [actionRepo.repo],
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await expect(response).toMatchResponse({
+            status: Status.OK,
+            body: {
+              owner: actionRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [actionRepo.repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              expires_at: expect.stringMatching(/Z$/),
+            },
+          });
+        });
+      });
     });
   });
 });
+
 
 // --- Mocks ------------------------------------------------------------------
 
