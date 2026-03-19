@@ -11,7 +11,7 @@ import {
   unique,
 } from './common/common-utils.js';
 import {
-  aggregatePermissions,
+  aggregatePermissions, arePermissionsEqual,
   GitHubActionsJwtPayload,
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
@@ -23,18 +23,19 @@ import {
 } from './common/github-utils.js';
 import {logger} from './logger.js';
 import {
-  Octokit,
   createInstallationAccessToken,
   createOctokit,
   getAppInstallation,
   GitHubAppInstallation,
+  Octokit,
 } from './github-app-client.js';
 import {
+  evaluateGrantedPermissions,
   filterValidPermissions,
   formatAccessPolicyError,
   getOwnerAccessPolicy,
   getRepoAccessPolicy,
-  GithubAccessPolicyError,
+  GithubAccessPolicyError, matchSubject,
 } from './access-policy.js';
 
 // Public re-exports kept for backward compatibility
@@ -78,8 +79,11 @@ export async function accessTokenManager(options: {
     authStrategy: createAppAuth,
     auth: options.githubAppAuth,
   });
-  const GITHUB_APP: GitHubApp = await GITHUB_APP_CLIENT.rest.apps.getAuthenticated()
-      .then((res) => res.data);
+  const GITHUB_APP: NonNullable<GitHubApp> = await GITHUB_APP_CLIENT.rest.apps.getAuthenticated()
+      .then((res) => {
+        if (!res.data) throw new Error('Failed to get authenticated GitHub App');
+        return res.data;
+      });
 
   // --- createAccessToken -----------------------------------------------------------------------------------------
 
@@ -158,7 +162,7 @@ function assertAppInstallation(
     tokenRequest: NormalizedTokenRequest,
     callerIdentity: GitHubActionsJwtPayload,
     effectiveSubjects: string[],
-    githubApp: GitHubApp,
+    githubApp: NonNullable<GitHubApp>,
     accessPolicyLocation: AccessPolicyOptions,
 ): asserts appInstallation is GitHubAppInstallation {
 
@@ -204,7 +208,7 @@ function assertInstallationPermissions(
     tokenRequest: NormalizedTokenRequest,
     callerIdentity: GitHubActionsJwtPayload,
     effectiveSubjects: string[],
-    githubApp: GitHubApp,
+    githubApp: NonNullable<GitHubApp>,
 ) {
   const {pending} = verifyPermissions({
     granted: normalizePermissionScopes(appInstallation.permissions),
@@ -511,24 +515,7 @@ function normalizeTokenRequest(
   }
 }
 
-// --- Permission evaluation ----------------------------------------------------------------------------------------
-
-/**
- * Evaluate the permissions granted to the caller by the given access policy statements
- * @param statements - access policy statements
- * @param callerIdentitySubjects - effective OIDC subjects of the caller
- * @return aggregated granted permissions
- */
-export function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
-  statements: { subjects: string[], permissions: Record<string, string> }[],
-  callerIdentitySubjects: string[],
-}): Record<string, string> {
-  const permissions = statements
-      .filter((statement) => matchSubject(statement.subjects, callerIdentitySubjects))
-      .map((it) => it.permissions);
-
-  return aggregatePermissions(permissions);
-}
+// --- Caller Identity --------------------------------------------------------------------------------------------
 
 /**
  * Build the effective set of OIDC subjects for the caller identity.
@@ -569,61 +556,6 @@ export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActions
   }
 
   return unique(subjects);
-}
-
-/**
- * Returns true if `subject` matches any of the `subjectPattern`(s).
- *
- * Wildcards: `**` matches any characters; `*` matches any characters except `:`;
- * `?` matches a single character except `:`.
- *
- * Subject pattern claims (the key parts) must not themselves contain wildcards
- * (e.g. `repo:foo/bar:*` is rejected) to prevent accidentally broad grants.
- * The trailing `:**` form is allowed as a special case.
- *
- * @param subjectPattern - single pattern or array of patterns
- * @param subject - single subject or array of subjects
- */
-export function matchSubject(subjectPattern: string | string[], subject: string | string[]): boolean {
-  if (Array.isArray(subject)) {
-    return subject.some((s) => matchSubject(subjectPattern, s));
-  }
-
-  if (Array.isArray(subjectPattern)) {
-    return subjectPattern.some((p) => matchSubject(p, subject));
-  }
-
-  // subject pattern claims must not contain wildcards to prevent granting access accidentally
-  //   repo:foo/bar:*  is NOT allowed
-  //   repo:foo/bar:** is allowed
-  //   repo:foo/*:**   is allowed
-  const patternWithoutGlobSuffix = subjectPattern.replace(/:\*\*$/, '');
-  if (Object.keys(parseOIDCSubject(patternWithoutGlobSuffix)).some((claim) => claim.includes('*'))) {
-    return false;
-  }
-
-  return regexpOfSubjectPattern(subjectPattern).test(subject);
-}
-
-/**
- * Compile a wildcard subject pattern into a regular expression
- */
-function regexpOfSubjectPattern(subjectPattern: string): RegExp {
-  const regexp = escapeRegexp(subjectPattern)
-      .replaceAll('\\*\\*', '(?:.*)') // **  matches zero or more characters
-      .replaceAll('\\*', '(?:[^:]*)') //  *  matches zero or more characters except ':'
-      .replaceAll('\\?', '[^:]'); //  ?  matches one character except ':'
-  return RegExp(`^${regexp}$`, 'i');
-}
-
-/**
- * Returns true when both permission maps have exactly the same scopes and values
- */
-function arePermissionsEqual(permissionsA: Record<string, string>, permissionsB: Record<string, string>): boolean {
-  const entriesA = Object.entries(permissionsA);
-  const entriesB = Object.entries(permissionsB);
-  return entriesA.length === entriesB.length &&
-      entriesA.every(([scope, permission]) => permissionsB[scope] === permission);
 }
 
 // --- Errors --------------------------------------------------------------------------------------------------------

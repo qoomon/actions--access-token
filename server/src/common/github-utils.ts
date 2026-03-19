@@ -58,6 +58,18 @@ export function aggregatePermissions(permissionSets: Record<string, string>[]) {
 }
 
 /**
+ * Returns true when both permission maps have exactly the same scopes and values
+ */
+export function arePermissionsEqual(
+    permissionsA: Record<string, string>,
+    permissionsB: Record<string, string>): boolean {
+  const entriesA = Object.entries(permissionsA);
+  const entriesB = Object.entries(permissionsB);
+  return entriesA.length === entriesB.length &&
+      entriesA.every(([scope, permission]) => permissionsB[scope] === permission);
+}
+
+/**
  * Verify permission is granted (admin > write > read)
  * @param granted - granted permission
  * @param requested - requested permission

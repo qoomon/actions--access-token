@@ -1,18 +1,15 @@
 import {z} from 'zod';
 import {formatZodIssue, YamlTransformer} from './common/zod-utils.js';
+import {escapeRegexp, filterObjectEntries, findFirstNotNull, indent, isRecord,} from './common/common-utils.js';
 import {
-  filterObjectEntries,
-  findFirstNotNull,
-  indent,
-  isRecord,
-} from './common/common-utils.js';
-import {
+  aggregatePermissions,
   GitHubAppPermissions,
   GitHubAppPermissionsSchema,
   GitHubAppRepositoryPermissions,
   GitHubAppRepositoryPermissionsSchema,
   GitHubRepositorySchema,
   normalizePermissionScopes,
+  parseOIDCSubject,
 } from './common/github-utils.js';
 import {logger} from './logger.js';
 import {getRepositoryFileContent, Octokit} from './github-app-client.js';
@@ -224,7 +221,8 @@ export function filterValidPermissions(scopeType: 'owner', permissions: Record<s
     GitHubAppPermissions
 export function filterValidPermissions(scopeType: '!owner' | '!repo', permissions: Record<string, unknown>):
     Record<string, unknown>
-export function filterValidPermissions(scopeType: 'owner' | '!owner' | 'repo' | '!repo',
+export function filterValidPermissions(
+    scopeType: 'owner' | '!owner' | 'repo' | '!repo',
     permissions: Record<string, unknown>): GitHubAppPermissions | GitHubAppRepositoryPermissions
 /**
  * Keep only permissions that are valid for the given scope type
@@ -322,6 +320,70 @@ function buildLegacyArtificialSubjects(subjects: string[], {owner, repo}: {
   });
 
   return artificialSubjects;
+}
+
+// --- Permission evaluation ----------------------------------------------------------------------------------------
+
+/**
+ * Evaluate the permissions granted to the caller by the given access policy statements
+ * @param statements - access policy statements
+ * @param callerIdentitySubjects - effective OIDC subjects of the caller
+ * @return aggregated granted permissions
+ */
+export function evaluateGrantedPermissions({statements, callerIdentitySubjects}: {
+  statements: { subjects: string[], permissions: Record<string, string> }[],
+  callerIdentitySubjects: string[],
+}): Record<string, string> {
+  const permissions = statements
+      .filter((statement) => matchSubject(statement.subjects, callerIdentitySubjects))
+      .map((it) => it.permissions);
+
+  return aggregatePermissions(permissions);
+}
+
+/**
+ * Returns true if `subject` matches any of the `subjectPattern`(s).
+ *
+ * Wildcards: `**` matches any characters; `*` matches any characters except `:`;
+ * `?` matches a single character except `:`.
+ *
+ * Subject pattern claims (the key parts) must not themselves contain wildcards
+ * (e.g. `repo:foo/bar:*` is rejected) to prevent accidentally broad grants.
+ * The trailing `:**` form is allowed as a special case.
+ *
+ * @param subjectPattern - single pattern or array of patterns
+ * @param subject - single subject or array of subjects
+ */
+export function matchSubject(subjectPattern: string | string[], subject: string | string[]): boolean {
+  if (Array.isArray(subject)) {
+    return subject.some((s) => matchSubject(subjectPattern, s));
+  }
+
+  if (Array.isArray(subjectPattern)) {
+    return subjectPattern.some((p) => matchSubject(p, subject));
+  }
+
+  // subject pattern claims must not contain wildcards to prevent granting access accidentally
+  //   repo:foo/bar:*  is NOT allowed
+  //   repo:foo/bar:** is allowed
+  //   repo:foo/*:**   is allowed
+  const patternWithoutGlobSuffix = subjectPattern.replace(/:\*\*$/, '');
+  if (Object.keys(parseOIDCSubject(patternWithoutGlobSuffix)).some((claim) => claim.includes('*'))) {
+    return false;
+  }
+
+  return regexpOfSubjectPattern(subjectPattern).test(subject);
+}
+
+/**
+ * Compile a wildcard subject pattern into a regular expression
+ */
+function regexpOfSubjectPattern(subjectPattern: string): RegExp {
+  const regexp = escapeRegexp(subjectPattern)
+      .replaceAll('\\*\\*', '(?:.*)') // **  matches zero or more characters
+      .replaceAll('\\*', '(?:[^:]*)') //  *  matches zero or more characters except ':'
+      .replaceAll('\\?', '[^:]'); //  ?  matches one character except ':'
+  return RegExp(`^${regexp}$`, 'i');
 }
 
 // --- Error formatting ---------------------------------------------------------------------------------------------
