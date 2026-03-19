@@ -368,7 +368,7 @@ export function matchSubject(subjectPattern: string | string[], subject: string 
   //   repo:foo/bar:** is allowed
   //   repo:foo/*:**   is allowed
   const patternWithoutGlobSuffix = subjectPattern.replace(/:\*\*$/, '');
-  if (Object.keys(parseOIDCSubject(patternWithoutGlobSuffix)).some((claim) => claim.includes('*'))) {
+  if (Object.keys(parseOIDCSubject(patternWithoutGlobSuffix)).some((claim) => /[*?]/.test(claim))) {
     return false;
   }
 
