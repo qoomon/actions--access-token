@@ -84,6 +84,12 @@ export function debugLogger(logger: Logger) {
  * @return middleware
  */
 export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema: T) {
+  const contentType = req.header('Content-Type');
+  if (!contentType?.startsWith('application/json')) {
+    throw new HTTPException(Status.UNSUPPORTED_MEDIA_TYPE, {
+      message: 'Content-Type must be application/json',
+    });
+  }
   const body = await req.text();
   const bodyParseResult = JsonTransformer.pipe(schema).safeParse(body);
 

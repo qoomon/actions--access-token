@@ -100,7 +100,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: 'Invalid ___'},
+          headers: {'Content-Type': 'application/json', Authorization: 'Invalid ___'},
         });
 
         // --- Then ---
@@ -118,7 +118,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: 'Bearer malformed'},
+          headers: {'Content-Type': 'application/json', Authorization: 'Bearer malformed'},
         });
 
         // --- Then ---
@@ -143,7 +143,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
         });
 
         // --- Then ---
@@ -166,7 +166,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
         });
 
         // --- Then ---
@@ -205,7 +205,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: 'invalid json',
           });
 
@@ -229,7 +229,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               permissions: {},
             }),
@@ -253,7 +253,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               permissions: {unexpected: 'write'},
             }),
@@ -277,7 +277,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               permissions: {secrets: 'invalid'},
             }),
@@ -303,7 +303,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               repositories: ['invalid/invalid/invalid'],
               permissions: {actions: 'read'},
@@ -331,7 +331,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               repositories: tooManyRepos,
               permissions: {actions: 'read'},
@@ -356,7 +356,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               owner: 'octocat',
               repositories: ['spongebob/sandbox'],
@@ -382,7 +382,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               repositories: ['spongebob/sandbox', 'patrick/sandbox'],
               permissions: {actions: 'read'},
@@ -409,7 +409,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               owner: 'invalid/invalid',
               permissions: {secrets: 'write'},
@@ -434,7 +434,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
             body: JSON.stringify({
               owner: DEFAULT_OWNER,
               repositories: [],
@@ -461,7 +461,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${await githubTokenPromise}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${await githubTokenPromise}`},
           body: JSON.stringify({
             permissions: {actions: 'read'},
             unknownField: 'value',
@@ -495,7 +495,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
           body: JSON.stringify({
             permissions: {secrets: 'write'},
           }),
@@ -529,7 +529,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
           body: JSON.stringify({
             permissions: {secrets: 'write'},
           }),
@@ -563,7 +563,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
           body: JSON.stringify({
             permissions: {contents: 'read'},
           }),
@@ -607,7 +607,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
           body: JSON.stringify({
             permissions: {contents: 'write'},
           }),
@@ -647,7 +647,7 @@ describe('App path /access_tokens', () => {
         // --- When ---
         const response = await app.request(path, {
           method: 'POST',
-          headers: {Authorization: `Bearer ${githubToken}`},
+          headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
           body: JSON.stringify({
             permissions: {contents: 'read'},
           }),
@@ -696,7 +696,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'write'},
             }),
@@ -726,7 +726,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'read'},
             }),
@@ -764,7 +764,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'write'},
             }),
@@ -801,7 +801,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'write'},
             }),
@@ -838,7 +838,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'write'},
             }),
@@ -875,7 +875,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'write'},
             }),
@@ -914,7 +914,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'read'},
             }),
@@ -958,7 +958,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {contents: 'write'},
               repositories: 'ALL',
@@ -1025,7 +1025,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {secrets: 'write'},
             }),
@@ -1061,7 +1061,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {secrets: 'write'},
             }),
@@ -1097,7 +1097,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {secrets: 'write'},
             }),
@@ -1135,7 +1135,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {secrets: 'write'},
             }),
@@ -1171,7 +1171,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               owner: actionRepo.owner,
               repositories: [actionRepo.repo],
@@ -1217,7 +1217,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               repositories: [actionRepo.repo, targetRepo.repo],
               permissions: {secrets: 'write'},
@@ -1254,7 +1254,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {secrets: 'write'},
             }),
@@ -1287,7 +1287,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {secrets: 'write'},
             }),
@@ -1327,7 +1327,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {secrets: 'write'},
             }),
@@ -1367,7 +1367,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               repositories: [`${actionRepo.owner}/${actionRepo.repo}`],
               permissions: {secrets: 'write'},
@@ -1405,7 +1405,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               repositories: [`${actionRepo.owner}/${actionRepo.repo}`],
               permissions: {'pull-requests': 'write'},
@@ -1446,7 +1446,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {'organization-secrets': 'write'},
               repositories: 'ALL',
@@ -1484,7 +1484,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               permissions: {'pull-requests': 'write'},
               repositories: 'ALL',
@@ -1525,7 +1525,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               scope: 'owner',
               repositories: [],
@@ -1568,7 +1568,7 @@ describe('App path /access_tokens', () => {
           // --- When ---
           const response = await app.request(path, {
             method: 'POST',
-            headers: {Authorization: `Bearer ${githubToken}`},
+            headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
             body: JSON.stringify({
               scope: 'owner',
               repositories: [actionRepo.repo],
@@ -1588,6 +1588,143 @@ describe('App path /access_tokens', () => {
             },
           });
         });
+      });
+    });
+  });
+});
+
+describe('Security', () => {
+
+  describe('security headers', () => {
+    it('should include X-Content-Type-Options: nosniff in all responses', async () => {
+      // --- When ---
+      const response = await app.request('/', {method: 'GET'});
+
+      // --- Then ---
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    });
+
+    it('should include X-Frame-Options in all responses', async () => {
+      // --- When ---
+      const response = await app.request('/', {method: 'GET'});
+
+      // --- Then ---
+      expect(response.headers.get('X-Frame-Options')).toBeTruthy();
+    });
+
+    it('should include Strict-Transport-Security in all responses', async () => {
+      // --- When ---
+      const response = await app.request('/', {method: 'GET'});
+
+      // --- Then ---
+      expect(response.headers.get('Strict-Transport-Security')).toBeTruthy();
+    });
+
+    it('should include Referrer-Policy in all responses', async () => {
+      // --- When ---
+      const response = await app.request('/', {method: 'GET'});
+
+      // --- Then ---
+      expect(response.headers.get('Referrer-Policy')).toBeTruthy();
+    });
+  });
+
+  describe('request ID header', () => {
+    it('should include X-Request-Id in all responses', async () => {
+      // --- When ---
+      const response = await app.request('/', {method: 'GET'});
+
+      // --- Then ---
+      expect(response.headers.get('X-Request-Id')).toMatch(/^[0-9a-f-]+$/i);
+    });
+
+    it('should use request ID from error response body in X-Request-Id header', async () => {
+      // --- When ---
+      const response = await app.request('/access_tokens', {method: 'POST'});
+
+      // --- Then ---
+      expect(response.status).toBe(Status.UNAUTHORIZED);
+      const body = await response.json() as {requestId: string};
+      expect(response.headers.get('X-Request-Id')).toBe(body.requestId);
+    });
+  });
+
+  describe('token response cache control', () => {
+    it('should include Cache-Control: no-store on successful token responses', async () => {
+      // --- Given ---
+      githubMockEnvironment.addAppInstallation({
+        permissions: {single_file: 'read', contents: 'write', secrets: 'write'},
+      });
+      githubMockEnvironment.addOwnerRepository({
+        ownerAccessPolicy: {'allowed-repository-permissions': {secrets: 'write'}},
+      });
+      const actionRepo = githubMockEnvironment.addRepository({
+        accessPolicy: {
+          statements: [{
+            subjects: ['repo:${origin}:ref:refs/heads/*'],
+            permissions: {secrets: 'write'},
+          }],
+        },
+      });
+      const githubToken = await Fixtures.createGitHubActionsToken({
+        claims: {repository: actionRepo.name},
+      });
+
+      // --- When ---
+      const response = await app.request('/access_tokens', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Authorization: `Bearer ${githubToken}`},
+        body: JSON.stringify({permissions: {secrets: 'write'}}),
+      });
+
+      // --- Then ---
+      expect(response.status).toBe(Status.OK);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+    });
+  });
+
+  describe('content type validation', () => {
+    it('should respond with UNSUPPORTED_MEDIA_TYPE if Content-Type is missing', async () => {
+      // --- Given ---
+      const githubToken = await Fixtures.createGitHubActionsToken({});
+
+      // --- When ---
+      const response = await app.request('/access_tokens', {
+        method: 'POST',
+        headers: {Authorization: `Bearer ${githubToken}`},
+        body: JSON.stringify({permissions: {secrets: 'write'}}),
+      });
+
+      // --- Then ---
+      await expect(response).toMatchResponse({
+        status: Status.UNSUPPORTED_MEDIA_TYPE,
+        body: {
+          requestId: expect.any(String),
+          error: 'Unsupported Media Type',
+          message: 'Content-Type must be application/json',
+        },
+      });
+    });
+
+    it('should respond with UNSUPPORTED_MEDIA_TYPE if Content-Type is not application/json', async () => {
+      // --- Given ---
+      const githubToken = await Fixtures.createGitHubActionsToken({});
+
+      // --- When ---
+      const response = await app.request('/access_tokens', {
+        method: 'POST',
+        headers: {Authorization: `Bearer ${githubToken}`, 'Content-Type': 'text/plain'},
+        body: JSON.stringify({permissions: {secrets: 'write'}}),
+      });
+
+      // --- Then ---
+      await expect(response).toMatchResponse({
+        status: Status.UNSUPPORTED_MEDIA_TYPE,
+        body: {
+          requestId: expect.any(String),
+          error: 'Unsupported Media Type',
+          message: 'Content-Type must be application/json',
+        },
       });
     });
   });

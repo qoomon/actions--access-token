@@ -1,6 +1,8 @@
 import {Hono} from 'hono';
 import {requestId} from 'hono/request-id'
 import {prettyJSON} from 'hono/pretty-json';
+import {secureHeaders} from 'hono/secure-headers';
+import {timeout} from 'hono/timeout';
 import {HTTPException} from 'hono/http-exception';
 import {bodyLimit} from 'hono/body-limit';
 import {sha256} from 'hono/utils/crypto';
@@ -38,8 +40,14 @@ export function appInit(prepare?: (app: Hono) => void) {
   app.onError(errorHandler(logger));
   app.notFound(notFoundHandler());
 
+  app.use(secureHeaders());
+  app.use(timeout(30_000));
   app.use(bodyLimit({maxSize: 100 * 1024})); // 100kb
   app.use(prettyJSON());
+  app.use((context, next) => {
+    context.header('X-Request-Id', context.var.requestId);
+    return next();
+  });
 
   app.get('/', (context) => {
       return context.text('https://github.com/qoomon/actions--access-token');
@@ -157,7 +165,9 @@ export function appInit(prepare?: (app: Hono) => void) {
           }
         }, 'Access Token Response');
 
-        return context.json(tokenResponseBody);
+        return context.json(tokenResponseBody, Status.OK, {
+          'Cache-Control': 'no-store',
+        });
       },
   );
 
