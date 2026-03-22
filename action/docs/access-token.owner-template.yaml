@@ -1,4 +1,4 @@
-origin: __CHANGE_ME_TO_GITHUB_REPO_OWNER__/.github-access-token # e.g. qoomon/.github-access-token
+origin: __CHANGE_ME_TO_GITHUB_REPO_OWNER/.github-access-token # e.g. qoomon/.github-access-token
 
 # Configure which subjects are allowed to request an access token.
 # allowed-subjects:
