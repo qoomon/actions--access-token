@@ -10,7 +10,7 @@ RUN --mount=type=bind,src=package.json,target=package.json \
     npm ci
 
 ENV NODE_ENV production
-RUN npm run build
+RUN npm run build:server
 
 
 FROM gcr.io/distroless/nodejs20-debian12:latest as image
