@@ -18,7 +18,7 @@
     "@octokit/auth-app": "^8.2.0",
     "@octokit/plugin-retry": "^8.1.0",
     "@octokit/rest": "^22.0.1",
-    "hono": "^4.12.8",
+    "hono": "^4.12.9",
     "jose": "^6.2.1",
     "pino": "^10.3.1",
     "yaml": "^2.8.2",
