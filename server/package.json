@@ -3,24 +3,22 @@
   "type": "module",
   "scripts": {
     "lint": "eslint .",
-    "postinstall": "npx npm-run-all install:*",
-    "build": "npx npm-run-all build:*",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles --verbose",
     "start": "ncc run src/server.ts",
-
+    "build": "npx npm-run-all build:*",
     "build:server": "ncc build src/server.ts",
     "build:docker-container": "docker build -t localhost/github-access-token-server:latest .",
-
-    "install:cloudflare-worker": "npm install --prefix ./deployments/cloudflare",
     "build:cloudflare-worker": "ncc build deployments/cloudflare/index.ts",
-
-    "install:aws-lambda": "npm install --prefix ./deployments/aws",
     "build:aws-lambda": "ncc build deployments/aws/lambda-handler.ts ",
-
     "build:vercel-function": "ncc build deployments/vercel/api/index.ts",
-
     "build:netlify-function": "ncc build deployments/netlify/functions/index.ts"
   },
+  "workspaces": [
+    "deployments/cloudflare",
+    "deployments/aws",
+    "deployments/vercel",
+    "deployments/netlify"
+  ],
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "@octokit/auth-app": "^8.2.0",
