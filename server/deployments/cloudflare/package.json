@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "server": "file:../../"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260317.1"
