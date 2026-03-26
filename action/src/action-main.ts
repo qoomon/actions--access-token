@@ -117,7 +117,7 @@ async function getAccessToken(tokenRequest: {
 }
 
 /**
- * Make http request
+ * Make http request with retries on 429/503
  * @param request - request to send
  * @param options - options
  * @return response - with parsed body if possible
@@ -130,25 +130,38 @@ async function httpRequest(request: HttpRequest, options?: {
     request = await signHttpRequest(request, options.signer);
   }
 
-  return await httpClient.request(request.method, request.requestUrl, request.data, request.additionalHeaders)
-      .then(async (response) => {
-        if (!response.message.statusCode || response.message.statusCode < 200 || response.message.statusCode >= 300) {
-          const body = await response.readBody();
-          let bodyJson;
-          try {
-            bodyJson = JSON.parse(body);
-          } catch {
-            // ignore
-          }
+  const maxRetries = 3;
+  for (let attempt = 0; ; attempt++) {
+    const response = await httpClient.request(request.method, request.requestUrl, request.data, request.additionalHeaders);
+    const statusCode = response.message.statusCode ?? 0;
 
-          const msg = bodyJson?.message || body || 'Failed request';
+    if (statusCode >= 200 && statusCode < 300) {
+      return response;
+    }
 
-          const httpError = new HttpClientError(msg, response.message.statusCode ?? 0);
-          httpError.result = bodyJson || body;
-          throw httpError;
-        }
-        return response;
-      });
+    const body = await response.readBody();
+
+    if ((statusCode === 429 || statusCode === 503) && attempt < maxRetries) {
+      const retryAfter = response.message.headers['retry-after'];
+      const delaySec = retryAfter && !isNaN(Number(retryAfter)) ? Number(retryAfter) : Math.pow(2, attempt);
+      core.warning(`Request failed with ${statusCode}, retrying in ${delaySec}s (attempt ${attempt + 1}/${maxRetries})...`);
+      await new Promise((resolve) => setTimeout(resolve, delaySec * 1000));
+      continue;
+    }
+
+    let bodyJson;
+    try {
+      bodyJson = JSON.parse(body);
+    } catch {
+      // ignore
+    }
+
+    const msg = bodyJson?.message || body || 'Failed request';
+
+    const httpError = new HttpClientError(msg, statusCode);
+    httpError.result = bodyJson || body;
+    throw httpError;
+  }
 }
 
 // --- Types -----------------------------------------------------------------------------------------------------------
