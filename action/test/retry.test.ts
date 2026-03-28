@@ -1,14 +1,8 @@
 import {jest, describe, it, expect, beforeEach, afterEach} from '@jest/globals';
-import {HttpClientError} from '@actions/http-client';
 
-// mock @actions/core to suppress log output
-jest.unstable_mockModule('@actions/core', () => ({
-  info: jest.fn(),
-}));
+const {retry} = await import('../src/retry.js');
 
-const {fetchWithRetry} = await import('../src/fetch-retry.js');
-
-describe('fetchWithRetry', () => {
+describe('retry', () => {
   beforeEach(() => {
     jest.useFakeTimers();
   });
@@ -20,31 +14,18 @@ describe('fetchWithRetry', () => {
   it('should return result on successful first attempt', async () => {
     const fn = jest.fn<() => Promise<string>>().mockResolvedValue('success');
 
-    const result = await fetchWithRetry(fn);
+    const result = await retry(fn);
 
     expect(result).toBe('success');
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('should retry on 429 status code and eventually succeed', async () => {
+  it('should retry on retryable error and eventually succeed', async () => {
     const fn = jest.fn<() => Promise<string>>()
-        .mockRejectedValueOnce(new HttpClientError('Too Many Requests', 429))
+        .mockRejectedValueOnce(new Error('transient'))
         .mockResolvedValue('success');
 
-    const promise = fetchWithRetry(fn, {baseDelay: 100});
-    await jest.advanceTimersByTimeAsync(100); // 100 * 2^0
-
-    const result = await promise;
-    expect(result).toBe('success');
-    expect(fn).toHaveBeenCalledTimes(2);
-  });
-
-  it('should retry on 503 status code and eventually succeed', async () => {
-    const fn = jest.fn<() => Promise<string>>()
-        .mockRejectedValueOnce(new HttpClientError('Service Unavailable', 503))
-        .mockResolvedValue('success');
-
-    const promise = fetchWithRetry(fn, {baseDelay: 100});
+    const promise = retry(fn, {baseDelay: 100});
     await jest.advanceTimersByTimeAsync(100); // 100 * 2^0
 
     const result = await promise;
@@ -54,12 +35,12 @@ describe('fetchWithRetry', () => {
 
   it('should use exponential backoff delays', async () => {
     const fn = jest.fn<() => Promise<string>>()
-        .mockRejectedValueOnce(new HttpClientError('Too Many Requests', 429))
-        .mockRejectedValueOnce(new HttpClientError('Too Many Requests', 429))
-        .mockRejectedValueOnce(new HttpClientError('Too Many Requests', 429))
+        .mockRejectedValueOnce(new Error('fail'))
+        .mockRejectedValueOnce(new Error('fail'))
+        .mockRejectedValueOnce(new Error('fail'))
         .mockResolvedValue('success');
 
-    const promise = fetchWithRetry(fn, {baseDelay: 100, maxRetries: 3});
+    const promise = retry(fn, {baseDelay: 100, maxRetries: 3});
 
     // Attempt 0 fails, wait 100ms (100 * 2^0)
     await jest.advanceTimersByTimeAsync(100);
@@ -78,10 +59,10 @@ describe('fetchWithRetry', () => {
   });
 
   it('should throw after max retries exceeded', async () => {
-    const error = new HttpClientError('Too Many Requests', 429);
+    const error = new Error('persistent');
     const fn = jest.fn<() => Promise<string>>().mockRejectedValue(error);
 
-    const promise = fetchWithRetry(fn, {baseDelay: 100, maxRetries: 2});
+    const promise = retry(fn, {baseDelay: 100, maxRetries: 2});
 
     // Attach a no-op catch to prevent unhandled rejection while timers advance
     promise.catch(() => { /* expected */ });
@@ -95,28 +76,46 @@ describe('fetchWithRetry', () => {
     expect(fn).toHaveBeenCalledTimes(3); // initial + 2 retries
   });
 
-  it('should not retry on non-retryable status codes', async () => {
-    const error = new HttpClientError('Not Found', 404);
+  it('should not retry when retryable predicate returns false', async () => {
+    const error = new Error('non-retryable');
     const fn = jest.fn<() => Promise<string>>().mockRejectedValue(error);
 
-    await expect(fetchWithRetry(fn, {baseDelay: 100})).rejects.toThrow(error);
+    await expect(retry(fn, {
+      baseDelay: 100,
+      retryable: () => false,
+    })).rejects.toThrow(error);
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('should not retry on non-HttpClientError errors', async () => {
-    const error = new Error('Network error');
-    const fn = jest.fn<() => Promise<string>>().mockRejectedValue(error);
-
-    await expect(fetchWithRetry(fn, {baseDelay: 100})).rejects.toThrow(error);
-    expect(fn).toHaveBeenCalledTimes(1);
-  });
-
-  it('should respect custom retryableStatusCodes', async () => {
+  it('should only retry errors matching the retryable predicate', async () => {
+    const retryableError = new Error('retryable');
+    const nonRetryableError = new Error('non-retryable');
     const fn = jest.fn<() => Promise<string>>()
-        .mockRejectedValueOnce(new HttpClientError('Bad Gateway', 502))
+        .mockRejectedValueOnce(retryableError)
+        .mockRejectedValueOnce(nonRetryableError);
+
+    const promise = retry(fn, {
+      baseDelay: 100,
+      retryable: (error) => error instanceof Error && error.message === 'retryable',
+    });
+
+    // Attach a no-op catch to prevent unhandled rejection while timers advance
+    promise.catch(() => { /* expected */ });
+
+    // First error is retryable, wait for backoff
+    await jest.advanceTimersByTimeAsync(100);
+
+    // Second error is non-retryable, should throw immediately
+    await expect(promise).rejects.toThrow(nonRetryableError);
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should retry all errors by default when no retryable predicate is given', async () => {
+    const fn = jest.fn<() => Promise<string>>()
+        .mockRejectedValueOnce(new Error('any error'))
         .mockResolvedValue('success');
 
-    const promise = fetchWithRetry(fn, {baseDelay: 100, retryableStatusCodes: [502]});
+    const promise = retry(fn, {baseDelay: 100});
     await jest.advanceTimersByTimeAsync(100);
 
     const result = await promise;
