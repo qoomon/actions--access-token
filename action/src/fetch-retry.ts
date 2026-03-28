@@ -19,7 +19,7 @@ export async function fetchWithRetry<T>(
   const baseDelay = options?.baseDelay ?? 1000;
   const retryableStatusCodes = options?.retryableStatusCodes ?? [429, 503];
 
-  for (let attempt = 0; ; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
@@ -35,4 +35,5 @@ export async function fetchWithRetry<T>(
       throw error;
     }
   }
+  throw new Error('fetchWithRetry: unreachable');
 }
