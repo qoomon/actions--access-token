@@ -2,7 +2,7 @@
   "dependencies": {
     "server": "file:../../",
     "@aws-sdk/client-lambda": "^3.1019.0",
-    "@aws-sdk/client-secrets-manager": "^3.1014.0"
+    "@aws-sdk/client-secrets-manager": "^3.1019.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.159"
