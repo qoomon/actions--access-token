@@ -16,6 +16,13 @@ export async function retry<T>(
   const baseDelay = options?.baseDelay ?? 1000;
   const retryable = options?.retryable ?? (() => true);
 
+  if (!Number.isInteger(maxRetries) || maxRetries < 0) {
+    throw new Error(`maxRetries must be a non-negative integer, got ${maxRetries}`);
+  }
+  if (!Number.isFinite(baseDelay) || baseDelay < 0) {
+    throw new Error(`baseDelay must be a non-negative finite number, got ${baseDelay}`);
+  }
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();

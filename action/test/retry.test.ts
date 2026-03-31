@@ -110,6 +110,42 @@ describe('retry', () => {
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
+  it('should throw on negative maxRetries', async () => {
+    const fn = jest.fn<() => Promise<string>>();
+    await expect(retry(fn, {maxRetries: -1})).rejects.toThrow('maxRetries must be a non-negative integer');
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('should throw on non-integer maxRetries', async () => {
+    const fn = jest.fn<() => Promise<string>>();
+    await expect(retry(fn, {maxRetries: 1.5})).rejects.toThrow('maxRetries must be a non-negative integer');
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('should throw on NaN maxRetries', async () => {
+    const fn = jest.fn<() => Promise<string>>();
+    await expect(retry(fn, {maxRetries: NaN})).rejects.toThrow('maxRetries must be a non-negative integer');
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('should throw on negative baseDelay', async () => {
+    const fn = jest.fn<() => Promise<string>>();
+    await expect(retry(fn, {baseDelay: -100})).rejects.toThrow('baseDelay must be a non-negative finite number');
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('should throw on Infinity baseDelay', async () => {
+    const fn = jest.fn<() => Promise<string>>();
+    await expect(retry(fn, {baseDelay: Infinity})).rejects.toThrow('baseDelay must be a non-negative finite number');
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('should throw on NaN baseDelay', async () => {
+    const fn = jest.fn<() => Promise<string>>();
+    await expect(retry(fn, {baseDelay: NaN})).rejects.toThrow('baseDelay must be a non-negative finite number');
+    expect(fn).not.toHaveBeenCalled();
+  });
+
   it('should retry all errors by default when no retryable predicate is given', async () => {
     const fn = jest.fn<() => Promise<string>>()
         .mockRejectedValueOnce(new Error('any error'))
