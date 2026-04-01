@@ -114,6 +114,9 @@ async function getAccessToken(tokenRequest: {
     signer: requestSigner,
   }), {
     retryable: (error) => error instanceof HttpClientError && [429, 503].includes(error.statusCode),
+    onRetry: (error, attempt, delay) => {
+      core.info(`Retrying request (attempt ${attempt}) in ${delay}ms due to: ${error}`);
+    },
   })
       .then(async (response) => response.readBody())
       .then(async (body) => JSON.parse(body));

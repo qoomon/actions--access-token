@@ -146,6 +146,24 @@ describe('retry', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
+  it('should call onRetry callback before each retry', async () => {
+    const fn = jest.fn<() => Promise<string>>()
+        .mockRejectedValueOnce(new Error('fail-1'))
+        .mockRejectedValueOnce(new Error('fail-2'))
+        .mockResolvedValue('success');
+    const onRetry = jest.fn<(error: unknown, attempt: number, delay: number) => void>();
+
+    const promise = retry(fn, {baseDelay: 100, maxRetries: 3, onRetry});
+    await jest.advanceTimersByTimeAsync(100); // 100 * 2^0
+    await jest.advanceTimersByTimeAsync(200); // 100 * 2^1
+
+    const result = await promise;
+    expect(result).toBe('success');
+    expect(onRetry).toHaveBeenCalledTimes(2);
+    expect(onRetry).toHaveBeenNthCalledWith(1, expect.objectContaining({message: 'fail-1'}), 1, 100);
+    expect(onRetry).toHaveBeenNthCalledWith(2, expect.objectContaining({message: 'fail-2'}), 2, 200);
+  });
+
   it('should retry all errors by default when no retryable predicate is given', async () => {
     const fn = jest.fn<() => Promise<string>>()
         .mockRejectedValueOnce(new Error('any error'))

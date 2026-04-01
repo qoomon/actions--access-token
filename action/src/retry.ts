@@ -10,11 +10,14 @@ export async function retry<T>(
       maxRetries?: number,
       baseDelay?: number,
       retryable?: (error: unknown) => boolean,
+      /** Called before each retry. `attempt` is the 1-based retry number. */
+      onRetry?: (error: unknown, attempt: number, delay: number) => void,
     },
 ): Promise<T> {
   const maxRetries = options?.maxRetries ?? 3;
   const baseDelay = options?.baseDelay ?? 1000;
   const retryable = options?.retryable ?? (() => true);
+  const onRetry = options?.onRetry;
 
   if (!Number.isInteger(maxRetries) || maxRetries < 0) {
     throw new Error(`maxRetries must be a non-negative integer, got ${maxRetries}`);
@@ -29,6 +32,7 @@ export async function retry<T>(
     } catch (error) {
       if (attempt < maxRetries && retryable(error)) {
         const delay = baseDelay * Math.pow(2, attempt);
+        onRetry?.(error, attempt + 1, delay);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
