@@ -85,7 +85,7 @@ async function getAccessToken(tokenRequest: {
         throw error;
       });
 
-  let requestSigner;
+  let requestSigner: SignatureV4 | undefined;
   if (config.appServer.auth) {
     if (config.appServer.auth.type === 'aws') {
       requestSigner = new SignatureV4({
