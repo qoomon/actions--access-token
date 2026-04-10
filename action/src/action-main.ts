@@ -6,6 +6,7 @@ import {fromWebToken} from '@aws-sdk/credential-providers';
 import {getAction, getInput, getYamlInput, runAction} from './github-actions-utils.js';
 import {z} from 'zod';
 import {signHttpRequest} from './signature4.js';
+import {retry} from './retry.js';
 
 import {config} from './config.js';
 import {OutgoingHttpHeaders} from 'http';
@@ -84,7 +85,7 @@ async function getAccessToken(tokenRequest: {
         throw error;
       });
 
-  let requestSigner;
+  let requestSigner: SignatureV4 | undefined;
   if (config.appServer.auth) {
     if (config.appServer.auth.type === 'aws') {
       requestSigner = new SignatureV4({
@@ -102,7 +103,7 @@ async function getAccessToken(tokenRequest: {
     }
   }
 
-  return await httpRequest({
+  return await retry(() => httpRequest({
     method: 'POST', requestUrl: new URL('/access_tokens', config.appServer.url).href,
     data: JSON.stringify(tokenRequest),
     additionalHeaders: {
@@ -111,6 +112,11 @@ async function getAccessToken(tokenRequest: {
     },
   }, {
     signer: requestSigner,
+  }), {
+    retryable: (error) => error instanceof HttpClientError && [429, 503].includes(error.statusCode),
+    onRetry: (error, attempt, delay) => {
+      core.info(`Retrying request (attempt ${attempt}) in ${delay}ms due to: ${error}`);
+    },
   })
       .then(async (response) => response.readBody())
       .then(async (body) => JSON.parse(body));
