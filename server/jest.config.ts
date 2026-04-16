@@ -8,4 +8,12 @@ export default {
   moduleNameMapper: {
     '^(\\.\\.?/.*)\\.js$': '$1',
   },
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      useESM: true,
+      tsconfig: {
+        ignoreDeprecations: '6.0',
+      },
+    }],
+  },
 } as JestConfigWithTsJest;

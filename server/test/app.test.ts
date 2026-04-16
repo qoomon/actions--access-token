@@ -3,7 +3,7 @@
 
 import process from 'process';
 import YAML from 'yaml';
-import {describe, expect, it, jest} from '@jest/globals';
+import {beforeEach, describe, expect, it, jest} from '@jest/globals';
 import {RequestError} from '@octokit/request-error';
 import {GitHubAppRepositoryPermissions, parseRepository, verifyPermission} from '../src/common/github-utils.js';
 import * as Fixtures from './fixtures.js';
