@@ -1,35 +1,35 @@
 # Source: https://github.com/qoomon/actions/blob/main/workflows/dependabot-auto-merge.yaml
 
 # Repository Setup
-# - Settings > General > Check "Allow auto-merge Loading"
+# - Settings > General > Check "Allow auto-merge"
 #   => https://github.com/OWNER/REPO/settings
 # - Settings > Actions > General > Check "Allow GitHub Actions to create and approve pull requests"
 #   => https://github.com/OWNER/REPO/settings/actions
 
 name: Dependabot auto-merge
+
+# IMPORTANT: Do NOT change this to `pull_request_target`.
+# `pull_request_target` runs in the context of the base branch with full write
+# permissions even for fork PRs, which would allow any fork contributor to run
+# arbitrary code with `contents: write` access to this repository.
 on: pull_request
-# on: pull_request_target
-
-
-permissions:
-  contents: write
-  # pull-requests: write
 
 jobs:
   merge:
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' }}
+    # Check the PR author (immutable), not github.actor which changes on manual re-runs
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - uses: dependabot/fetch-metadata@v3
+      - uses: dependabot/fetch-metadata@ffa630c65fa7e0ecfa0625b5ceda64399aea1b36 # v3.0.0
         id: metadata
-      
+
       # possible update-type values: version-update:semver-major, version-update:semver-minor or version-update:semver-patch
       - if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
         name: Auto-merge changes from Dependabot
-        run: |
-          retry=3; delay=10; while ((retry--)) && ! (
-            gh pr merge --auto --squash "$PR_URL"
-          ); do echo "Retrying ${retry} more time(s) in ${delay} seconds..."; sleep $delay; done
+        run: gh pr merge --auto --squash "$PR_URL"
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
