@@ -14,10 +14,6 @@ mode = "smart"
 
 [observability.logs]
 enabled = true
-persist = true
-invocation_logs = true
 
 [observability.traces]
 enabled = true
-persist = true
-head_sampling_rate = 1
