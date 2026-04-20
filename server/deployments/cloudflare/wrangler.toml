@@ -3,12 +3,24 @@ compatibility_flags = [ "nodejs_compat" ]
 
 name = "github-actions-access-token"
 main = "./index.ts"
-
 preview_urls = false
-
-[observability]
-enabled = true
 
 [vars]
 GITHUB_APP_ID = "225539"
 GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE ="github-actions-access-token.qoomon.workers.dev"
+
+[placement]
+mode = "smart"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1
