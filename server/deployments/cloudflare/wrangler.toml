@@ -12,9 +12,6 @@ GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE ="github-actions-access-token.qoomon.worke
 [placement]
 mode = "smart"
 
-[observability]
-enabled = true
-
 [observability.logs]
 enabled = true
 persist = true
