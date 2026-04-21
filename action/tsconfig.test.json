@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest"]
+  },
+  "include": [
+    "./test/**/*.ts"
+  ],
+  "exclude": [
+    "./dist",
+    "./node_modules",
+    "./coverage"
+  ]
+}
