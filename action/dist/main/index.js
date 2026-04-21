@@ -474,6 +474,22 @@ More information can be found at: https://a.co/c895JFp`);
     }
 };
 
+const longPollMiddleware = () => (next, context) => async (args) => {
+    context.__retryLongPoll = true;
+    return next(args);
+};
+const longPollMiddlewareOptions = {
+    name: "longPollMiddleware",
+    tags: ["RETRY"],
+    step: "initialize",
+    override: true,
+};
+const getLongPollPlugin = (options) => ({
+    applyToStack: (clientStack) => {
+        clientStack.add(longPollMiddleware(), longPollMiddlewareOptions);
+    },
+});
+
 function setCredentialFeature(credentials, feature, value) {
     if (!credentials.$source) {
         credentials.$source = {};
@@ -503,6 +519,7 @@ function setTokenFeature(token, feature, value) {
 }
 
 exports.emitWarningIfUnsupportedVersion = emitWarningIfUnsupportedVersion;
+exports.getLongPollPlugin = getLongPollPlugin;
 exports.setCredentialFeature = setCredentialFeature;
 exports.setFeature = setFeature;
 exports.setTokenFeature = setTokenFeature;
@@ -926,12 +943,11 @@ class ProtocolLib {
             if (msg) {
                 error.message = msg;
             }
-            error.Error = {
-                ...error.Error,
-                Type: error.Error?.Type,
-                Code: error.Error?.Code,
-                Message: error.Error?.message ?? error.Error?.Message ?? msg,
-            };
+            const errorObj = error.Error ?? {};
+            errorObj.Type = error.Error?.Type;
+            errorObj.Code = error.Error?.Code;
+            errorObj.Message = error.Error?.message ?? error.Error?.Message ?? msg;
+            error.Error = errorObj;
             const reqId = error.$metadata.requestId;
             if (reqId) {
                 error.RequestId = reqId;
@@ -944,14 +960,16 @@ class ProtocolLib {
         const queryErrorHeader = response.headers?.["x-amzn-query-error"];
         if (output !== undefined && queryErrorHeader != null) {
             const [Code, Type] = queryErrorHeader.split(";");
-            const entries = Object.entries(output);
+            const keys = Object.keys(output);
             const Error = {
                 Code,
                 Type,
             };
-            Object.assign(output, Error);
-            for (const [k, v] of entries) {
-                Error[k === "message" ? "Message" : k] = v;
+            output.Code = Code;
+            output.Type = Type;
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i];
+                Error[k === "message" ? "Message" : k] = output[k];
             }
             delete Error.__type;
             output.Error = Error;
@@ -1090,7 +1108,10 @@ class UnionSerde {
     constructor(from, to) {
         this.from = from;
         this.to = to;
-        this.keys = new Set(Object.keys(this.from).filter((k) => k !== "__type"));
+        const keys = Object.keys(this.from);
+        const set = new Set(keys);
+        set.delete("__type");
+        this.keys = set;
     }
     mark(key) {
         this.keys.delete(key);
@@ -1148,24 +1169,24 @@ const parseJsonErrorBody = async (errorBody, context) => {
     value.message = value.message ?? value.Message;
     return value;
 };
+const findKey = (object, key) => Object.keys(object).find((k) => k.toLowerCase() === key.toLowerCase());
+const sanitizeErrorCode = (rawValue) => {
+    let cleanValue = rawValue;
+    if (typeof cleanValue === "number") {
+        cleanValue = cleanValue.toString();
+    }
+    if (cleanValue.indexOf(",") >= 0) {
+        cleanValue = cleanValue.split(",")[0];
+    }
+    if (cleanValue.indexOf(":") >= 0) {
+        cleanValue = cleanValue.split(":")[0];
+    }
+    if (cleanValue.indexOf("#") >= 0) {
+        cleanValue = cleanValue.split("#")[1];
+    }
+    return cleanValue;
+};
 const loadRestJsonErrorCode = (output, data) => {
-    const findKey = (object, key) => Object.keys(object).find((k) => k.toLowerCase() === key.toLowerCase());
-    const sanitizeErrorCode = (rawValue) => {
-        let cleanValue = rawValue;
-        if (typeof cleanValue === "number") {
-            cleanValue = cleanValue.toString();
-        }
-        if (cleanValue.indexOf(",") >= 0) {
-            cleanValue = cleanValue.split(",")[0];
-        }
-        if (cleanValue.indexOf(":") >= 0) {
-            cleanValue = cleanValue.split(":")[0];
-        }
-        if (cleanValue.indexOf("#") >= 0) {
-            cleanValue = cleanValue.split("#")[1];
-        }
-        return cleanValue;
-    };
     const headerKey = findKey(output.headers, "x-amzn-errortype");
     if (headerKey !== undefined) {
         return sanitizeErrorCode(output.headers[headerKey]);
@@ -1382,12 +1403,6 @@ class JsonShapeSerializer extends SerdeContextConfig {
         this.rootSchema = schema.NormalizedSchema.of(schema$1);
         this.buffer = this._write(this.rootSchema, value);
     }
-    writeDiscriminatedDocument(schema$1, value) {
-        this.write(schema$1, value);
-        if (typeof this.buffer === "object") {
-            this.buffer.__type = schema.NormalizedSchema.of(schema$1).getName(true);
-        }
-    }
     flush() {
         const { rootSchema, useReplacer } = this;
         this.rootSchema = undefined;
@@ -1401,6 +1416,12 @@ class JsonShapeSerializer extends SerdeContextConfig {
         }
         return this.buffer;
     }
+    writeDiscriminatedDocument(schema$1, value) {
+        this.write(schema$1, value);
+        if (typeof this.buffer === "object") {
+            this.buffer.__type = schema.NormalizedSchema.of(schema$1).getName(true);
+        }
+    }
     _write(schema$1, value, container) {
         const isObject = value !== null && typeof value === "object";
         const ns = schema.NormalizedSchema.of(schema$1);
@@ -1413,6 +1434,7 @@ class JsonShapeSerializer extends SerdeContextConfig {
                 if (jsonName) {
                     nameMap = {};
                 }
+                let outCount = 0;
                 for (const [memberName, memberSchema] of ns.structIterator()) {
                     const serializableValue = this._write(memberSchema, record[memberName], ns);
                     if (serializableValue !== undefined) {
@@ -1422,9 +1444,10 @@ class JsonShapeSerializer extends SerdeContextConfig {
                             nameMap[memberName] = targetKey;
                         }
                         out[targetKey] = serializableValue;
+                        outCount++;
                     }
                 }
-                if (ns.isUnionSchema() && Object.keys(out).length === 0) {
+                if (ns.isUnionSchema() && outCount === 0) {
                     const { $unknown } = record;
                     if (Array.isArray($unknown)) {
                         const [k, v] = $unknown;
@@ -1590,10 +1613,8 @@ class AwsJsonRpcProtocol extends protocols.RpcProtocol {
         if (!request.path.endsWith("/")) {
             request.path += "/";
         }
-        Object.assign(request.headers, {
-            "content-type": `application/x-amz-json-${this.getJsonRpcVersion()}`,
-            "x-amz-target": `${this.serviceTarget}.${operationSchema.name}`,
-        });
+        request.headers["content-type"] = `application/x-amz-json-${this.getJsonRpcVersion()}`;
+        request.headers["x-amz-target"] = `${this.serviceTarget}.${operationSchema.name}`;
         if (this.awsQueryCompatible) {
             request.headers["x-amzn-query-mode"] = "true";
         }
@@ -1617,9 +1638,10 @@ class AwsJsonRpcProtocol extends protocols.RpcProtocol {
         const ErrorCtor = this.compositeErrorRegistry.getErrorCtor(errorSchema) ?? Error;
         const exception = new ErrorCtor(message);
         const output = {};
+        const errorDeserializer = this.codec.createDeserializer();
         for (const [name, member] of ns.structIterator()) {
             if (dataObject[name] != null) {
-                output[name] = this.codec.createDeserializer().readObject(member, dataObject[name]);
+                output[name] = errorDeserializer.readObject(member, dataObject[name]);
             }
         }
         if (this.awsQueryCompatible) {
@@ -1740,9 +1762,10 @@ class AwsRestJsonProtocol extends protocols.HttpBindingProtocol {
         const exception = new ErrorCtor(message);
         await this.deserializeHttpMessage(errorSchema, context, response, dataObject);
         const output = {};
+        const errorDeserializer = this.codec.createDeserializer();
         for (const [name, member] of ns.structIterator()) {
             const target = member.getMergedTraits().jsonName ?? name;
-            output[name] = this.codec.createDeserializer().readObject(member, dataObject[target]);
+            output[name] = errorDeserializer.readObject(member, dataObject[target]);
         }
         throw this.mixin.decorateServiceException(Object.assign(exception, errorMetadata, {
             $fault: ns.getMergedTraits().error,
@@ -2133,9 +2156,7 @@ class AwsQueryProtocol extends protocols.RpcProtocol {
         if (!request.path.endsWith("/")) {
             request.path += "/";
         }
-        Object.assign(request.headers, {
-            "content-type": `application/x-www-form-urlencoded`,
-        });
+        request.headers["content-type"] = "application/x-www-form-urlencoded";
         if (schema.deref(operationSchema.input) === "unit" || !request.body) {
             request.body = "";
         }
@@ -2168,11 +2189,8 @@ class AwsQueryProtocol extends protocols.RpcProtocol {
         if (bytes.byteLength > 0) {
             Object.assign(dataObject, await deserializer.read(ns, bytes, awsQueryResultKey));
         }
-        const output = {
-            $metadata: this.deserializeMetadata(response),
-            ...dataObject,
-        };
-        return output;
+        dataObject.$metadata = this.deserializeMetadata(response);
+        return dataObject;
     }
     useNestedResult() {
         return true;
@@ -2672,10 +2690,11 @@ class AwsRestXmlProtocol extends protocols.HttpBindingProtocol {
         const exception = new ErrorCtor(message);
         await this.deserializeHttpMessage(errorSchema, context, response, dataObject);
         const output = {};
+        const errorDeserializer = this.codec.createDeserializer();
         for (const [name, member] of ns.structIterator()) {
             const target = member.getMergedTraits().xmlName ?? name;
             const value = dataObject.Error?.[target] ?? dataObject[target];
-            output[name] = this.codec.createDeserializer().readSchema(member, value);
+            output[name] = errorDeserializer.readSchema(member, value);
         }
         throw this.mixin.decorateServiceException(Object.assign(exception, errorMetadata, {
             $fault: ns.getMergedTraits().error,
@@ -9156,8 +9175,8 @@ exports.resolveRegionConfig = resolveRegionConfig;
 
 
 var types = __nccwpck_require__(690);
-var utilMiddleware = __nccwpck_require__(6324);
 var protocolHttp = __nccwpck_require__(2356);
+var utilMiddleware = __nccwpck_require__(6324);
 var protocols = __nccwpck_require__(3422);
 
 const getSmithyContext = (context) => context[types.SMITHY_CONTEXT_KEY] || (context[types.SMITHY_CONTEXT_KEY] = {});
@@ -13795,10 +13814,10 @@ exports.getEndpointUrlConfig = getEndpointUrlConfig;
 
 
 
-var getEndpointFromConfig = __nccwpck_require__(6041);
-var urlParser = __nccwpck_require__(4494);
 var core = __nccwpck_require__(402);
 var utilMiddleware = __nccwpck_require__(6324);
+var getEndpointFromConfig = __nccwpck_require__(6041);
+var urlParser = __nccwpck_require__(4494);
 var middlewareSerde = __nccwpck_require__(3255);
 
 const resolveParamsForS3 = async (endpointParams) => {
@@ -14073,6 +14092,17 @@ var uuid = __nccwpck_require__(266);
 var utilMiddleware = __nccwpck_require__(6324);
 var smithyClient = __nccwpck_require__(1411);
 var isStreamingPayload = __nccwpck_require__(9831);
+var serde = __nccwpck_require__(2430);
+
+const asSdkError = (error) => {
+    if (error instanceof Error)
+        return error;
+    if (error instanceof Object)
+        return Object.assign(new Error(), error);
+    if (typeof error === "string")
+        return new Error(error);
+    return new Error(`AWS SDK error wrapper for ${error}`);
+};
 
 const getDefaultRetryQuota = (initialRetryTokens, options) => {
     const MAX_CAPACITY = initialRetryTokens;
@@ -14108,16 +14138,6 @@ const defaultRetryDecider = (error) => {
         return false;
     }
     return serviceErrorClassification.isRetryableByTrait(error) || serviceErrorClassification.isClockSkewError(error) || serviceErrorClassification.isThrottlingError(error) || serviceErrorClassification.isTransientError(error);
-};
-
-const asSdkError = (error) => {
-    if (error instanceof Error)
-        return error;
-    if (error instanceof Object)
-        return Object.assign(new Error(), error);
-    if (typeof error === "string")
-        return new Error(error);
-    return new Error(`AWS SDK error wrapper for ${error}`);
 };
 
 class StandardRetryStrategy {
@@ -14295,12 +14315,60 @@ const getOmitRetryHeadersPlugin = (options) => ({
     },
 });
 
+function parseRetryAfterHeader(response, logger) {
+    if (!protocolHttp.HttpResponse.isInstance(response)) {
+        return;
+    }
+    for (const header of Object.keys(response.headers)) {
+        const h = header.toLowerCase();
+        if (h === "retry-after") {
+            const retryAfter = response.headers[header];
+            let retryAfterSeconds = NaN;
+            if (retryAfter.endsWith("GMT")) {
+                try {
+                    const date = serde.parseRfc7231DateTime(retryAfter);
+                    retryAfterSeconds = (date.getTime() - Date.now()) / 1000;
+                }
+                catch (e) {
+                    logger?.trace?.("Failed to parse retry-after header");
+                    logger?.trace?.(e);
+                }
+            }
+            else if (retryAfter.match(/ GMT, ((\d+)|(\d+\.\d+))$/)) {
+                retryAfterSeconds = Number(retryAfter.match(/ GMT, ([\d.]+)$/)?.[1]);
+            }
+            else if (retryAfter.match(/^((\d+)|(\d+\.\d+))$/)) {
+                retryAfterSeconds = Number(retryAfter);
+            }
+            else if (Date.parse(retryAfter) >= Date.now()) {
+                retryAfterSeconds = (Date.parse(retryAfter) - Date.now()) / 1000;
+            }
+            if (isNaN(retryAfterSeconds)) {
+                return;
+            }
+            return new Date(Date.now() + retryAfterSeconds * 1000);
+        }
+        else if (h === "x-amz-retry-after") {
+            const v = response.headers[header];
+            const backoffMilliseconds = Number(v);
+            if (isNaN(backoffMilliseconds)) {
+                logger?.trace?.(`Failed to parse x-amz-retry-after=${v}`);
+                return;
+            }
+            return new Date(Date.now() + backoffMilliseconds);
+        }
+    }
+}
+function getRetryAfterHint(response, logger) {
+    return parseRetryAfterHeader(response, logger);
+}
+
 const retryMiddleware = (options) => (next, context) => async (args) => {
     let retryStrategy = await options.retryStrategy();
     const maxAttempts = await options.maxAttempts();
     if (isRetryStrategyV2(retryStrategy)) {
         retryStrategy = retryStrategy;
-        let retryToken = await retryStrategy.acquireInitialRetryToken(context["partition_id"]);
+        let retryToken = await retryStrategy.acquireInitialRetryToken((context["partition_id"] ?? "") + (context.__retryLongPoll ? ":longpoll" : ""));
         let lastError = new Error();
         let attempts = 0;
         let totalRetryDelay = 0;
@@ -14321,7 +14389,7 @@ const retryMiddleware = (options) => (next, context) => async (args) => {
                 return { response, output };
             }
             catch (e) {
-                const retryErrorInfo = getRetryErrorInfo(e);
+                const retryErrorInfo = getRetryErrorInfo(e, options.logger);
                 lastError = asSdkError(e);
                 if (isRequest && isStreamingPayload.isStreamingPayload(request)) {
                     (context.logger instanceof smithyClient.NoOpLogger ? console : context.logger)?.warn("An error was encountered in a non-retryable streaming request.");
@@ -14331,6 +14399,9 @@ const retryMiddleware = (options) => (next, context) => async (args) => {
                     retryToken = await retryStrategy.refreshRetryTokenForRetry(retryToken, retryErrorInfo);
                 }
                 catch (refreshError) {
+                    if (typeof refreshError.$backoff === "number") {
+                        await cooldown(refreshError.$backoff);
+                    }
                     if (!lastError.$metadata) {
                         lastError.$metadata = {};
                     }
@@ -14341,26 +14412,28 @@ const retryMiddleware = (options) => (next, context) => async (args) => {
                 attempts = retryToken.getRetryCount();
                 const delay = retryToken.getRetryDelay();
                 totalRetryDelay += delay;
-                await new Promise((resolve) => setTimeout(resolve, delay));
+                await cooldown(delay);
             }
         }
     }
     else {
         retryStrategy = retryStrategy;
-        if (retryStrategy?.mode)
+        if (retryStrategy?.mode) {
             context.userAgent = [...(context.userAgent || []), ["cfg/retry-mode", retryStrategy.mode]];
+        }
         return retryStrategy.retry(next, args);
     }
 };
+const cooldown = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isRetryStrategyV2 = (retryStrategy) => typeof retryStrategy.acquireInitialRetryToken !== "undefined" &&
     typeof retryStrategy.refreshRetryTokenForRetry !== "undefined" &&
     typeof retryStrategy.recordSuccess !== "undefined";
-const getRetryErrorInfo = (error) => {
+const getRetryErrorInfo = (error, logger) => {
     const errorInfo = {
         error,
         errorType: getRetryErrorType(error),
     };
-    const retryAfterHint = getRetryAfterHint(error.$response);
+    const retryAfterHint = parseRetryAfterHeader(error.$response, logger);
     if (retryAfterHint) {
         errorInfo.retryAfterHint = retryAfterHint;
     }
@@ -14387,19 +14460,6 @@ const getRetryPlugin = (options) => ({
         clientStack.add(retryMiddleware(options), retryMiddlewareOptions);
     },
 });
-const getRetryAfterHint = (response) => {
-    if (!protocolHttp.HttpResponse.isInstance(response))
-        return;
-    const retryAfterHeaderName = Object.keys(response.headers).find((key) => key.toLowerCase() === "retry-after");
-    if (!retryAfterHeaderName)
-        return;
-    const retryAfter = response.headers[retryAfterHeaderName];
-    const retryAfterSeconds = Number(retryAfter);
-    if (!Number.isNaN(retryAfterSeconds))
-        return new Date(retryAfterSeconds * 1000);
-    const retryAfterDate = new Date(retryAfter);
-    return retryAfterDate;
-};
 
 exports.AdaptiveRetryStrategy = AdaptiveRetryStrategy;
 exports.CONFIG_MAX_ATTEMPTS = CONFIG_MAX_ATTEMPTS;
@@ -15386,7 +15446,7 @@ class NodeHttp2ConnectionManager {
         const existingPool = this.sessionCache.get(url);
         if (existingPool) {
             const existingSession = existingPool.poll();
-            if (existingSession && !this.config.disableConcurrency) {
+            if (existingSession && !this.config.disableConcurrency && !connectionConfiguration.isEventStream) {
                 return existingSession;
             }
         }
@@ -15486,10 +15546,10 @@ class NodeHttp2Handler {
     destroy() {
         this.connectionManager.destroy();
     }
-    async handle(request, { abortSignal, requestTimeout } = {}) {
+    async handle(request, { abortSignal, requestTimeout, isEventStream } = {}) {
         if (!this.config) {
             this.config = await this.configProvider;
-            this.connectionManager.setDisableConcurrentStreams(this.config.disableConcurrentStreams || false);
+            this.connectionManager.setDisableConcurrentStreams(this.config.disableConcurrentStreams ?? false);
             if (this.config.maxConcurrentStreams) {
                 this.connectionManager.setMaxConcurrentStreams(this.config.maxConcurrentStreams);
             }
@@ -15524,7 +15584,7 @@ class NodeHttp2Handler {
             const requestContext = { destination: new URL(authority) };
             const session = this.connectionManager.lease(requestContext, {
                 requestTimeout: this.config?.sessionTimeout,
-                disableConcurrentStreams: disableConcurrentStreams || false,
+                isEventStream,
             });
             const rejectWithDestroy = (err) => {
                 if (disableConcurrentStreams) {
@@ -15533,7 +15593,7 @@ class NodeHttp2Handler {
                 fulfilled = true;
                 reject(err);
             };
-            const queryString = querystringBuilder.buildQueryString(query || {});
+            const queryString = querystringBuilder.buildQueryString(query ?? {});
             let path = request.path;
             if (queryString) {
                 path += `?${queryString}`;
@@ -15549,7 +15609,7 @@ class NodeHttp2Handler {
             session.ref();
             req.on("response", (headers) => {
                 const httpResponse = new protocolHttp.HttpResponse({
-                    statusCode: headers[":status"] || -1,
+                    statusCode: headers[":status"] ?? -1,
                     headers: getTransformedHeaders(headers),
                     body: req,
                 });
@@ -16620,6 +16680,19 @@ class HeaderFormatter {
         }
     }
 }
+var HEADER_VALUE_TYPE;
+(function (HEADER_VALUE_TYPE) {
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["boolTrue"] = 0] = "boolTrue";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["boolFalse"] = 1] = "boolFalse";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["byte"] = 2] = "byte";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["short"] = 3] = "short";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["integer"] = 4] = "integer";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["long"] = 5] = "long";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["byteArray"] = 6] = "byteArray";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["string"] = 7] = "string";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["timestamp"] = 8] = "timestamp";
+    HEADER_VALUE_TYPE[HEADER_VALUE_TYPE["uuid"] = 9] = "uuid";
+})(HEADER_VALUE_TYPE || (HEADER_VALUE_TYPE = {}));
 const UUID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 class Int64 {
     bytes;
@@ -16869,7 +16942,7 @@ class SignatureV4 extends SignatureV4Base {
             return this.signRequest(toSign, options);
         }
     }
-    async signEvent({ headers, payload }, { signingDate = new Date(), priorSignature, signingRegion, signingService }) {
+    async signEvent({ headers, payload }, { signingDate = new Date(), priorSignature, signingRegion, signingService, eventStreamCredentials, }) {
         const region = signingRegion ?? (await this.regionProvider());
         const { shortDate, longDate } = this.formatDate(signingDate);
         const scope = createScope(shortDate, region, signingService ?? this.service);
@@ -16885,9 +16958,14 @@ class SignatureV4 extends SignatureV4Base {
             hashedHeaders,
             hashedPayload,
         ].join("\n");
-        return this.signString(stringToSign, { signingDate, signingRegion: region, signingService });
+        return this.signString(stringToSign, {
+            signingDate,
+            signingRegion: region,
+            signingService,
+            eventStreamCredentials,
+        });
     }
-    async signMessage(signableMessage, { signingDate = new Date(), signingRegion, signingService }) {
+    async signMessage(signableMessage, { signingDate = new Date(), signingRegion, signingService, eventStreamCredentials }) {
         const promise = this.signEvent({
             headers: this.headerFormatter.format(signableMessage.message.headers),
             payload: signableMessage.message.body,
@@ -16896,13 +16974,14 @@ class SignatureV4 extends SignatureV4Base {
             signingRegion,
             signingService,
             priorSignature: signableMessage.priorSignature,
+            eventStreamCredentials,
         });
         return promise.then((signature) => {
             return { message: signableMessage.message, signature };
         });
     }
-    async signString(stringToSign, { signingDate = new Date(), signingRegion, signingService } = {}) {
-        const credentials = await this.credentialProvider();
+    async signString(stringToSign, { signingDate = new Date(), signingRegion, signingService, eventStreamCredentials, } = {}) {
+        const credentials = eventStreamCredentials ?? (await this.credentialProvider());
         this.validateResolvedCredentials(credentials);
         const region = signingRegion ?? (await this.regionProvider());
         const { shortDate } = this.formatDate(signingDate);
@@ -17037,10 +17116,10 @@ exports.toUtf8 = toUtf8;
 
 
 var middlewareStack = __nccwpck_require__(9208);
-var protocols = __nccwpck_require__(3422);
 var types = __nccwpck_require__(690);
 var schema = __nccwpck_require__(6890);
 var serde = __nccwpck_require__(2430);
+var protocols = __nccwpck_require__(3422);
 
 class Client {
     config;
@@ -17152,7 +17231,14 @@ class Command {
             ...additionalContext,
         };
         const { requestHandler } = configuration;
-        return stack.resolve((request) => requestHandler.handle(request.request, options || {}), handlerExecutionContext);
+        let requestOptions = options ?? {};
+        if (smithyContext.eventStream) {
+            requestOptions = {
+                isEventStream: true,
+                ...requestOptions,
+            };
+        }
+        return stack.resolve((request) => requestHandler.handle(request.request, requestOptions), handlerExecutionContext);
     }
 }
 class ClassBuilder {
@@ -18151,6 +18237,22 @@ exports.resolveDefaultsModeConfig = resolveDefaultsModeConfig;
 
 var types = __nccwpck_require__(690);
 
+class BinaryDecisionDiagram {
+    nodes;
+    root;
+    conditions;
+    results;
+    constructor(bdd, root, conditions, results) {
+        this.nodes = bdd;
+        this.root = root;
+        this.conditions = conditions;
+        this.results = results;
+    }
+    static from(bdd, root, conditions, results) {
+        return new BinaryDecisionDiagram(bdd, root, conditions, results);
+    }
+}
+
 class EndpointCache {
     capacity;
     data = new Map();
@@ -18202,24 +18304,12 @@ class EndpointCache {
     }
 }
 
-const IP_V4_REGEX = new RegExp(`^(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)(?:\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)){3}$`);
-const isIpAddress = (value) => IP_V4_REGEX.test(value) || (value.startsWith("[") && value.endsWith("]"));
-
-const VALID_HOST_LABEL_REGEX = new RegExp(`^(?!.*-$)(?!-)[a-zA-Z0-9-]{1,63}$`);
-const isValidHostLabel = (value, allowSubDomains = false) => {
-    if (!allowSubDomains) {
-        return VALID_HOST_LABEL_REGEX.test(value);
+class EndpointError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "EndpointError";
     }
-    const labels = value.split(".");
-    for (const label of labels) {
-        if (!isValidHostLabel(label)) {
-            return false;
-        }
-    }
-    return true;
-};
-
-const customEndpointFunctions = {};
+}
 
 const debugId = "endpoints";
 
@@ -18236,14 +18326,18 @@ function toDebugString(input) {
     return JSON.stringify(input, null, 2);
 }
 
-class EndpointError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = "EndpointError";
-    }
-}
+const customEndpointFunctions = {};
 
 const booleanEquals = (value1, value2) => value1 === value2;
+
+function coalesce(...args) {
+    for (const arg of args) {
+        if (arg != null) {
+            return arg;
+        }
+    }
+    return undefined;
+}
 
 const getAttrPathList = (path) => {
     const parts = path.split(".");
@@ -18275,14 +18369,36 @@ const getAttr = (value, path) => getAttrPathList(path).reduce((acc, index) => {
         throw new EndpointError(`Index '${index}' in '${path}' not found in '${JSON.stringify(value)}'`);
     }
     else if (Array.isArray(acc)) {
-        return acc[parseInt(index)];
+        const i = parseInt(index);
+        return acc[i < 0 ? acc.length + i : i];
     }
     return acc[index];
 }, value);
 
 const isSet = (value) => value != null;
 
+const VALID_HOST_LABEL_REGEX = new RegExp(`^(?!.*-$)(?!-)[a-zA-Z0-9-]{1,63}$`);
+const isValidHostLabel = (value, allowSubDomains = false) => {
+    if (!allowSubDomains) {
+        return VALID_HOST_LABEL_REGEX.test(value);
+    }
+    const labels = value.split(".");
+    for (const label of labels) {
+        if (!isValidHostLabel(label)) {
+            return false;
+        }
+    }
+    return true;
+};
+
+function ite(condition, trueValue, falseValue) {
+    return condition ? trueValue : falseValue;
+}
+
 const not = (value) => !value;
+
+const IP_V4_REGEX = new RegExp(`^(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)(?:\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)){3}$`);
+const isIpAddress = (value) => IP_V4_REGEX.test(value) || (value.startsWith("[") && value.endsWith("]"));
 
 const DEFAULT_PORTS = {
     [types.EndpointURLScheme.HTTP]: 80,
@@ -18334,10 +18450,24 @@ const parseURL = (value) => {
     };
 };
 
+function split(value, delimiter, limit) {
+    if (limit === 1) {
+        return [value];
+    }
+    if (value === "") {
+        return [""];
+    }
+    const parts = value.split(delimiter);
+    if (limit === 0) {
+        return parts;
+    }
+    return parts.slice(0, limit - 1).concat(parts.slice(1).join(delimiter));
+}
+
 const stringEquals = (value1, value2) => value1 === value2;
 
 const substring = (input, start, stop, reverse) => {
-    if (start >= stop || input.length < stop || /[^\u0000-\u007f]/.test(input)) {
+    if (input == null || start >= stop || input.length < stop || /[^\u0000-\u007f]/.test(input)) {
         return null;
     }
     if (!reverse) {
@@ -18350,11 +18480,14 @@ const uriEncode = (value) => encodeURIComponent(value).replace(/[!*'()]/g, (c) =
 
 const endpointFunctions = {
     booleanEquals,
+    coalesce,
     getAttr,
     isSet,
     isValidHostLabel,
+    ite,
     not,
     parseURL,
+    split,
     stringEquals,
     substring,
     uriEncode,
@@ -18362,10 +18495,7 @@ const endpointFunctions = {
 
 const evaluateTemplate = (template, options) => {
     const evaluatedTemplateArr = [];
-    const templateContext = {
-        ...options.endpointParams,
-        ...options.referenceRecord,
-    };
+    const { referenceRecord, endpointParams } = options;
     let currentIndex = 0;
     while (currentIndex < template.length) {
         const openingBraceIndex = template.indexOf("{", currentIndex);
@@ -18386,10 +18516,10 @@ const evaluateTemplate = (template, options) => {
         const parameterName = template.substring(openingBraceIndex + 1, closingBraceIndex);
         if (parameterName.includes("#")) {
             const [refName, attrName] = parameterName.split("#");
-            evaluatedTemplateArr.push(getAttr(templateContext[refName], attrName));
+            evaluatedTemplateArr.push(getAttr((referenceRecord[refName] ?? endpointParams[refName]), attrName));
         }
         else {
-            evaluatedTemplateArr.push(templateContext[parameterName]);
+            evaluatedTemplateArr.push((referenceRecord[parameterName] ?? endpointParams[parameterName]));
         }
         currentIndex = closingBraceIndex + 1;
     }
@@ -18397,11 +18527,7 @@ const evaluateTemplate = (template, options) => {
 };
 
 const getReferenceValue = ({ ref }, options) => {
-    const referenceRecord = {
-        ...options.endpointParams,
-        ...options.referenceRecord,
-    };
-    return referenceRecord[ref];
+    return options.referenceRecord[ref] ?? options.endpointParams[ref];
 };
 
 const evaluateExpression = (obj, keyName, options) => {
@@ -18417,12 +18543,27 @@ const evaluateExpression = (obj, keyName, options) => {
     throw new EndpointError(`'${keyName}': ${String(obj)} is not a string, function or reference.`);
 };
 const callFunction = ({ fn, argv }, options) => {
-    const evaluatedArgs = argv.map((arg) => ["boolean", "number"].includes(typeof arg) ? arg : group$2.evaluateExpression(arg, "arg", options));
-    const fnSegments = fn.split(".");
-    if (fnSegments[0] in customEndpointFunctions && fnSegments[1] != null) {
-        return customEndpointFunctions[fnSegments[0]][fnSegments[1]](...evaluatedArgs);
+    const evaluatedArgs = Array(argv.length);
+    for (let i = 0; i < evaluatedArgs.length; ++i) {
+        const arg = argv[i];
+        if (typeof arg === "boolean" || typeof arg === "number") {
+            evaluatedArgs[i] = arg;
+        }
+        else {
+            evaluatedArgs[i] = group$2.evaluateExpression(arg, "arg", options);
+        }
     }
-    return endpointFunctions[fn](...evaluatedArgs);
+    if (fn.includes(".")) {
+        const fnSegments = fn.split(".");
+        if (fnSegments[0] in customEndpointFunctions && fnSegments[1] != null) {
+            return customEndpointFunctions[fnSegments[0]][fnSegments[1]](...evaluatedArgs);
+        }
+    }
+    if (typeof endpointFunctions[fn] !== "function") {
+        throw new Error(`function ${fn} not loaded in endpointFunctions.`);
+    }
+    const callable = endpointFunctions[fn];
+    return callable(...evaluatedArgs);
 };
 const group$2 = {
     evaluateExpression,
@@ -18441,28 +18582,7 @@ const evaluateCondition = ({ assign, ...fnArgs }, options) => {
     };
 };
 
-const evaluateConditions = (conditions = [], options) => {
-    const conditionsReferenceRecord = {};
-    for (const condition of conditions) {
-        const { result, toAssign } = evaluateCondition(condition, {
-            ...options,
-            referenceRecord: {
-                ...options.referenceRecord,
-                ...conditionsReferenceRecord,
-            },
-        });
-        if (!result) {
-            return { result };
-        }
-        if (toAssign) {
-            conditionsReferenceRecord[toAssign.name] = toAssign.value;
-            options.logger?.debug?.(`${debugId} assign: ${toAssign.name} := ${toDebugString(toAssign.value)}`);
-        }
-    }
-    return { result: true, referenceRecord: conditionsReferenceRecord };
-};
-
-const getEndpointHeaders = (headers, options) => Object.entries(headers).reduce((acc, [headerKey, headerVal]) => ({
+const getEndpointHeaders = (headers, options) => Object.entries(headers ?? {}).reduce((acc, [headerKey, headerVal]) => ({
     ...acc,
     [headerKey]: headerVal.map((headerValEntry) => {
         const processedExpr = evaluateExpression(headerValEntry, "Header value entry", options);
@@ -18512,6 +18632,64 @@ const getEndpointUrl = (endpointUrl, options) => {
         }
     }
     throw new EndpointError(`Endpoint URL must be a string, got ${typeof expression}`);
+};
+
+const RESULT = 100_000_000;
+const decideEndpoint = (bdd, options) => {
+    const { nodes, root, results, conditions } = bdd;
+    let ref = root;
+    const referenceRecord = {};
+    const closure = {
+        referenceRecord,
+        endpointParams: options.endpointParams,
+        logger: options.logger,
+    };
+    while (ref !== 1 && ref !== -1 && ref < RESULT) {
+        const node_i = 3 * (Math.abs(ref) - 1);
+        const [condition_i, highRef, lowRef] = [nodes[node_i], nodes[node_i + 1], nodes[node_i + 2]];
+        const [fn, argv, assign] = conditions[condition_i];
+        const evaluation = evaluateCondition({ fn, assign, argv }, closure);
+        if (evaluation.toAssign) {
+            const { name, value } = evaluation.toAssign;
+            referenceRecord[name] = value;
+        }
+        ref = ref >= 0 === evaluation.result ? highRef : lowRef;
+    }
+    if (ref >= RESULT) {
+        const result = results[ref - RESULT];
+        if (result[0] === -1) {
+            const [, errorExpression] = result;
+            throw new EndpointError(evaluateExpression(errorExpression, "Error", closure));
+        }
+        const [url, properties, headers] = result;
+        return {
+            url: getEndpointUrl(url, closure),
+            properties: getEndpointProperties(properties, closure),
+            headers: getEndpointHeaders(headers ?? {}, closure),
+        };
+    }
+    throw new EndpointError(`No matching endpoint.`);
+};
+
+const evaluateConditions = (conditions = [], options) => {
+    const conditionsReferenceRecord = {};
+    for (const condition of conditions) {
+        const { result, toAssign } = evaluateCondition(condition, {
+            ...options,
+            referenceRecord: {
+                ...options.referenceRecord,
+                ...conditionsReferenceRecord,
+            },
+        });
+        if (!result) {
+            return { result };
+        }
+        if (toAssign) {
+            conditionsReferenceRecord[toAssign.name] = toAssign.value;
+            options.logger?.debug?.(`${debugId} assign: ${toAssign.name} := ${toDebugString(toAssign.value)}`);
+        }
+    }
+    return { result: true, referenceRecord: conditionsReferenceRecord };
 };
 
 const evaluateEndpointRule = (endpointRule, options) => {
@@ -18592,20 +18770,15 @@ const resolveEndpoint = (ruleSetObject, options) => {
     const { endpointParams, logger } = options;
     const { parameters, rules } = ruleSetObject;
     options.logger?.debug?.(`${debugId} Initial EndpointParams: ${toDebugString(endpointParams)}`);
-    const paramsWithDefault = Object.entries(parameters)
-        .filter(([, v]) => v.default != null)
-        .map(([k, v]) => [k, v.default]);
-    if (paramsWithDefault.length > 0) {
-        for (const [paramKey, paramDefaultValue] of paramsWithDefault) {
-            endpointParams[paramKey] = endpointParams[paramKey] ?? paramDefaultValue;
+    for (const paramKey in parameters) {
+        const parameter = parameters[paramKey];
+        const endpointParam = endpointParams[paramKey];
+        if (endpointParam == null && parameter.default != null) {
+            endpointParams[paramKey] = parameter.default;
+            continue;
         }
-    }
-    const requiredParams = Object.entries(parameters)
-        .filter(([, v]) => v.required)
-        .map(([k]) => k);
-    for (const requiredParam of requiredParams) {
-        if (endpointParams[requiredParam] == null) {
-            throw new EndpointError(`Missing required parameter: '${requiredParam}'`);
+        if (parameter.required && endpointParam == null) {
+            throw new EndpointError(`Missing required parameter: '${paramKey}'`);
         }
     }
     const endpoint = evaluateRules(rules, { endpointParams, logger, referenceRecord: {} });
@@ -18613,9 +18786,11 @@ const resolveEndpoint = (ruleSetObject, options) => {
     return endpoint;
 };
 
+exports.BinaryDecisionDiagram = BinaryDecisionDiagram;
 exports.EndpointCache = EndpointCache;
 exports.EndpointError = EndpointError;
 exports.customEndpointFunctions = customEndpointFunctions;
+exports.decideEndpoint = decideEndpoint;
 exports.isIpAddress = isIpAddress;
 exports.isValidHostLabel = isValidHostLabel;
 exports.resolveEndpoint = resolveEndpoint;
@@ -18729,17 +18904,36 @@ class DefaultRateLimiter {
         this.minFillRate = options?.minFillRate ?? 0.5;
         this.scaleConstant = options?.scaleConstant ?? 0.4;
         this.smooth = options?.smooth ?? 0.8;
-        const currentTimeInSeconds = this.getCurrentTimeInSeconds();
-        this.lastThrottleTime = currentTimeInSeconds;
+        this.lastThrottleTime = this.getCurrentTimeInSeconds();
         this.lastTxRateBucket = Math.floor(this.getCurrentTimeInSeconds());
         this.fillRate = this.minFillRate;
         this.maxCapacity = this.minCapacity;
     }
-    getCurrentTimeInSeconds() {
-        return Date.now() / 1000;
-    }
     async getSendToken() {
         return this.acquireTokenBucket(1);
+    }
+    updateClientSendingRate(response) {
+        let calculatedRate;
+        this.updateMeasuredRate();
+        const retryErrorInfo = response;
+        const isThrottling = retryErrorInfo?.errorType === "THROTTLING" || serviceErrorClassification.isThrottlingError(retryErrorInfo?.error ?? response);
+        if (isThrottling) {
+            const rateToUse = !this.enabled ? this.measuredTxRate : Math.min(this.measuredTxRate, this.fillRate);
+            this.lastMaxRate = rateToUse;
+            this.calculateTimeWindow();
+            this.lastThrottleTime = this.getCurrentTimeInSeconds();
+            calculatedRate = this.cubicThrottle(rateToUse);
+            this.enableTokenBucket();
+        }
+        else {
+            this.calculateTimeWindow();
+            calculatedRate = this.cubicSuccess(this.getCurrentTimeInSeconds());
+        }
+        const newRate = Math.min(calculatedRate, 2 * this.measuredTxRate);
+        this.updateTokenBucketRate(newRate);
+    }
+    getCurrentTimeInSeconds() {
+        return Date.now() / 1000;
     }
     async acquireTokenBucket(amount) {
         if (!this.enabled) {
@@ -18761,26 +18955,6 @@ class DefaultRateLimiter {
         const fillAmount = (timestamp - this.lastTimestamp) * this.fillRate;
         this.availableTokens = Math.min(this.maxCapacity, this.availableTokens + fillAmount);
         this.lastTimestamp = timestamp;
-    }
-    updateClientSendingRate(response) {
-        let calculatedRate;
-        this.updateMeasuredRate();
-        const retryErrorInfo = response;
-        const isThrottling = retryErrorInfo?.errorType === "THROTTLING" || serviceErrorClassification.isThrottlingError(retryErrorInfo?.error ?? response);
-        if (isThrottling) {
-            const rateToUse = !this.enabled ? this.measuredTxRate : Math.min(this.measuredTxRate, this.fillRate);
-            this.lastMaxRate = rateToUse;
-            this.calculateTimeWindow();
-            this.lastThrottleTime = this.getCurrentTimeInSeconds();
-            calculatedRate = this.cubicThrottle(rateToUse);
-            this.enableTokenBucket();
-        }
-        else {
-            this.calculateTimeWindow();
-            calculatedRate = this.cubicSuccess(this.getCurrentTimeInSeconds());
-        }
-        const newRate = Math.min(calculatedRate, 2 * this.measuredTxRate);
-        this.updateTokenBucketRate(newRate);
     }
     calculateTimeWindow() {
         this.timeWindow = this.getPrecise(Math.pow((this.lastMaxRate * (1 - this.beta)) / this.scaleConstant, 1 / 3));
@@ -18826,68 +19000,112 @@ const NO_RETRY_INCREMENT = 1;
 const INVOCATION_ID_HEADER = "amz-sdk-invocation-id";
 const REQUEST_HEADER = "amz-sdk-request";
 
-const getDefaultRetryBackoffStrategy = () => {
-    let delayBase = DEFAULT_RETRY_DELAY_BASE;
-    const computeNextBackoffDelay = (attempts) => {
-        return Math.floor(Math.min(MAXIMUM_RETRY_DELAY, Math.random() * 2 ** attempts * delayBase));
-    };
-    const setDelayBase = (delay) => {
-        delayBase = delay;
-    };
-    return {
-        computeNextBackoffDelay,
-        setDelayBase,
-    };
-};
+class Retry {
+    static v2026 = typeof process !== "undefined" && process.env?.SMITHY_NEW_RETRIES_2026 === "true";
+    static delay() {
+        return Retry.v2026 ? 50 : 100;
+    }
+    static throttlingDelay() {
+        return Retry.v2026 ? 1_000 : 500;
+    }
+    static cost() {
+        return Retry.v2026 ? 14 : 5;
+    }
+    static throttlingCost() {
+        return Retry.v2026 ? 5 : 10;
+    }
+    static modifiedCostType() {
+        return Retry.v2026 ? "THROTTLING" : "TRANSIENT";
+    }
+}
 
-const createDefaultRetryToken = ({ retryDelay, retryCount, retryCost, }) => {
-    const getRetryCount = () => retryCount;
-    const getRetryDelay = () => Math.min(MAXIMUM_RETRY_DELAY, retryDelay);
-    const getRetryCost = () => retryCost;
-    return {
-        getRetryCount,
-        getRetryDelay,
-        getRetryCost,
-    };
-};
+class DefaultRetryBackoffStrategy {
+    x = Retry.delay();
+    computeNextBackoffDelay(i) {
+        const b = Math.random();
+        const r = 2;
+        const t_i = b * Math.min(this.x * r ** i, MAXIMUM_RETRY_DELAY);
+        return Math.floor(t_i);
+    }
+    setDelayBase(delay) {
+        this.x = delay;
+    }
+}
+
+class DefaultRetryToken {
+    delay;
+    count;
+    cost;
+    longPoll;
+    constructor(delay, count, cost, longPoll) {
+        this.delay = delay;
+        this.count = count;
+        this.cost = cost;
+        this.longPoll = longPoll;
+    }
+    getRetryCount() {
+        return this.count;
+    }
+    getRetryDelay() {
+        return Math.min(MAXIMUM_RETRY_DELAY, this.delay);
+    }
+    getRetryCost() {
+        return this.cost;
+    }
+    isLongPoll() {
+        return this.longPoll;
+    }
+}
 
 class StandardRetryStrategy {
-    maxAttempts;
     mode = exports.RETRY_MODES.STANDARD;
     capacity = INITIAL_RETRY_TOKENS;
-    retryBackoffStrategy = getDefaultRetryBackoffStrategy();
+    retryBackoffStrategy;
     maxAttemptsProvider;
-    constructor(maxAttempts) {
-        this.maxAttempts = maxAttempts;
-        this.maxAttemptsProvider = typeof maxAttempts === "function" ? maxAttempts : async () => maxAttempts;
+    baseDelay;
+    constructor(arg1) {
+        if (typeof arg1 === "number") {
+            this.maxAttemptsProvider = async () => arg1;
+        }
+        else if (typeof arg1 === "function") {
+            this.maxAttemptsProvider = arg1;
+        }
+        else if (arg1 && typeof arg1 === "object") {
+            this.maxAttemptsProvider = async () => arg1.maxAttempts;
+            this.baseDelay = arg1.baseDelay;
+            this.retryBackoffStrategy = arg1.backoff;
+        }
+        this.maxAttemptsProvider ??= async () => DEFAULT_MAX_ATTEMPTS;
+        this.baseDelay ??= Retry.delay();
+        this.retryBackoffStrategy ??= new DefaultRetryBackoffStrategy();
     }
     async acquireInitialRetryToken(retryTokenScope) {
-        return createDefaultRetryToken({
-            retryDelay: DEFAULT_RETRY_DELAY_BASE,
-            retryCount: 0,
-        });
+        return new DefaultRetryToken(Retry.delay(), 0, undefined, Retry.v2026 && retryTokenScope.includes(":longpoll"));
     }
     async refreshRetryTokenForRetry(token, errorInfo) {
         const maxAttempts = await this.getMaxAttempts();
-        if (this.shouldRetry(token, errorInfo, maxAttempts)) {
+        const shouldRetry = this.shouldRetry(token, errorInfo, maxAttempts);
+        if (shouldRetry || token.isLongPoll?.()) {
             const errorType = errorInfo.errorType;
-            this.retryBackoffStrategy.setDelayBase(errorType === "THROTTLING" ? THROTTLING_RETRY_DELAY_BASE : DEFAULT_RETRY_DELAY_BASE);
+            this.retryBackoffStrategy.setDelayBase(errorType === "THROTTLING" ? Retry.throttlingDelay() : this.baseDelay);
             const delayFromErrorType = this.retryBackoffStrategy.computeNextBackoffDelay(token.getRetryCount());
-            const retryDelay = errorInfo.retryAfterHint
-                ? Math.max(errorInfo.retryAfterHint.getTime() - Date.now() || 0, delayFromErrorType)
-                : delayFromErrorType;
-            const capacityCost = this.getCapacityCost(errorType);
-            this.capacity -= capacityCost;
-            return createDefaultRetryToken({
-                retryDelay,
-                retryCount: token.getRetryCount() + 1,
-                retryCost: capacityCost,
-            });
+            let retryDelay = delayFromErrorType;
+            if (errorInfo.retryAfterHint instanceof Date) {
+                retryDelay = Math.max(delayFromErrorType, Math.min(errorInfo.retryAfterHint.getTime() - Date.now(), delayFromErrorType + 5_000));
+            }
+            if (!shouldRetry) {
+                throw Object.assign(new Error("No retry token available"), { $backoff: Retry.v2026 ? retryDelay : 0 });
+            }
+            else {
+                const capacityCost = this.getCapacityCost(errorType);
+                this.capacity -= capacityCost;
+                return new DefaultRetryToken(retryDelay, token.getRetryCount() + 1, capacityCost, token.isLongPoll?.() ?? false);
+            }
         }
         throw new Error("No retry token available");
     }
     recordSuccess(token) {
-        this.capacity = Math.max(INITIAL_RETRY_TOKENS, this.capacity + (token.getRetryCost() ?? NO_RETRY_INCREMENT));
+        this.capacity = Math.min(INITIAL_RETRY_TOKENS, this.capacity + (token.getRetryCost() ?? NO_RETRY_INCREMENT));
     }
     getCapacity() {
         return this.capacity;
@@ -18908,23 +19126,29 @@ class StandardRetryStrategy {
             this.isRetryableError(errorInfo.errorType));
     }
     getCapacityCost(errorType) {
-        return errorType === "TRANSIENT" ? TIMEOUT_RETRY_COST : RETRY_COST;
+        return errorType === Retry.modifiedCostType() ? Retry.throttlingCost() : Retry.cost();
     }
     isRetryableError(errorType) {
         return errorType === "THROTTLING" || errorType === "TRANSIENT";
     }
+    async maxAttempts() {
+        return this.maxAttemptsProvider();
+    }
 }
 
 class AdaptiveRetryStrategy {
-    maxAttemptsProvider;
+    mode = exports.RETRY_MODES.ADAPTIVE;
     rateLimiter;
     standardRetryStrategy;
-    mode = exports.RETRY_MODES.ADAPTIVE;
     constructor(maxAttemptsProvider, options) {
-        this.maxAttemptsProvider = maxAttemptsProvider;
         const { rateLimiter } = options ?? {};
         this.rateLimiter = rateLimiter ?? new DefaultRateLimiter();
-        this.standardRetryStrategy = new StandardRetryStrategy(maxAttemptsProvider);
+        this.standardRetryStrategy = options
+            ? new StandardRetryStrategy({
+                maxAttempts: typeof maxAttemptsProvider === "number" ? maxAttemptsProvider : 3,
+                ...options,
+            })
+            : new StandardRetryStrategy(maxAttemptsProvider);
     }
     async acquireInitialRetryToken(retryTokenScope) {
         await this.rateLimiter.getSendToken();
@@ -18938,11 +19162,14 @@ class AdaptiveRetryStrategy {
         this.rateLimiter.updateClientSendingRate({});
         this.standardRetryStrategy.recordSuccess(token);
     }
+    async maxAttemptsProvider() {
+        return this.standardRetryStrategy.maxAttempts();
+    }
 }
 
 class ConfiguredRetryStrategy extends StandardRetryStrategy {
     computeNextBackoffDelay;
-    constructor(maxAttempts, computeNextBackoffDelay = DEFAULT_RETRY_DELAY_BASE) {
+    constructor(maxAttempts, computeNextBackoffDelay = Retry.delay()) {
         super(typeof maxAttempts === "function" ? maxAttempts : async () => maxAttempts);
         if (typeof computeNextBackoffDelay === "number") {
             this.computeNextBackoffDelay = () => computeNextBackoffDelay;
@@ -18970,6 +19197,7 @@ exports.MAXIMUM_RETRY_DELAY = MAXIMUM_RETRY_DELAY;
 exports.NO_RETRY_INCREMENT = NO_RETRY_INCREMENT;
 exports.REQUEST_HEADER = REQUEST_HEADER;
 exports.RETRY_COST = RETRY_COST;
+exports.Retry = Retry;
 exports.StandardRetryStrategy = StandardRetryStrategy;
 exports.THROTTLING_RETRY_DELAY_BASE = THROTTLING_RETRY_DELAY_BASE;
 exports.TIMEOUT_RETRY_COST = TIMEOUT_RETRY_COST;
@@ -74499,7 +74727,7 @@ config(en());
 /***/ 9955:
 /***/ ((module) => {
 
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/nested-clients","version":"3.996.18","description":"Nested clients for AWS SDK packages.","main":"./dist-cjs/index.js","module":"./dist-es/index.js","types":"./dist-types/index.d.ts","scripts":{"build":"yarn lint && concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline nested-clients","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","lint":"node ../../scripts/validation/submodules-linter.js --pkg nested-clients","test":"yarn g:vitest run","test:watch":"yarn g:vitest watch"},"engines":{"node":">=20.0.0"},"sideEffects":false,"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"^3.973.26","@aws-sdk/middleware-host-header":"^3.972.8","@aws-sdk/middleware-logger":"^3.972.8","@aws-sdk/middleware-recursion-detection":"^3.972.9","@aws-sdk/middleware-user-agent":"^3.972.28","@aws-sdk/region-config-resolver":"^3.972.10","@aws-sdk/types":"^3.973.6","@aws-sdk/util-endpoints":"^3.996.5","@aws-sdk/util-user-agent-browser":"^3.972.8","@aws-sdk/util-user-agent-node":"^3.973.14","@smithy/config-resolver":"^4.4.13","@smithy/core":"^3.23.13","@smithy/fetch-http-handler":"^5.3.15","@smithy/hash-node":"^4.2.12","@smithy/invalid-dependency":"^4.2.12","@smithy/middleware-content-length":"^4.2.12","@smithy/middleware-endpoint":"^4.4.28","@smithy/middleware-retry":"^4.4.46","@smithy/middleware-serde":"^4.2.16","@smithy/middleware-stack":"^4.2.12","@smithy/node-config-provider":"^4.3.12","@smithy/node-http-handler":"^4.5.1","@smithy/protocol-http":"^5.3.12","@smithy/smithy-client":"^4.12.8","@smithy/types":"^4.13.1","@smithy/url-parser":"^4.2.12","@smithy/util-base64":"^4.3.2","@smithy/util-body-length-browser":"^4.2.2","@smithy/util-body-length-node":"^4.2.3","@smithy/util-defaults-mode-browser":"^4.3.44","@smithy/util-defaults-mode-node":"^4.2.48","@smithy/util-endpoints":"^3.3.3","@smithy/util-middleware":"^4.2.12","@smithy/util-retry":"^4.2.13","@smithy/util-utf8":"^4.2.2","tslib":"^2.6.2"},"devDependencies":{"concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"typesVersions":{"<4.5":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["./cognito-identity.d.ts","./cognito-identity.js","./signin.d.ts","./signin.js","./sso-oidc.d.ts","./sso-oidc.js","./sso.d.ts","./sso.js","./sts.d.ts","./sts.js","dist-*/**"],"browser":{"./dist-es/submodules/cognito-identity/runtimeConfig":"./dist-es/submodules/cognito-identity/runtimeConfig.browser","./dist-es/submodules/signin/runtimeConfig":"./dist-es/submodules/signin/runtimeConfig.browser","./dist-es/submodules/sso-oidc/runtimeConfig":"./dist-es/submodules/sso-oidc/runtimeConfig.browser","./dist-es/submodules/sso/runtimeConfig":"./dist-es/submodules/sso/runtimeConfig.browser","./dist-es/submodules/sts/runtimeConfig":"./dist-es/submodules/sts/runtimeConfig.browser"},"react-native":{},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"packages/nested-clients"},"exports":{"./package.json":"./package.json","./sso-oidc":{"types":"./dist-types/submodules/sso-oidc/index.d.ts","module":"./dist-es/submodules/sso-oidc/index.js","node":"./dist-cjs/submodules/sso-oidc/index.js","import":"./dist-es/submodules/sso-oidc/index.js","require":"./dist-cjs/submodules/sso-oidc/index.js"},"./sts":{"types":"./dist-types/submodules/sts/index.d.ts","module":"./dist-es/submodules/sts/index.js","node":"./dist-cjs/submodules/sts/index.js","import":"./dist-es/submodules/sts/index.js","require":"./dist-cjs/submodules/sts/index.js"},"./signin":{"types":"./dist-types/submodules/signin/index.d.ts","module":"./dist-es/submodules/signin/index.js","node":"./dist-cjs/submodules/signin/index.js","import":"./dist-es/submodules/signin/index.js","require":"./dist-cjs/submodules/signin/index.js"},"./cognito-identity":{"types":"./dist-types/submodules/cognito-identity/index.d.ts","module":"./dist-es/submodules/cognito-identity/index.js","node":"./dist-cjs/submodules/cognito-identity/index.js","import":"./dist-es/submodules/cognito-identity/index.js","require":"./dist-cjs/submodules/cognito-identity/index.js"},"./sso":{"types":"./dist-types/submodules/sso/index.d.ts","module":"./dist-es/submodules/sso/index.js","node":"./dist-cjs/submodules/sso/index.js","import":"./dist-es/submodules/sso/index.js","require":"./dist-cjs/submodules/sso/index.js"}}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/nested-clients","version":"3.996.21","description":"Nested clients for AWS SDK packages.","main":"./dist-cjs/index.js","module":"./dist-es/index.js","types":"./dist-types/index.d.ts","scripts":{"build":"yarn lint && concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline nested-clients","build:es":"tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types tsconfig.cjs.tsbuildinfo tsconfig.es.tsbuildinfo tsconfig.types.tsbuildinfo","lint":"node ../../scripts/validation/submodules-linter.js --pkg nested-clients","test":"yarn g:vitest run","test:watch":"yarn g:vitest watch"},"engines":{"node":">=20.0.0"},"sideEffects":false,"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"^3.974.1","@aws-sdk/middleware-host-header":"^3.972.10","@aws-sdk/middleware-logger":"^3.972.10","@aws-sdk/middleware-recursion-detection":"^3.972.11","@aws-sdk/middleware-user-agent":"^3.972.31","@aws-sdk/region-config-resolver":"^3.972.12","@aws-sdk/types":"^3.973.8","@aws-sdk/util-endpoints":"^3.996.7","@aws-sdk/util-user-agent-browser":"^3.972.10","@aws-sdk/util-user-agent-node":"^3.973.17","@smithy/config-resolver":"^4.4.16","@smithy/core":"^3.23.15","@smithy/fetch-http-handler":"^5.3.17","@smithy/hash-node":"^4.2.14","@smithy/invalid-dependency":"^4.2.14","@smithy/middleware-content-length":"^4.2.14","@smithy/middleware-endpoint":"^4.4.30","@smithy/middleware-retry":"^4.5.3","@smithy/middleware-serde":"^4.2.18","@smithy/middleware-stack":"^4.2.14","@smithy/node-config-provider":"^4.3.14","@smithy/node-http-handler":"^4.5.3","@smithy/protocol-http":"^5.3.14","@smithy/smithy-client":"^4.12.11","@smithy/types":"^4.14.1","@smithy/url-parser":"^4.2.14","@smithy/util-base64":"^4.3.2","@smithy/util-body-length-browser":"^4.2.2","@smithy/util-body-length-node":"^4.2.3","@smithy/util-defaults-mode-browser":"^4.3.47","@smithy/util-defaults-mode-node":"^4.2.52","@smithy/util-endpoints":"^3.4.1","@smithy/util-middleware":"^4.2.14","@smithy/util-retry":"^4.3.2","@smithy/util-utf8":"^4.2.2","tslib":"^2.6.2"},"devDependencies":{"concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3"},"typesVersions":{"<4.5":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["./cognito-identity.d.ts","./cognito-identity.js","./signin.d.ts","./signin.js","./sso-oidc.d.ts","./sso-oidc.js","./sso.d.ts","./sso.js","./sts.d.ts","./sts.js","dist-*/**"],"browser":{"./dist-es/submodules/cognito-identity/runtimeConfig":"./dist-es/submodules/cognito-identity/runtimeConfig.browser","./dist-es/submodules/signin/runtimeConfig":"./dist-es/submodules/signin/runtimeConfig.browser","./dist-es/submodules/sso-oidc/runtimeConfig":"./dist-es/submodules/sso-oidc/runtimeConfig.browser","./dist-es/submodules/sso/runtimeConfig":"./dist-es/submodules/sso/runtimeConfig.browser","./dist-es/submodules/sts/runtimeConfig":"./dist-es/submodules/sts/runtimeConfig.browser"},"react-native":{},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"packages/nested-clients"},"exports":{"./package.json":"./package.json","./sso-oidc":{"types":"./dist-types/submodules/sso-oidc/index.d.ts","module":"./dist-es/submodules/sso-oidc/index.js","node":"./dist-cjs/submodules/sso-oidc/index.js","import":"./dist-es/submodules/sso-oidc/index.js","require":"./dist-cjs/submodules/sso-oidc/index.js"},"./sts":{"types":"./dist-types/submodules/sts/index.d.ts","module":"./dist-es/submodules/sts/index.js","node":"./dist-cjs/submodules/sts/index.js","import":"./dist-es/submodules/sts/index.js","require":"./dist-cjs/submodules/sts/index.js"},"./signin":{"types":"./dist-types/submodules/signin/index.d.ts","module":"./dist-es/submodules/signin/index.js","node":"./dist-cjs/submodules/signin/index.js","import":"./dist-es/submodules/signin/index.js","require":"./dist-cjs/submodules/signin/index.js"},"./cognito-identity":{"types":"./dist-types/submodules/cognito-identity/index.d.ts","module":"./dist-es/submodules/cognito-identity/index.js","node":"./dist-cjs/submodules/cognito-identity/index.js","import":"./dist-es/submodules/cognito-identity/index.js","require":"./dist-cjs/submodules/cognito-identity/index.js"},"./sso":{"types":"./dist-types/submodules/sso/index.d.ts","module":"./dist-es/submodules/sso/index.js","node":"./dist-cjs/submodules/sso/index.js","import":"./dist-es/submodules/sso/index.js","require":"./dist-cjs/submodules/sso/index.js"}}}');
 
 /***/ })
 
