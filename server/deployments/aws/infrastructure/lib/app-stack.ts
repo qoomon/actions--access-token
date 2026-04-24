@@ -4,8 +4,8 @@ import {CfnOutput, Duration, SecretValue, Stack, StackProps} from 'aws-cdk-lib'
 import {Construct} from 'constructs'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import {FunctionUrlAuthType} from 'aws-cdk-lib/aws-lambda'
-import * as path from 'path'
 import * as secretManager from 'aws-cdk-lib/aws-secretsmanager'
+import * as path from 'path';
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
 const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: string[] = []
@@ -24,7 +24,6 @@ export class AppStack extends Stack {
     })
 
     // --- API Access Token Function--------------------------------------------------------------------------------
-
     const httpApiAccessTokenFunction = new lambda.Function(this, 'HttpApiFunction', {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
