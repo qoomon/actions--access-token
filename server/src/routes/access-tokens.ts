@@ -82,7 +82,7 @@ export function createAccessTokensRoute({
                 }
 
                 const repositories = tokenRequest.repositories
-                    .map((repository: string) => parseRepository(
+                    .map((repository) => parseRepository(
                         repository,
                         tokenRequest.owner ?? callerIdentity.repository_owner,
                     ));
@@ -98,7 +98,7 @@ export function createAccessTokensRoute({
 
                 if (repositoriesOwnerSet.size > 1) {
                   if (tokenRequest.owner) {
-                    repositories.forEach((repository: { owner: string }, index: number) => {
+                    repositories.forEach((repository, index) => {
                       if (repository.owner !== tokenRequest.owner) {
                         ctx.issues.push({
                           code: "custom",
