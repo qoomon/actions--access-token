@@ -17,29 +17,24 @@ import {Status} from '../common/http-utils.js';
 import * as zUtils from '../common/zod-utils.js';
 import {accessTokenManager, GitHubAccessTokenError, GitHubAccessTokenRequest} from '../access-token-manager.js';
 import {logger} from '../logger.js';
+import {config} from '../config.js';
 
-type AccessManager = Awaited<ReturnType<typeof accessTokenManager>>;
+// --- Initialization --------------------------------------------------------------------------------------------------
+const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
 
 /**
  * Creates and returns a Hono router that handles the /access_tokens endpoint.
- * Mount it with `app.route('/access_tokens', createAccessTokensRoute({...}))`.
+ * Mount it with `app.route('/access_tokens', createAccessTokensRoute())`.
  */
-export function createAccessTokensRoute({
-  manager,
-  allowedAud,
-  allowedSub,
-  maxRepositories,
-}: {
-  manager: AccessManager,
-  allowedAud: string[],
-  allowedSub?: RegExp[],
-  maxRepositories: number,
-}) {
+export function createAccessTokensRoute() {
+  const allowedAud = config.githubActionsTokenVerifier.allowedAud;
+  const allowedSub = config.githubActionsTokenVerifier.allowedSub;
+
   const AccessTokenRequestBodySchema = LegacyAccessTokenRequestBodyTransformer.pipe(z.strictObject({
     owner: GitHubRepositoryOwnerSchema.optional(),
     permissions: GitHubAppPermissionsSchema.check(zUtils.hasEntries),
     repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema))
-        .max(maxRepositories)
+        .max(config.maxTargetRepositoriesPerRequest)
         .or(z.literal('ALL'))
         .default(() => []),
   }));
@@ -125,7 +120,7 @@ export function createAccessTokensRoute({
           request: accessTokenRequest
         }, 'Access Token Request');
 
-        const githubActionsAccessToken = await manager
+        const githubActionsAccessToken = await GITHUB_ACTIONS_ACCESS_MANAGER
             .createAccessToken(callerIdentity, accessTokenRequest as GitHubAccessTokenRequest)
             .catch((error) => {
               if (error instanceof GitHubAccessTokenError) {

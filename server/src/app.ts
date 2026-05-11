@@ -4,13 +4,8 @@ import {prettyJSON} from 'hono/pretty-json';
 import {bodyLimit} from 'hono/body-limit';
 import process from 'process';
 import {debugLogger, errorHandler, notFoundHandler} from './common/hono-utils.js';
-import {accessTokenManager} from './access-token-manager.js';
 import {logger} from './logger.js';
-import {config} from './config.js';
 import {createAccessTokensRoute} from './routes/access-tokens.js';
-
-// --- Initialization ------------------------------------------------------------------------------------------------
-const GITHUB_ACTIONS_ACCESS_MANAGER = await accessTokenManager(config);
 
 export function appInit(prepare?: (app: Hono) => void) {
   const app = new Hono();
@@ -32,12 +27,7 @@ export function appInit(prepare?: (app: Hono) => void) {
   });
 
   // --- handle access token request ---------------------------------------------------------------------------------
-  app.route('/access_tokens', createAccessTokensRoute({
-    manager: GITHUB_ACTIONS_ACCESS_MANAGER,
-    allowedAud: config.githubActionsTokenVerifier.allowedAud,
-    allowedSub: config.githubActionsTokenVerifier.allowedSub,
-    maxRepositories: config.maxTargetRepositoriesPerRequest,
-  }));
+  app.route('/access_tokens', createAccessTokensRoute());
 
   return app;
 }
