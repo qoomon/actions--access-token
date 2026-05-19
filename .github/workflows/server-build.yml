@@ -45,7 +45,7 @@ jobs:
         with:
           working_directory: server
       - name: Build & Deploy Worker
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: server/deployments/cloudflare
           wranglerVersion: 4.60.0
