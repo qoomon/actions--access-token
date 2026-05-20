@@ -36,7 +36,7 @@ const configSchema = z.strictObject({
   maxTargetRepositoriesPerRequest: z.int().min(1),
 });
 
-export const config = validate({
+export const config = configSchema.parse(({
   githubAppAuth: {
     appId: env('GITHUB_APP_ID', true),
     // Some environments do not support multiline env vars; the schema's
@@ -63,7 +63,3 @@ export const config = validate({
   },
   maxTargetRepositoriesPerRequest: 32,
 });
-
-function validate(config: z.infer<typeof configSchema>): z.infer<typeof configSchema> {
-  return configSchema.parse(config);
-}
