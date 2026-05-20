@@ -53,7 +53,7 @@ export const JsonTransformer = z.string().transform((val, ctx) => {
 
 export const YamlTransformer = z.string().transform((str, ctx) => {
   try {
-    return YAML.parse(str);
+    return YAML.parse(str, {maxAliasCount: 100});
   } catch (error: unknown) {
     ctx.addIssue({code: 'custom', message: (error as { message?: string }).message});
     return z.NEVER;
