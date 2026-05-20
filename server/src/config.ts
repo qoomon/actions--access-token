@@ -36,7 +36,7 @@ const configSchema = z.strictObject({
   maxTargetRepositoriesPerRequest: z.int().min(1),
 });
 
-export const config = configSchema.parse(({
+export const config = configSchema.parse({
   githubAppAuth: {
     appId: env('GITHUB_APP_ID', true),
     // Some environments do not support multiline env vars; the schema's
