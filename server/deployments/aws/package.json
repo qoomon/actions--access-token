@@ -6,6 +6,6 @@
     "@aws-sdk/client-secrets-manager": "^3.1063.0"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.159"
+    "@types/aws-lambda": "^8.10.162"
   }
 }
