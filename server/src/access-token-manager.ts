@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import limit from 'p-limit';
 import {createAppAuth} from '@octokit/auth-app';
 import {RestEndpointMethodTypes} from '@octokit/rest';
@@ -10,7 +11,8 @@ import {
   unique,
 } from './common/common-utils.js';
 import {
-  aggregatePermissions, arePermissionsEqual,
+  aggregatePermissions,
+  arePermissionsEqual,
   GitHubActionsJwtPayload,
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
@@ -33,7 +35,8 @@ import {
   formatAccessPolicyError,
   getOwnerAccessPolicy,
   getRepoAccessPolicy,
-  GithubAccessPolicyError, matchSubject,
+  GithubAccessPolicyError,
+  matchSubject,
 } from './access-policy.js';
 
 // Public re-exports kept for backward compatibility
@@ -67,15 +70,20 @@ type NormalizedTokenRequest = GitHubAccessTokenRequest & { owner: string };
  */
 export async function accessTokenManager(options: {
   githubAppAuth: { appId: string, privateKey: string, },
-  accessPolicyLocation: {
-    owner: { paths: string[], repo: string },
-    repo: { paths: string[] }
-  }
+  accessPolicyLocation: { owner: { paths: string[], repo: string }, repo: { paths: string[] }}
 }) {
   logger.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
   const GITHUB_APP_CLIENT = new Octokit({
     authStrategy: createAppAuth,
-    auth: options.githubAppAuth,
+    auth: (() => {
+      const githubAppAuth = options.githubAppAuth;
+      if (githubAppAuth.privateKey.startsWith('-----BEGIN RSA PRIVATE KEY-----')) {
+        githubAppAuth.privateKey = crypto
+            .createPrivateKey(githubAppAuth.privateKey)
+            .export({type: "pkcs8", format: "pem"});
+      }
+      return githubAppAuth;
+    })(),
   });
   const GITHUB_APP: NonNullable<GitHubApp> = await GITHUB_APP_CLIENT.rest.apps.getAuthenticated()
       .then((res) => {
