@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // noinspection DuplicatedCode
 
@@ -15,7 +16,7 @@ import {
   GitHubOwnerAccessPolicy,
   GitHubRepositoryAccessPolicy,
   GitHubRepositoryAccessStatement,
-} from '../src/access-token-manager.js';
+} from '../src/access-policy.js';
 import {RemoteJWKSetOptions} from 'jose/jwks/remote';
 
 process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'warn';

@@ -39,13 +39,6 @@ import {
   matchSubject,
 } from './access-policy.js';
 
-// Public re-exports kept for backward compatibility
-export type {
-  GitHubOwnerAccessPolicy,
-  GitHubRepositoryAccessPolicy,
-  GitHubRepositoryAccessStatement,
-  GitHubAccessPolicy,
-} from './access-policy.js';
 export {GithubAccessPolicyError} from './access-policy.js';
 
 const GITHUB_API_CONCURRENCY_LIMIT = limit(8);

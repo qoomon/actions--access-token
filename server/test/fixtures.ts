@@ -1,6 +1,6 @@
 import {components} from '@octokit/openapi-types';
 import {GitHubActionsJwtPayload, parseRepository} from '../src/common/github-utils.js';
-import {GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../src/access-token-manager.js';
+import {GitHubOwnerAccessPolicy, GitHubRepositoryAccessPolicy} from '../src/access-policy.js';
 import {JWTPayload, SignJWT} from 'jose';
 import * as crypto from 'node:crypto';
 
