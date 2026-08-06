@@ -2,17 +2,11 @@ import crypto from "node:crypto";
 import limit from 'p-limit';
 import {createAppAuth} from '@octokit/auth-app';
 import {RestEndpointMethodTypes} from '@octokit/rest';
-import {
-  ensureHasEntries,
-  filterObjectEntries,
-  hasEntries,
-  indent,
-  resultOf,
-  unique,
-} from './common/common-utils.js';
+import {ensureHasEntries, filterObjectEntries, hasEntries, indent, resultOf, unique,} from './common/common-utils.js';
 import {
   aggregatePermissions,
   arePermissionsEqual,
+  getOwnerId,
   GitHubActionsJwtPayload,
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
@@ -63,7 +57,7 @@ type NormalizedTokenRequest = GitHubAccessTokenRequest & { owner: string };
  */
 export async function accessTokenManager(options: {
   githubAppAuth: { appId: string, privateKey: string, },
-  accessPolicyLocation: { owner: { paths: string[], repo: string }, repo: { paths: string[] }}
+  accessPolicyLocation: { owner: { paths: string[], repo: string }, repo: { paths: string[] } }
 }) {
   logger.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
   const GITHUB_APP_CLIENT = new Octokit({
@@ -274,8 +268,15 @@ async function grantFromOwnerPolicy(
   logger.debug({owner: tokenRequest.owner, ownerAccessPolicy: accessPolicy}, 'Owner access policy');
 
   // --- Check allowed-subjects ---
+
   // if allowed-subjects is not defined, allow any subjects from the policy owner
-  const allowedSubjects = accessPolicy['allowed-subjects'] ?? [`repo:${tokenRequest.owner}/*:**`];
+  const allowedSubjects = accessPolicy['allowed-subjects'] ?? [
+    callerIdentity.sub.includes('@')
+        // https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
+        ? `repo:${tokenRequest.owner}@${await getOwnerId(client, tokenRequest.owner)}/*:**`
+        : `repo:${tokenRequest.owner}/*:**`,    // legacy subject claim (fallback for backward compatibility)
+  ];
+
   if (!matchSubject(allowedSubjects, effectiveSubjects)) {
     logger.info({owner: tokenRequest.owner}, 'OIDC token subject is not allowed by owner access policy');
     throw new GitHubAccessTokenError([{
@@ -530,12 +531,21 @@ function normalizeTokenRequest(
 export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
   const subjects = [callerIdentity.sub];
 
+  // https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
+  const immutableRepository = callerIdentity.sub.includes('@')
+      ? (`${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
+          + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`)
+      : undefined;
+
   // Be Aware to not add artificial subjects for pull requests e.g., 'ref:refs/pull/1/head'
   if (callerIdentity.ref.startsWith('refs/heads/') ||
       callerIdentity.ref.startsWith('refs/tags/')) {
     // repo : ref
     // => repo:qoomon/sandbox:ref:refs/heads/main
     subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`);
+    if (immutableRepository) {
+      subjects.push(`repo:${immutableRepository}:ref:${callerIdentity.ref}`);
+    }
   }
 
   // Be Aware to not add artificial subjects for pull requests e.g., 'workflow_ref:...@refs/pull/1/head'
@@ -544,6 +554,9 @@ export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActions
     // repo : workflow_ref
     // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
     subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`);
+    if (immutableRepository) {
+      subjects.push(`repo:${immutableRepository}:workflow_ref:${callerIdentity.workflow_ref}`);
+    }
   }
 
   // Be Aware to not add artificial subjects for pull requests e.g., 'job_workflow_ref:...@refs/pull/1/head'
@@ -552,6 +565,9 @@ export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActions
     // repo : job_workflow_ref
     // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
     subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
+    if (immutableRepository) {
+      subjects.push(`repo:${immutableRepository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
+    }
   }
 
   return unique(subjects);

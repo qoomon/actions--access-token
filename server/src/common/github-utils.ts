@@ -1,9 +1,20 @@
 import {components} from '@octokit/openapi-types';
 import {z} from 'zod';
 import {mapObjectEntries, tuplesOf} from './common-utils.js';
+import {Octokit} from '../github-app-client';
 
 
 // --- Functions -------------------------------------------------------------------------------------------------------
+
+/**
+ * Get numerical owner id for given owner name
+ * @param octokit octokit
+ * @param owner owner name
+ */
+export async function getOwnerId(octokit: Octokit, owner: string) {
+  return octokit.rest.users.getByUsername({username: owner})
+      .then((res => res.data.id));
+}
 
 /**
  * Parse repository string to owner and repo
@@ -14,7 +25,7 @@ import {mapObjectEntries, tuplesOf} from './common-utils.js';
 export function parseRepository(repository: string, owner?: string) {
   const separatorIndex = repository.indexOf('/');
   if (separatorIndex === -1) {
-    if(owner) {
+    if (owner) {
       return {
         owner,
         repo: repository,

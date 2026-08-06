@@ -5,7 +5,9 @@ import {JWTPayload, SignJWT} from 'jose';
 import * as crypto from 'node:crypto';
 
 export const DEFAULT_OWNER = 'octocat';
+export const DEFAULT_OWNER_ID = '583231';
 export const DEFAULT_REPO = 'playground';
+export const DEFAULT_REPO_ID = '1234567';
 
 export const GITHUB_APP_AUTH = {
   appId: '1234567890',
@@ -52,6 +54,9 @@ export async function createGitHubActionsToken({claims, expirationTime, signing}
     repository?: string,
     ref?: string,
     workflow_ref?: string,
+    repository_id?: string,
+    repository_owner_id?: string,
+    immutableSub?: boolean,
   },
   expirationTime?: string | number,
   signing?: { key: crypto.KeyObject },
@@ -71,17 +76,30 @@ function createGitHubActionsTokenPayload(claims?: {
   repository?: string,
   ref?: string,
   workflow?: string,
+  repository_id?: string,
+  repository_owner_id?: string,
+  immutableSub?: boolean,
 }) {
   const repository = claims?.repository ?? `${DEFAULT_OWNER}/${DEFAULT_REPO}`;
+  const {owner, repo} = parseRepository(repository);
   const ref = claims?.ref ?? 'refs/heads/main';
   const workflow = claims?.workflow ?? 'build.yml';
+  const repository_id = claims?.repository_id ?? DEFAULT_REPO_ID;
+  const repository_owner_id = claims?.repository_owner_id ?? DEFAULT_OWNER_ID;
+
+  const subClaim = (claims?.immutableSub ?? true)
+      ? `repo:${owner}@${repository_owner_id}/${repo}@${repository_id}:ref:${ref}`
+      : `repo:${repository}:ref:${ref}`;
+
   return {
     iss: GITHUB_ACTIONS_TOKEN_SIGNING.iss,
     aud: GITHUB_ACTIONS_TOKEN_SIGNING.aud,
     repository,
-    repository_owner: parseRepository(repository).owner,
+    repository_owner: owner,
+    repository_id,
+    repository_owner_id,
     ref,
-    sub: `repo:${repository}:ref:${ref}`,
+    sub: subClaim,
     workflow_ref: `${repository}/.github/workflows/${workflow}@${ref}`,
     job_workflow_ref: `${repository}/.github/workflows/${workflow}@${ref}`,
   } as GitHubActionsJwtPayload;

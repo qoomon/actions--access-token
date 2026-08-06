@@ -178,4 +178,91 @@ describe('matchSubject', () => {
       )).toBe(true);
     });
   });
+
+  describe('immutable claims matching', () => {
+    it('matches exact immutable subject', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('matches immutable subject with wildcard in repository name', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/*@654321:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('matches immutable subject with ** wildcard', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/sandbox@654321:**',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('matches immutable immutable workflow_ref subject', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/sandbox@654321:workflow_ref:octocat/sandbox/.github/workflows/build.yml@refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:workflow_ref:octocat/sandbox/.github/workflows/build.yml@refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('matches immutable job_workflow_ref subject', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/sandbox@654321:job_workflow_ref:octocat/sandbox/.github/workflows/build.yml@refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:job_workflow_ref:octocat/sandbox/.github/workflows/build.yml@refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('does NOT match immutable subject with different owner ID', () => {
+      expect(matchSubject(
+          'repo:octocat@111111/sandbox@654321:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(false);
+    });
+
+    it('does NOT match immutable subject with different repository ID', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/sandbox@111111:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(false);
+    });
+
+    it('matches immutable subject with wildcard owner ID', () => {
+      expect(matchSubject(
+          'repo:octocat@*/sandbox@654321:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('matches immutable subject with wildcard repository ID', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/sandbox@*:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('does NOT match immutable subject when pattern has wildcard in owner claim name', () => {
+      // Wildcard in the claim key (before ':') is not allowed for security
+      expect(matchSubject(
+          'repo:octocat@*:/sandbox@654321:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(false);
+    });
+
+    it('matches immutable subject with ** suffix', () => {
+      expect(matchSubject(
+          'repo:octocat@123456/sandbox@654321:workflow_ref:**',
+          'repo:octocat@123456/sandbox@654321:workflow_ref:octocat/sandbox/.github/workflows/build.yml@refs/heads/main',
+      )).toBe(true);
+    });
+
+    it('matches immutable subject case-insensitively', () => {
+      expect(matchSubject(
+          'repo:OCTOCAT@123456/SANDBOX@654321:ref:refs/heads/main',
+          'repo:octocat@123456/sandbox@654321:ref:refs/heads/main',
+      )).toBe(true);
+    });
+  });
 });

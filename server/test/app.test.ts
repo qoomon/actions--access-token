@@ -8,7 +8,14 @@ import {beforeEach, describe, expect, it, jest} from '@jest/globals';
 import {RequestError} from '@octokit/request-error';
 import {GitHubAppRepositoryPermissions, parseRepository, verifyPermission} from '../src/common/github-utils.js';
 import * as Fixtures from './fixtures.js';
-import {AppInstallation, DEFAULT_OWNER, DEFAULT_REPO, GITHUB_ACTIONS_TOKEN_SIGNING, Repository} from './fixtures.js';
+import {
+  AppInstallation,
+  DEFAULT_OWNER,
+  DEFAULT_OWNER_ID,
+  DEFAULT_REPO,
+  GITHUB_ACTIONS_TOKEN_SIGNING,
+  Repository
+} from './fixtures.js';
 import {joinRegExp, Optional} from '../src/common/common-utils.js';
 import './jest-utils.js';
 import {Status} from '../src/common/http-utils.js';
@@ -1615,7 +1622,6 @@ async function mockJwks() {
         return actual.createRemoteJWKSet(url, options);
       }
     }
-
   });
 }
 
@@ -1687,9 +1693,23 @@ function mockGithub() {
                   throw new Error('Not Implemented');
                 }),
               },
-            },
-          };
-        }
+               users: {
+                 getByUsername: jest.fn().mockImplementation(async (params: any) => {
+                   // Return mock user ID based on username
+                   // IDs must match those used in test fixtures for consistency
+                   const ownerIdMap: Record<string, number> = {
+                     'octocat': 789012,
+                     'qoomon': 789012,
+                     'myorg': 789012,
+                     'github': 789012,
+                   };
+                   const id = ownerIdMap[params.username.toLowerCase()] ?? 789012;
+                   return {data: {id, login: params.username}};
+                 }),
+               },
+             },
+           };
+         }
 
         // GitHub app installation
         if (typeof paramsOctokit.auth === 'string') {
@@ -1724,7 +1744,16 @@ function mockGithub() {
                     });
                   }),
                 },
-              }
+              users: {
+                getByUsername: jest.fn().mockImplementation(async (params: any) => {
+                  // Return mock user ID based on username
+                  // IDs must match those used in test fixtures for consistency
+
+                  const id = DEFAULT_OWNER_ID;
+                  return {data: {id, login: params.username}};
+                }),
+               },
+             }
             };
           }
         }

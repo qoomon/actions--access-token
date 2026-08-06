@@ -10,10 +10,17 @@ function makeIdentity(overrides: Partial<GitHubActionsJwtPayload> = {}): GitHubA
   const repository = overrides.repository ?? 'octocat/sandbox';
   const ref = overrides.ref ?? 'refs/heads/main';
   const workflowFile = 'octocat/sandbox/.github/workflows/build.yml';
+  const repository_owner = repository.split('/')[0];
+  const repository_owner_id = overrides.repository_owner_id ?? '583231';
+  const repository_id = overrides.repository_id ?? '1234567';
+
   return {
-    sub: `repo:${repository}:ref:${ref}`,
+    sub: overrides.sub
+        ?? `repo:${repository_owner}@${repository_owner_id}/${repository.split('/')[1]}@${repository_id}:ref:${ref}`,
     repository,
-    repository_owner: repository.split('/')[0],
+    repository_owner,
+    repository_owner_id,
+    repository_id,
     ref,
     workflow_ref: `${workflowFile}@${ref}`,
     job_workflow_ref: `${workflowFile}@${ref}`,
