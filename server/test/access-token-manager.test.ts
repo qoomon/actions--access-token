@@ -92,4 +92,30 @@ describe('getEffectiveCallerIdentitySubjects', () => {
     const uniqueSubjects = new Set(subjects);
     expect(subjects.length).toBe(uniqueSubjects.size);
   });
+
+  it('adds a normalized subject for the new immutable subject claim format', () => {
+    const identity = makeIdentity({
+      sub: 'repo:octocat@123456/sandbox@789012:ref:refs/heads/main',
+    });
+    const subjects = getEffectiveCallerIdentitySubjects(identity);
+    expect(subjects).toContain(identity.sub);
+    expect(subjects).toContain('repo:octocat/sandbox:ref:refs/heads/main');
+  });
+
+  it('adds a normalized subject for immutable pull_request subjects', () => {
+    const identity = makeIdentity({
+      ref: 'refs/pull/42/head',
+      sub: 'repo:octocat@123456/sandbox@789012:pull_request',
+    });
+    const subjects = getEffectiveCallerIdentitySubjects(identity);
+    expect(subjects).toContain(identity.sub);
+    expect(subjects).toContain('repo:octocat/sandbox:pull_request');
+  });
+
+  it('does not add a normalized subject for classic mutable subjects', () => {
+    const identity = makeIdentity();
+    const subjects = getEffectiveCallerIdentitySubjects(identity);
+    const uniqueSubjects = new Set(subjects);
+    expect(subjects.length).toBe(uniqueSubjects.size);
+  });
 });

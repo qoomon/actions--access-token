@@ -39,6 +39,21 @@ export function parseOIDCSubject(subject: string): Record<string, string | undef
 }
 
 /**
+ * Normalize an OIDC subject claim value that uses the new immutable subject claim format
+ * (e.g. 'repo:spongebob@123/sandbox@456:ref:refs/heads/main') to the classic mutable format
+ * (e.g. 'repo:spongebob/sandbox:ref:refs/heads/main') by stripping the immutable owner and
+ * repository IDs, so that access policy subject patterns keep working regardless of the
+ * repository's subject claim format setting.
+ * @see https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
+ * @param subject - OIDC subject claim value
+ * @return subject with immutable owner/repository IDs stripped, if present
+ */
+export function normalizeImmutableOIDCSubject(subject: string): string {
+  return subject.replace(
+      /^repo:([^/:@]+)@\d+\/([^/:@]+)@\d+(?=:|$)/, 'repo:$1/$2');
+}
+
+/**
  * Aggregated permission sets to a most permissive permission set
  * @param permissionSets - permission sets
  * @return aggregated permissions

@@ -16,6 +16,7 @@ import {
   GitHubActionsJwtPayload,
   GitHubAppPermissions,
   GitHubAppRepositoryPermissions,
+  normalizeImmutableOIDCSubject,
   normalizePermissionScopes,
   parseRepository,
   validatePermissions,
@@ -524,11 +525,24 @@ function normalizeTokenRequest(
  * policy patterns can use shorter forms.  Pull-request refs are excluded
  * because they are not trusted for access grants.
  *
+ * Also adds a normalized subject for repositories using the new immutable subject
+ * claim format (e.g. `repo:owner@12345/repo@67890:...`), so that access policy
+ * subject patterns written in the classic mutable format (`repo:owner/repo:...`)
+ * keep matching regardless of the repository's subject claim format setting.
+ * @see https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
+ *
  * @param callerIdentity - caller identity from GitHub Actions OIDC token
  * @return deduplicated list of effective subjects
  */
 export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
   const subjects = [callerIdentity.sub];
+
+  // Add normalized subject for repositories using the new immutable subject claim format
+  // e.g. 'repo:owner@12345/repo@67890:ref:refs/heads/main' => 'repo:owner/repo:ref:refs/heads/main'
+  const normalizedSub = normalizeImmutableOIDCSubject(callerIdentity.sub);
+  if (normalizedSub !== callerIdentity.sub) {
+    subjects.push(normalizedSub);
+  }
 
   // Be Aware to not add artificial subjects for pull requests e.g., 'ref:refs/pull/1/head'
   if (callerIdentity.ref.startsWith('refs/heads/') ||
