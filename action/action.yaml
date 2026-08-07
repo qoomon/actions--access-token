@@ -6,27 +6,42 @@ branding:
   color: blue
 
 inputs:
-  permissions:
-    description: |
-      Permissions to request as YAML object string, e.g.
-      permissions: |
-        secrets: write
-    required: true
-  repository:
-    description: |
-      Target repository e.g. playground
-      Gets merged with repositories input
-      Defaults to OIDC token repository, only if inputs.owner is equal to OIDC token repository owner
-  repositories:
-    description: |
-      Target repositories as YAML array string or 'ALL', e.g.
-      repositories: |
-        - playground
-        - shop
   owner:
     description: |
       Target owner e.g. octocat
       Defaults to OIDC token repository owner
+
+  repositories:
+    description: |
+      Target repositories as comma separated strings
+        or as a YAML array string
+        or 'ALL' to target all repositories of inputs.owner .
+      Defaults to OIDC token repository, only if inputs.owner is equal to OIDC token repository owner.
+
+      Examples:
+
+        repositories: playground, shop
+
+        repositories: |
+          - playground
+          - shop
+
+        repositories: ALL
+
+  permissions:
+    required: true
+    description: |
+      Permissions to request as comma separated strings
+        or as YAML object string
+
+      Examples:
+
+        permissions: secrets:write, contents:write
+
+        permissions: |
+          secrets: write
+          contents: write
+
   app-server:
     description: |
       Configuration of the app server endpoint.

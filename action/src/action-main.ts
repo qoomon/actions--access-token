@@ -15,43 +15,32 @@ import {OutgoingHttpHeaders} from 'http';
 
 runAction(async () => {
   const input = {
-    permissions: z.record(z.string(), z.string())
-        .parse(getYamlInput('permissions', {required: true})),
-    repository: getInput('repository'),
-    repositories: z.union([
-      z.array(z.string()),
-      z.string().toUpperCase().pipe(z.literal('ALL')),
-    ])
-        .default(() => [])
-        .parse(getYamlInput('repositories')),
     owner: getInput('owner'),
-    // --- legacy support
-    scope: getInput('scope'),
+
+    repositories: z.union([
+      z.string().toUpperCase().pipe(z.literal('ALL')),
+      z.array(z.string()),
+      // comma separated repository names
+      z.string().transform((value) => value
+          .split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+      ),
+    ]).optional().parse(getYamlInput('repositories')),
+
+    permissions: z.union([
+      z.record(z.string(), z.string()),
+      // comma separated permissions
+      z.string().transform((value) => Object.fromEntries(value
+          .split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+          .map((s) => s.split(':', 2).map((s) => s.trim())))
+      ).pipe(z.record(z.string(), z.string())),
+    ]).parse(getYamlInput('permissions', {required: true})),
   };
-
-  // --- legacy support
-  {
-    // legacy support for owner input
-    if (input.scope === 'owner') {
-      if (Array.isArray(input.repositories) && input.repositories.length === 0) {
-        input.repositories = 'ALL';
-      }
-    }
-
-    // Legacy support for snake_case permissions
-    input.permissions = mapObjectEntries(input.permissions,
-        ([key, value]) => [key.replace('_', '-'), value]);
-  }
-
-  if (Array.isArray(input.repositories) && input.repository) {
-    input.repositories.unshift(input.repository);
-  }
 
   core.info('Get access token...');
   const accessToken = await getAccessToken({
-    permissions: input.permissions,
-    repositories: input.repositories,
     owner: input.owner,
+    repositories: input.repositories,
+    permissions: input.permissions,
   });
   core.info('Access token hash: ' + accessToken.token_hash);
 
@@ -67,15 +56,15 @@ runAction(async () => {
 /**
  * Get access token from access manager endpoint
  * @param tokenRequest - token request
- * @param tokenRequest.organization - target organization
+ * @param tokenRequest.owner - target owner
  * @param tokenRequest.repositories - target repositories
  * @param tokenRequest.permissions - target permissions
  * @return token
  */
 async function getAccessToken(tokenRequest: {
+  owner?: string
+  repositories?: string[] | 'ALL'
   permissions: GitHubAppPermissions
-  repositories: string[] | 'ALL' | undefined
-  owner: string | undefined
 }): Promise<GitHubAccessTokenResponse> {
   const idTokenForAccessManager = await core.getIDToken(config.appServer.url.hostname)
       .catch((error) => {
@@ -176,13 +165,4 @@ interface HttpRequest {
   requestUrl: string,
   data: string | NodeJS.ReadableStream | null,
   additionalHeaders?: OutgoingHttpHeaders
-}
-
-// --- Utils -----------------------------------------------------------------------------------------------------------
-
-export function mapObjectEntries<V, U>(
-    object: Record<string, V>,
-    fn: (entry: [string, V]) => [string, U],
-): Record<string, U> {
-  return Object.fromEntries(Object.entries(object).map(fn)) as Record<string, U>;
 }
