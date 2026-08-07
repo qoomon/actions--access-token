@@ -471,12 +471,6 @@ function normalizeTokenRequest(
       tokenRequest.owner = callerIdentity.repository_owner;
     }
   } else {
-    if (tokenRequest.owner && !hasEntries(tokenRequest.repositories)) {
-      throw new GitHubAccessTokenError([
-        'Invalid token request - repositories must have at least one entry if owner is specified explicitly',
-      ]);
-    }
-
     if (!hasEntries(tokenRequest.repositories)) {
       tokenRequest.repositories.push(callerIdentity.repository);
     }
