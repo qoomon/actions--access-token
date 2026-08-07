@@ -94,8 +94,7 @@ export async function accessTokenManager(options: {
     // --- Verify app installation -----------------------------------------------------------------------------------
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {owner: tokenRequest.owner});
     assertAppInstallation(
-        appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP,
-        options.accessPolicyLocation);
+        appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP, options.accessPolicyLocation);
     assertInstallationPermissions(
         appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP);
 
