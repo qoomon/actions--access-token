@@ -2,6 +2,7 @@ import {Stack, StackProps} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
 import {ManagedPolicy, OpenIdConnectPrincipal, OpenIdConnectProvider, Role} from 'aws-cdk-lib/aws-iam';
 
+// https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claim
 const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS = [
   // 'repo:USER@123456789/actions--access-token@123456789:ref:refs/heads/main',
 ];
