@@ -14,8 +14,6 @@ import {
 import {logger} from './logger.js';
 import {getRepositoryFileContent, Octokit} from './github-app-client.js';
 
-export const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
-
 // --- Access Policy Loading -----------------------------------------------------------------------------------------
 
 /**
@@ -25,18 +23,20 @@ export const ACCESS_POLICY_MAX_SIZE = 100 * 1024; // 100kb
  * @param repo - repository name containing the owner access policy
  * @param paths - candidate file paths (first found is used)
  * @param strict - when false, silently drop invalid entries instead of throwing
+ * @param maxSize - max file size
  * @return access policy (without the `origin` field)
  */
 export async function getOwnerAccessPolicy(client: Octokit, {
-  owner, repo, paths, strict,
+  owner, repo, paths, strict, maxSize
 }: {
   owner: string,
   repo: string,
   paths: string[],
   strict: boolean,
+  maxSize?: number,
 }): Promise<Omit<GitHubOwnerAccessPolicy, 'origin'>> {
   const policy = await getAccessPolicy(client, {
-    owner, repo, paths,
+    owner, repo, paths, maxSize,
     schema: GitHubOwnerAccessPolicySchema,
     preprocessor: (value) => {
       value = normalizeOwnerPolicyEntries(value);
@@ -61,18 +61,20 @@ export async function getOwnerAccessPolicy(client: Octokit, {
  * @param repo - repository name
  * @param paths - candidate file paths (first found is used)
  * @param strict - when false, silently drop invalid entries instead of throwing
+ * @param maxSize - max file size
  * @return access policy (without the `origin` field)
  */
 export async function getRepoAccessPolicy(client: Octokit, {
-  owner, repo, paths, strict,
+  owner, repo, paths, strict, maxSize,
 }: {
   owner: string,
   repo: string,
   paths: string[],
   strict: boolean,
+  maxSize?: number,
 }): Promise<Omit<GitHubRepositoryAccessPolicy, 'origin'>> {
   const policy = await getAccessPolicy(client, {
-    owner, repo, paths,
+    owner, repo, paths, maxSize,
     schema: GitHubRepositoryAccessPolicySchema,
     preprocessor: (value) => {
       value = normalizeRepoPolicyEntries(value);
@@ -94,16 +96,17 @@ export async function getRepoAccessPolicy(client: Octokit, {
  * Load, parse and validate an access policy file from a repository
  */
 async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client: Octokit, {
-  owner, repo, paths, schema, preprocessor,
+  owner, repo, paths, schema, preprocessor, maxSize
 }: {
   owner: string,
   repo: string,
   paths: string[],
   schema: T,
   preprocessor: (value: unknown) => unknown,
+  maxSize?: number,
 }): Promise<z.infer<T>> {
   const policyValue = await findFirstNotNull(paths, async (path) => {
-    return getRepositoryFileContent(client, {owner, repo, path, maxSize: ACCESS_POLICY_MAX_SIZE})
+    return getRepositoryFileContent(client, {owner, repo, path, maxSize})
         .catch((error) => {
           logger.error({owner, repo, path, error: String(error)}, 'Failed to get access policy file content');
           return null;

@@ -32,6 +32,7 @@ import {
   GithubAccessPolicyError,
   matchSubject,
 } from './access-policy.js';
+import {config} from './config';
 
 export {GithubAccessPolicyError} from './access-policy.js';
 
@@ -57,7 +58,7 @@ type NormalizedTokenRequest = GitHubAccessTokenRequest & { owner: string };
  */
 export async function accessTokenManager(options: {
   githubAppAuth: { appId: string, privateKey: string, },
-  accessPolicyLocation: { owner: { paths: string[], repo: string }, repo: { paths: string[] } }
+  accessPolicy: { location: { owner: { paths: string[], repo: string }, repo: { paths: string[] } } }
 }) {
   logger.debug({appId: options.githubAppAuth.appId}, 'GitHub app');
   const GITHUB_APP_CLIENT = new Octokit({
@@ -94,7 +95,7 @@ export async function accessTokenManager(options: {
     // --- Verify app installation -----------------------------------------------------------------------------------
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {owner: tokenRequest.owner});
     assertAppInstallation(
-        appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP, options.accessPolicyLocation);
+        appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP, options.accessPolicy.location);
     assertInstallationPermissions(
         appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP);
 
@@ -107,7 +108,7 @@ export async function accessTokenManager(options: {
     // --- Evaluate permissions: owner policy then per-repo policies ------------------------------------------------
     const ownerGranted = await grantFromOwnerPolicy(
         appInstallationClient, tokenRequest, callerIdentity, effectiveSubjects, tokenRequest.permissions,
-        options.accessPolicyLocation);
+        options.accessPolicy.location);
 
     const pendingAfterOwner = filterObjectEntries(
         tokenRequest.permissions, ([k]) => !(k in ownerGranted));
@@ -116,7 +117,7 @@ export async function accessTokenManager(options: {
         ? await grantFromRepositoryPolicies(
             appInstallationClient,
             tokenRequest as NormalizedTokenRequest & { repositories: string[] },
-            callerIdentity, effectiveSubjects, pendingAfterOwner, options.accessPolicyLocation.repo.paths)
+            callerIdentity, effectiveSubjects, pendingAfterOwner, options.accessPolicy.location.repo.paths)
         : {};
 
     const allGranted = {...ownerGranted, ...repoGranted};
@@ -249,6 +250,7 @@ async function grantFromOwnerPolicy(
     repo: accessPolicyLocation.owner.repo,
     paths: accessPolicyLocation.owner.paths,
     strict: false, // ignore invalid access policy entries
+    maxSize: config.accessPolicy.maxSize,
   }).catch((error) => {
     if (error instanceof GithubAccessPolicyError) {
       logger.info({owner: tokenRequest.owner, issues: error.issues},
@@ -388,6 +390,7 @@ async function grantFromRepositoryPolicies(
           owner: tokenRequest.owner, repo,
           paths: repoPolicyPaths,
           strict: false, // ignore invalid access policy entries
+          maxSize: config.accessPolicy.maxSize,
         }));
 
         if (!accessPolicyResult.success) {

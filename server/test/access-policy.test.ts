@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import {describe, expect, it} from '@jest/globals';
 import {matchSubject, resolveAccessPolicyStatementSubjects} from '../src/access-policy.js';
 

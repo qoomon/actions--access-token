@@ -334,7 +334,7 @@ describe('App path /access_tokens', () => {
 
         it('should respond with BAD_REQUEST if repositories count exceeds the maximum allowed', async () => {
           // --- Given ---
-          const tooManyRepos = Array.from({length: config.maxTargetRepositoriesPerRequest + 1}, (_, i) => `repo-${i}`);
+          const tooManyRepos = Array.from({length: config.tokenRequest.targetRepositoriesMaxCount + 1}, (_, i) => `repo-${i}`);
 
           // --- When ---
           const response = await app.request(path, {
@@ -1728,13 +1728,13 @@ function mockGithub() {
                     const repository = mock.repositories[`${params.owner}/${params.repo}`];
 
                     if (repository?.accessPolicy
-                        && config.accessPolicyLocation.repo.paths.includes(params.path)) {
+                        && config.accessPolicy.location.repo.paths.includes(params.path)) {
                       const contentString = YAML.stringify(repository.accessPolicy);
                       return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
                     }
 
                     if (repository?.ownerAccessPolicy &&
-                        config.accessPolicyLocation.owner.paths.includes(params.path)) {
+                        config.accessPolicy.location.owner.paths.includes(params.path)) {
                       const contentString = YAML.stringify(repository.ownerAccessPolicy);
                       return {data: {type: 'file', content: Buffer.from(contentString).toString('base64')}};
                     }
@@ -1779,7 +1779,7 @@ function mockGithub() {
           'origin' | 'statements'> | null,
     }): Repository {
       owner = owner || DEFAULT_OWNER;
-      const name = `${owner}/${config.accessPolicyLocation.owner.repo}`;
+      const name = `${owner}/${config.accessPolicy.location.owner.repo}`;
 
       const repository: Repository = {
         name,
@@ -1848,8 +1848,8 @@ function mockGithub() {
         owner,
         permissions,
         single_file_paths: permissions['single_file'] ? [
-          ...config.accessPolicyLocation.owner.paths,
-          ...config.accessPolicyLocation.repo.paths,
+          ...config.accessPolicy.location.owner.paths,
+          ...config.accessPolicy.location.repo.paths,
         ] : undefined,
       };
       mock.appInstallations[installation.owner] = installation;

@@ -20,27 +20,35 @@ const configSchema = z.strictObject({
         z.instanceof(RegExp)
     ).optional(),
   }),
-  accessPolicyLocation: z.strictObject({
-    owner: z.strictObject({
-      repo: GitHubRepositoryNameSchema,
-      paths: z.array(
-          z.string().regex(/(\.yaml|\.yml)$/)
-      ).nonempty(),
-    }),
-    repo: z.strictObject({
-      paths: z.array(
-          z.string().nonempty()
-      ).nonempty(),
-    }),
+
+  tokenRequest: z.strictObject({
+    targetRepositoriesMaxCount: z.number().int().positive(),
+    maxSize: z.number().int().positive(),
   }),
-  maxTargetRepositoriesPerRequest: z.int().min(1),
+
+  accessPolicy: z.strictObject({
+    location: z.strictObject({
+      owner: z.strictObject({
+        repo: GitHubRepositoryNameSchema,
+        paths: z.array(
+            z.string().regex(/(\.yaml|\.yml)$/)
+        ).nonempty(),
+      }),
+      repo: z.strictObject({
+        paths: z.array(
+            z.string().nonempty()
+        ).nonempty(),
+      }),
+    }),
+    maxSize: z.number().int().positive(),
+  }),
 });
 
 export const config = configSchema.parse({
   githubAppAuth: {
     appId: env('GITHUB_APP_ID', true),
     // Some environments do not support multiline env vars; the schema's
-    // .transform(formatPEMKey) normalises single-line keys to the standard
+    // .transform(formatPEMKey) normalizes single-line keys to the standard
     // multi-line PEM format before the value is used.
     privateKey: env('GITHUB_APP_PRIVATE_KEY', true),
   },
@@ -52,14 +60,25 @@ export const config = configSchema.parse({
         ?.split(/\s*,\s*/)
         ?.map((subjectPattern) => regexpOfWildcardPattern(subjectPattern, 'i')),
   },
-  accessPolicyLocation: {
-    owner: {
-      repo: '.github-access-token',
-      paths: ['access-token.yaml', 'access-token.yml'],
-    },
-    repo: {
-      paths: ['.github/access-token.yaml', '.github/access-token.yml'],
-    },
+
+  tokenRequest: {
+    /** Maximum number of target repositories allowed per access token request */
+    targetRepositoriesMaxCount: 32,
+    /** HTTP request body size limit in bytes */
+    maxSize: 100 * 1024,
   },
-  maxTargetRepositoriesPerRequest: 32,
+
+  accessPolicy: {
+    location: {
+      owner: {
+        repo: '.github-access-token',
+        paths: ['access-token.yaml', 'access-token.yml'],
+      },
+      repo: {
+        paths: ['.github/access-token.yaml', '.github/access-token.yml'],
+      },
+    },
+    /** Maximum policy file size in bytes */
+    maxSize: 100 * 1024,
+  },
 });

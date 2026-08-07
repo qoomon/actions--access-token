@@ -38,7 +38,7 @@ export function appInit(prepare?: (app: Hono) => void) {
   app.onError(errorHandler(logger));
   app.notFound(notFoundHandler());
 
-  app.use(bodyLimit({maxSize: 100 * 1024})); // 100kb
+  app.use(bodyLimit({maxSize: config.tokenRequest.maxSize}));
   app.use(prettyJSON());
 
   app.get('/', (context) => {
@@ -183,7 +183,7 @@ const AccessTokenRequestBodySchema = LegacyAccessTokenRequestBodyTransformer.pip
   owner: GitHubRepositoryOwnerSchema.optional(),
   permissions: GitHubAppPermissionsSchema.check(zUtils.hasEntries),
   repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema))
-      .max(config.maxTargetRepositoriesPerRequest)
+      .max(config.tokenRequest.targetRepositoriesMaxCount)
       .or(z.literal('ALL'))
       .default(() => []),
 }));
