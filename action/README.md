@@ -87,7 +87,7 @@ jobs:
       id-token: write
 
     steps:
-      - uses: qoomon/actions--access-token@v3
+      - uses: qoomon/actions--access-token@v4
         id: access-token
         with:
           permissions: |
@@ -129,10 +129,10 @@ jobs:
       id-token: write
 
     steps:
-      - uses: qoomon/actions--access-token@v3
+      - uses: qoomon/actions--access-token@v4
         id: access-token
         with:
-          repository: [target repository]
+          repositories: target-repository
           permissions: |
             contents: read
 
@@ -194,7 +194,7 @@ jobs:
 build:
   runs-on: ubuntu-latest
   steps:
-    - uses: qoomon/actions--access-token@v3
+    - uses: qoomon/actions--access-token@v4
       id: access-token
       with:
         permissions: |
