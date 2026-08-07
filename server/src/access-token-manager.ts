@@ -87,8 +87,9 @@ export async function accessTokenManager(options: {
    * @return access token
    */
   async function createAccessToken(callerIdentity: GitHubActionsJwtPayload, tokenRequest: GitHubAccessTokenRequest) {
-    const effectiveSubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
     normalizeTokenRequest(tokenRequest, callerIdentity);
+
+    const effectiveSubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
 
     // --- Verify app installation -----------------------------------------------------------------------------------
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {owner: tokenRequest.owner});
@@ -532,42 +533,38 @@ export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActions
   const subjects = [callerIdentity.sub];
 
   // https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
-  const immutableRepository = callerIdentity.sub.includes('@')
-      ? (`${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
-          + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`)
-      : undefined;
+  const immutableRepository =`${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
+          + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`;
 
   // Be Aware to not add artificial subjects for pull requests e.g., 'ref:refs/pull/1/head'
   if (callerIdentity.ref.startsWith('refs/heads/') ||
       callerIdentity.ref.startsWith('refs/tags/')) {
     // repo : ref
+
+    // => repo:qoomon@111111/sandbox@999999:ref:refs/heads/main
+    subjects.push(`repo:${immutableRepository}:ref:${callerIdentity.ref}`);
     // => repo:qoomon/sandbox:ref:refs/heads/main
     subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`);
-    if (immutableRepository) {
-      subjects.push(`repo:${immutableRepository}:ref:${callerIdentity.ref}`);
-    }
   }
 
   // Be Aware to not add artificial subjects for pull requests e.g., 'workflow_ref:...@refs/pull/1/head'
   if (callerIdentity.workflow_ref.split('@')[1]?.startsWith('refs/heads/') ||
       callerIdentity.workflow_ref.split('@')[1]?.startsWith('refs/tags/')) {
     // repo : workflow_ref
+    // => repo:qoomon@111111/sandbox@999999:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+    subjects.push(`repo:${immutableRepository}:workflow_ref:${callerIdentity.workflow_ref}`);
     // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
     subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`);
-    if (immutableRepository) {
-      subjects.push(`repo:${immutableRepository}:workflow_ref:${callerIdentity.workflow_ref}`);
-    }
   }
 
   // Be Aware to not add artificial subjects for pull requests e.g., 'job_workflow_ref:...@refs/pull/1/head'
   if (callerIdentity.job_workflow_ref.split('@')[1]?.startsWith('refs/heads/') ||
       callerIdentity.job_workflow_ref.split('@')[1]?.startsWith('refs/tags/')) {
     // repo : job_workflow_ref
+    // => repo:qoomon@111111/sandbox@999999:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+    subjects.push(`repo:${immutableRepository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
     // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
     subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
-    if (immutableRepository) {
-      subjects.push(`repo:${immutableRepository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
-    }
   }
 
   return unique(subjects);
