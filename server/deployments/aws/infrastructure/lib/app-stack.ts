@@ -9,8 +9,8 @@ import * as path from 'path';
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
 const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: string[] = [
-  // 'repo:USER@123456789/*:**', // immutable subject claims https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
-  // 'repo:USER/*:**', // legacy subject claims
+  // 'repo:USER@123456789/*', // immutable subject claims https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
+  // 'repo:USER/*', // legacy subject claims
 ]
 
 export class AppStack extends Stack {
