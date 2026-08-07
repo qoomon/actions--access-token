@@ -23,7 +23,8 @@
     "strictPropertyInitialization": false,
     "typeRoots": [
       "./node_modules/@types"
-    ]
+    ],
+    "types": ["node"]
   },
   "exclude": [
     "node_modules",
