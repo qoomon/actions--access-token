@@ -8,7 +8,9 @@ import * as secretManager from 'aws-cdk-lib/aws-secretsmanager'
 import * as path from 'path';
 
 // https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#example-subject-claims
-const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: string[] = []
+const GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS: string[] = [
+  // 'repo:SUSER@123456789/actions--access-token@123456789:ref:refs/heads/main',
+]
 
 export class AppStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
