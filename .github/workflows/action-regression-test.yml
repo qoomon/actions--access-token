@@ -80,7 +80,7 @@ jobs:
       - uses: qoomon/actions--access-token@v4
         id: access-token
         with:
-          repositories: access-token
+          repositories: actions--access-token
           permissions: secrets:write
 
       - run: >-
