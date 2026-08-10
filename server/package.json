@@ -21,7 +21,7 @@
   ],
   "dependencies": {
     "@hono/node-server": "^2.0.12",
-    "@octokit/auth-app": "^8.2.0",
+    "@octokit/auth-app": "^8.3.0",
     "@octokit/plugin-retry": "^8.1.0",
     "@octokit/rest": "^22.0.1",
     "hono": "^4.13.0",
