@@ -57,7 +57,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: qoomon/actions--access-token@v3
+      - uses: qoomon/actions--access-token@v4
         id: access-token
         with:
           permissions: |
