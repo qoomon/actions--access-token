@@ -36,7 +36,7 @@
     "@octokit/types": "^16.0.0",
     "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
+    "@typescript-eslint/parser": "^8.66.0",
     "@vercel/ncc": "^0.44.1",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-jest": "^29.16.0",
