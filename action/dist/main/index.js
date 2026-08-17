@@ -52957,8 +52957,13 @@ _config_js__WEBPACK_IMPORTED_MODULE_4__ = (__webpack_async_dependencies__.then ?
             zod__WEBPACK_IMPORTED_MODULE_5__/* .record */ .g1(zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .Yj(), zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .Yj()),
             // comma separated permissions
             zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .Yj().transform((value) => Object.fromEntries(value
-                .split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-                .map((s) => s.split(':', 2).map((s) => s.trim())))).pipe(zod__WEBPACK_IMPORTED_MODULE_5__/* .record */ .g1(zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .Yj(), zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .Yj())),
+                .split(',')
+                .map(s => s.trim()).filter(s => s.length > 0)
+                .map((s) => {
+                const [scope, permission] = s.split(':', 2).map((s) => s.trim());
+                const scopeNormalized = scope.replaceAll(' ', '_').toLowerCase();
+                return [scopeNormalized, permission];
+            }))).pipe(zod__WEBPACK_IMPORTED_MODULE_5__/* .record */ .g1(zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .Yj(), zod__WEBPACK_IMPORTED_MODULE_5__/* .string */ .Yj())),
         ]).parse((0,_github_actions_utils_js__WEBPACK_IMPORTED_MODULE_3__/* .getYamlInput */ .Q3)('permissions', { required: true })),
     };
     _actions_core__WEBPACK_IMPORTED_MODULE_0__/* .info */ .pq('Get access token...');

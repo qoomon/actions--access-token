@@ -36,11 +36,13 @@ inputs:
 
       Examples:
 
-        permissions: secrets:write, contents:write
+        permissions: contents:write, pull-requests:write, secrets:write
 
         permissions: |
-          secrets: write
           contents: write
+          pull-requests: write
+          secrets: write
+
 
   app-server:
     description: |

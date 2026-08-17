@@ -30,8 +30,13 @@ runAction(async () => {
       z.record(z.string(), z.string()),
       // comma separated permissions
       z.string().transform((value) => Object.fromEntries(value
-          .split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-          .map((s) => s.split(':', 2).map((s) => s.trim())))
+          .split(',')
+          .map(s => s.trim()).filter(s => s.length > 0)
+          .map((s) => {
+            const [scope, permission] = s.split(':', 2).map((s) => s.trim());
+            const scopeNormalized = scope.replaceAll(' ', '_').toLowerCase();
+            return [scopeNormalized, permission];
+          }))
       ).pipe(z.record(z.string(), z.string())),
     ]).parse(getYamlInput('permissions', {required: true})),
   };
