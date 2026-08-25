@@ -166,24 +166,11 @@ export function appInit(prepare?: (app: Hono) => void) {
 
 // --- Schemas & Types -----------------------------------------------------------------------------------------------------------
 
-const LegacyAccessTokenRequestBodyTransformer = z.any().transform(val => {
-  // legacy support for owner input
-  if (val !== null && typeof val === 'object') {
-    if (val.scope === 'owner') {
-      delete val.scope;
-      if (val.repositories?.length === 0) {
-        val.repositories = 'ALL';
-      }
-    }
-  }
-  return val;
-});
-
-const AccessTokenRequestBodySchema = LegacyAccessTokenRequestBodyTransformer.pipe(z.strictObject({
+const AccessTokenRequestBodySchema = z.strictObject({
   owner: GitHubRepositoryOwnerSchema.optional(),
   permissions: GitHubAppPermissionsSchema.check(zUtils.hasEntries),
   repositories: z.array(GitHubRepositoryNameSchema.or(GitHubRepositorySchema))
       .max(config.tokenRequest.targetRepositoriesMaxCount)
       .or(z.literal('ALL'))
       .default(() => []),
-}));
+});

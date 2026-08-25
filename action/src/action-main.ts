@@ -27,6 +27,7 @@ runAction(async () => {
     ]).optional().parse(getYamlInput('repositories')),
 
     permissions: z.union([
+      // permission record
       z.record(z.string(), z.string()),
       // comma separated permissions
       z.string().transform((value) => Object.fromEntries(value
@@ -34,7 +35,8 @@ runAction(async () => {
           .map(s => s.trim()).filter(s => s.length > 0)
           .map((s) => {
             const [scope, permission] = s.split(':', 2).map((s) => s.trim());
-            const scopeNormalized = scope.replaceAll(' ', '_').toLowerCase();
+            // normalize scope to lowercase and transform gitub api_scopes into github actions-scopes format
+            const scopeNormalized = scope.toLowerCase().replaceAll('_', '-');
             return [scopeNormalized, permission];
           }))
       ).pipe(z.record(z.string(), z.string())),
