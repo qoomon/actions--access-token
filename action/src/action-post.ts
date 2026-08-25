@@ -15,11 +15,12 @@ runAction(async () => {
           headers: {'X-GitHub-Api-Version': '2022-11-28'},
         })
         .catch((err: unknown) => {
-          if (err instanceof RequestError && err.status === 404) {
+          if (err instanceof RequestError
+            && (err.status === 401 || err.status === 404)) {
             // ignore already expired or revoked token
             return;
           }
-          throw err;
+          core.warning(String(err))
         });
   }
 });

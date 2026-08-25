@@ -40681,7 +40681,7 @@ function error(message, properties = {}) {
  * @param properties optional properties to add to the annotation.
  */
 function warning(message, properties = {}) {
-    issueCommand('warning', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    command_issueCommand('warning', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
  * Adds a notice issue
@@ -45570,11 +45570,12 @@ runAction(async () => {
             headers: { 'X-GitHub-Api-Version': '2022-11-28' },
         })
             .catch((err) => {
-            if (err instanceof RequestError && err.status === 404) {
+            if (err instanceof RequestError
+                && (err.status === 404 || err.status === 401)) {
                 // ignore already expired or revoked token
                 return;
             }
-            throw err;
+            warning(String(err));
         });
     }
 });
