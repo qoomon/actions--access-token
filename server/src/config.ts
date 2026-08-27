@@ -54,10 +54,9 @@ export const config = configSchema.parse({
   },
   githubActionsTokenVerifier: {
     allowedAud: env('GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE', true)
-        .split(',')
-        .map(aud => aud.trim()),
+        .split(',').map(s => s.trim()),
     allowedSub: env('GITHUB_ACTIONS_TOKEN_ALLOWED_SUBJECTS')
-        ?.split(/\s*,\s*/)
+        ?.split(',').map((s) => s.trim())
         ?.map((subjectPattern) => regexpOfWildcardPattern(subjectPattern, 'i')),
   },
 

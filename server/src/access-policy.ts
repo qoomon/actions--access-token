@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {formatZodIssue, YamlTransformer} from './common/zod-utils.js';
-import {escapeRegexp, filterObjectEntries, findFirstNotNull, indent, isRecord,} from './common/common-utils.js';
+import {filterObjectEntries, findFirstNotNull, indent, isRecord,} from './common/common-utils.js';
 import {
   aggregatePermissions,
   GitHubAppPermissions,
@@ -382,7 +382,7 @@ export function matchSubject(subjectPattern: string | string[], subject: string 
  * Compile a wildcard subject pattern into a regular expression
  */
 function regexpOfSubjectPattern(subjectPattern: string): RegExp {
-  const regexp = escapeRegexp(subjectPattern)
+  const regexp = RegExp.escape(subjectPattern)
       .replaceAll('\\*\\*', '(?:.*)') // **  matches zero or more characters
       .replaceAll('\\*', '(?:[^:]*)') //  *  matches zero or more characters except ':'
       .replaceAll('\\?', '[^:]'); //  ?  matches one character except ':'
