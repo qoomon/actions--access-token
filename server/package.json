@@ -33,7 +33,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^10.0.1",
-    "@octokit/types": "^16.0.0",
+    "@octokit/types": "^17.0.0",
     "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.66.0",
