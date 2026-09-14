@@ -92,6 +92,9 @@ async function getAccessToken(tokenRequest: {
           webIdentityToken: await core.getIDToken('sts.amazonaws.com'),
           roleArn: config.appServer.auth.roleArn,
           durationSeconds: 900, // 15 minutes are the minimum allowed by AWS
+          clientConfig: {
+            region: config.appServer.auth.region,
+          }
         }),
       });
     } else {
