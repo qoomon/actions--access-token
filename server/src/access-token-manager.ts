@@ -2,7 +2,15 @@ import crypto from "node:crypto";
 import limit from 'p-limit';
 import {createAppAuth} from '@octokit/auth-app';
 import {RestEndpointMethodTypes} from '@octokit/rest';
-import {ensureHasEntries, filterObjectEntries, hasEntries, indent, resultOf, unique,} from './common/common-utils.js';
+import {
+  ensureHasEntries,
+  filterObjectEntries,
+  hasEntries,
+  indent,
+  Overwrite,
+  resultOf,
+  unique,
+} from './common/common-utils.js';
 import {
   aggregatePermissions,
   arePermissionsEqual,
@@ -49,7 +57,7 @@ type AccessPolicyOptions = {
 };
 
 // Convenience alias for a token request that has been through normalizeTokenRequest
-type NormalizedTokenRequest = GitHubAccessTokenRequest & { owner: string };
+type NormalizedTokenRequest = Overwrite<GitHubAccessTokenRequest, { owner: string }>;
 
 /**
  * GitHub Access Manager factory
@@ -90,14 +98,12 @@ export async function accessTokenManager(options: {
   async function createAccessToken(callerIdentity: GitHubActionsJwtPayload, tokenRequest: GitHubAccessTokenRequest) {
     normalizeTokenRequest(tokenRequest, callerIdentity);
 
-    const effectiveSubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
-
     // --- Verify app installation -----------------------------------------------------------------------------------
     const appInstallation = await getAppInstallation(GITHUB_APP_CLIENT, {owner: tokenRequest.owner});
     assertAppInstallation(
-        appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP, options.accessPolicy.location);
+        appInstallation, tokenRequest, callerIdentity, GITHUB_APP, options.accessPolicy.location);
     assertInstallationPermissions(
-        appInstallation, tokenRequest, callerIdentity, effectiveSubjects, GITHUB_APP);
+        appInstallation, tokenRequest, callerIdentity, GITHUB_APP);
 
     // --- Create installation-scoped client for reading access policy files -----------------------------------------
     const appInstallationClient = await createOctokit(GITHUB_APP_CLIENT, appInstallation, {
@@ -106,19 +112,29 @@ export async function accessTokenManager(options: {
     });
 
     // --- Evaluate permissions: owner policy then per-repo policies ------------------------------------------------
+    const effectiveSubjects = getEffectiveCallerIdentitySubjects(callerIdentity);
+
     const ownerGranted = await grantFromOwnerPolicy(
-        appInstallationClient, tokenRequest, callerIdentity, effectiveSubjects, tokenRequest.permissions,
-        options.accessPolicy.location);
+        appInstallationClient,
+        tokenRequest,
+        callerIdentity,
+        effectiveSubjects,
+        tokenRequest.permissions,
+        options.accessPolicy.location,
+    );
 
     const pendingAfterOwner = filterObjectEntries(
         tokenRequest.permissions, ([k]) => !(k in ownerGranted));
 
-    const repoGranted = hasEntries(pendingAfterOwner)
+    const repoGranted = hasEntries(pendingAfterOwner) && Array.isArray(tokenRequest.repositories)
         ? await grantFromRepositoryPolicies(
             appInstallationClient,
-            tokenRequest as NormalizedTokenRequest & { repositories: string[] },
-            callerIdentity, effectiveSubjects, pendingAfterOwner, options.accessPolicy.location.repo.paths)
-        : {};
+            tokenRequest as Overwrite<NormalizedTokenRequest, { repositories: string[] }>,
+            callerIdentity,
+            effectiveSubjects,
+            pendingAfterOwner,
+            options.accessPolicy.location.repo.paths,
+        ) : {};
 
     const allGranted = {...ownerGranted, ...repoGranted};
 
@@ -155,7 +171,6 @@ function assertAppInstallation(
     appInstallation: GitHubAppInstallation | null,
     tokenRequest: NormalizedTokenRequest,
     callerIdentity: GitHubActionsJwtPayload,
-    effectiveSubjects: string[],
     githubApp: NonNullable<GitHubApp>,
     accessPolicyLocation: AccessPolicyOptions,
 ): asserts appInstallation is GitHubAppInstallation {
@@ -168,7 +183,7 @@ function assertAppInstallation(
       issues: callerIdentity.repository_owner === tokenRequest.owner
           ? [`'${githubApp.name}' has not been installed. Install from ${githubApp.html_url}`]
           : [NOT_AUTHORIZED_MESSAGE],
-    }], effectiveSubjects);
+    }]);
   }
 
   logger.debug({appInstallation}, 'App installation');
@@ -189,7 +204,7 @@ function assertAppInstallation(
       issues: callerIdentity.repository_owner === tokenRequest.owner
           ? [`'${githubApp.name}' is not authorized to read all access policy file(s) by 'single_file' permission`]
           : [NOT_AUTHORIZED_MESSAGE],
-    }], effectiveSubjects);
+    }]);
   }
 }
 
@@ -201,7 +216,6 @@ function assertInstallationPermissions(
     appInstallation: GitHubAppInstallation,
     tokenRequest: NormalizedTokenRequest,
     callerIdentity: GitHubActionsJwtPayload,
-    effectiveSubjects: string[],
     githubApp: NonNullable<GitHubApp>,
 ) {
   const {pending} = verifyPermissions({
@@ -220,7 +234,7 @@ function assertInstallationPermissions(
             message: `'${githubApp.name}' installation not authorized`,
           }))
           : [NOT_AUTHORIZED_MESSAGE],
-    }], effectiveSubjects);
+    }]);
   }
 }
 
@@ -365,7 +379,7 @@ async function grantFromOwnerPolicy(
  */
 async function grantFromRepositoryPolicies(
     client: Octokit,
-    tokenRequest: NormalizedTokenRequest & { repositories: string[] },
+    tokenRequest: Overwrite<NormalizedTokenRequest, { repositories: string[] }>,
     callerIdentity: GitHubActionsJwtPayload,
     effectiveSubjects: string[],
     pendingPermissions: Record<string, string>,
@@ -519,7 +533,7 @@ function normalizeTokenRequest(
  *
  * Adds artificial compound subjects (`repo:…:ref:…`, `repo:…:workflow_ref:…`,
  * `repo:…:job_workflow_ref:…`) alongside the raw `sub` claim so that access
- * policy patterns can use shorter forms.  Pull-request refs are excluded
+ * policy patterns can use shorter forms. Pull-request refs are excluded
  * because they are not trusted for access grants.
  *
  * @param callerIdentity - caller identity from GitHub Actions OIDC token
@@ -529,8 +543,8 @@ export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActions
   const subjects = [callerIdentity.sub];
 
   // https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
-  const immutableRepository =`${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
-          + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`;
+  const immutableRepository = `${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
+      + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`;
 
   // Be Aware to not add artificial subjects for pull requests e.g., 'ref:refs/pull/1/head'
   if (callerIdentity.ref.startsWith('refs/heads/') ||
@@ -600,12 +614,13 @@ export class GitHubAccessTokenError extends Error {
                 }
                 return `${issue.scope}: ${issue.permission} - ${issue.message}`;
               }).map((msg) => indent(msg, '- ')).join('\n');
-        }).map((msg) => indent(msg, '- ')).join('\n');
+        }).map((msg) => indent(msg, '- '))
+            .join('\n') + '\n';
 
     if (callerIdentitySubjects) {
-      message += '\n' +
-          'Effective OIDC token subjects:\n' +
-          `${callerIdentitySubjects.map((subject) => indent(subject, '- ')).join('\n')}`;
+      message += 'Effective OIDC token subjects:\n' +
+          callerIdentitySubjects.map((subject) => indent(subject, '- '))
+              .join('\n') + '\n';
     }
 
     super(message);

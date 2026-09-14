@@ -2,7 +2,7 @@ import {z} from 'zod';
 import YAML from 'yaml';
 
 export const hasEntries: z.core.$ZodCheck<object> = z.superRefine((obj, ctx) => {
-  if (Object.keys(obj).length === 0) {
+  if (ctx.issues.length === 0 && Object.keys(obj).length === 0) {
     ctx.issues.push({
       code: 'custom',
       message: `Invalid ${Array.isArray(obj) ? 'array' : 'object'}: must have at least one entry`,

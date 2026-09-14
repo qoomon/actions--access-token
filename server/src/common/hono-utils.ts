@@ -89,9 +89,10 @@ export async function parseJsonBody<T extends ZodType>(req: HonoRequest, schema:
 
   if (!bodyParseResult.success) {
     throw new HTTPException(Status.BAD_REQUEST, {
-      message: `Invalid request body:\n${
+      message: 'Invalid request body:\n' +
           bodyParseResult.error.issues.map(formatZodIssue)
-              .map((it) => indent(it, '  ')).join('\n')}`,
+              .map((it) => indent(it, '  '))
+              .join('\n') + '\n',
     });
   }
   return bodyParseResult.data;
