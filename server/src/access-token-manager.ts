@@ -546,6 +546,11 @@ export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActions
   const immutableRepository = `${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
       + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`;
 
+  // Ensure that the immutable subject is included if the raw subject is the legacy form
+  if (callerIdentity.sub.includes(`repo:${callerIdentity.repository}`)) {
+    subjects.push(callerIdentity.sub.replace(`repo:${callerIdentity.repository}`, `repo:${immutableRepository}`));
+  }
+
   // Be Aware to not add artificial subjects for pull requests e.g., 'ref:refs/pull/1/head'
   if (callerIdentity.ref.startsWith('refs/heads/') ||
       callerIdentity.ref.startsWith('refs/tags/')) {

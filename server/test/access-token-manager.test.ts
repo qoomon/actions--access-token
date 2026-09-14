@@ -40,6 +40,18 @@ describe('getEffectiveCallerIdentitySubjects', () => {
     expect(subjects).toContain(identity.sub);
   });
 
+  it('adds immutable repository subject for legacy sub claim', () => {
+    const identity = makeIdentity({
+      sub: 'repo:octocat/sandbox:pull_request',
+      ref: 'refs/pull/42/head',
+    });
+    const subjects = getEffectiveCallerIdentitySubjects(identity);
+    expect(subjects).toContain(
+        `repo:${identity.repository_owner}@${identity.repository_owner_id}` +
+        `/${identity.repository.split('/')[1]}@${identity.repository_id}` +
+        `:pull_request`);
+  });
+
   it('adds repo:…:ref:… for branch refs', () => {
     const identity = makeIdentity({ref: 'refs/heads/main'});
     const subjects = getEffectiveCallerIdentitySubjects(identity);
