@@ -375,6 +375,16 @@ export function matchSubject(subjectPattern: string | string[], subject: string 
     return false;
   }
 
+  const pullRequestRefPatterns = [/^refs\/pull\//, /@refs\/pull\/[^@]+$/];
+  const subjectClaims = parseOIDCSubject(subject)
+  const subjectPatternsClaims = parseOIDCSubject(subjectPattern)
+  for (const [claim, value] of Object.entries(subjectClaims)) {
+    for (const pattern of pullRequestRefPatterns) {
+      if (value?.match(pattern) && !subjectPatternsClaims[claim]?.match(pattern)) {
+        return false;
+      }
+    }
+  }
   return regexpOfSubjectPattern(subjectPattern).test(subject);
 }
 

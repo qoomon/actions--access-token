@@ -546,41 +546,31 @@ export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActions
   const immutableRepository = `${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
       + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`;
 
-  // Ensure that the immutable subject is included if the raw subject is the legacy form
+  // Ensure the immutable and the legacy subject format are both included for backward compatibility with existing access policies
+  if (callerIdentity.sub.includes(`repo:${immutableRepository}`)) {
+    subjects.push(callerIdentity.sub.replace(`repo:${immutableRepository}`, `repo:${callerIdentity.repository}`));
+  }
   if (callerIdentity.sub.includes(`repo:${callerIdentity.repository}`)) {
     subjects.push(callerIdentity.sub.replace(`repo:${callerIdentity.repository}`, `repo:${immutableRepository}`));
   }
 
-  // Be Aware to not add artificial subjects for pull requests e.g., 'ref:refs/pull/1/head'
-  if (callerIdentity.ref.startsWith('refs/heads/') ||
-      callerIdentity.ref.startsWith('refs/tags/')) {
-    // repo : ref
+  // repo : ref
+  // => repo:qoomon@111111/sandbox@999999:ref:refs/heads/main
+  subjects.push(`repo:${immutableRepository}:ref:${callerIdentity.ref}`);
+  // => repo:qoomon/sandbox:ref:refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`);
 
-    // => repo:qoomon@111111/sandbox@999999:ref:refs/heads/main
-    subjects.push(`repo:${immutableRepository}:ref:${callerIdentity.ref}`);
-    // => repo:qoomon/sandbox:ref:refs/heads/main
-    subjects.push(`repo:${callerIdentity.repository}:ref:${callerIdentity.ref}`);
-  }
+  // repo : workflow_ref
+  // => repo:qoomon@111111/sandbox@999999:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${immutableRepository}:workflow_ref:${callerIdentity.workflow_ref}`);
+  // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`);
 
-  // Be Aware to not add artificial subjects for pull requests e.g., 'workflow_ref:...@refs/pull/1/head'
-  if (callerIdentity.workflow_ref.split('@')[1]?.startsWith('refs/heads/') ||
-      callerIdentity.workflow_ref.split('@')[1]?.startsWith('refs/tags/')) {
-    // repo : workflow_ref
-    // => repo:qoomon@111111/sandbox@999999:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    subjects.push(`repo:${immutableRepository}:workflow_ref:${callerIdentity.workflow_ref}`);
-    // => repo:qoomon/sandbox:workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    subjects.push(`repo:${callerIdentity.repository}:workflow_ref:${callerIdentity.workflow_ref}`);
-  }
-
-  // Be Aware to not add artificial subjects for pull requests e.g., 'job_workflow_ref:...@refs/pull/1/head'
-  if (callerIdentity.job_workflow_ref.split('@')[1]?.startsWith('refs/heads/') ||
-      callerIdentity.job_workflow_ref.split('@')[1]?.startsWith('refs/tags/')) {
-    // repo : job_workflow_ref
-    // => repo:qoomon@111111/sandbox@999999:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    subjects.push(`repo:${immutableRepository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
-    // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
-    subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
-  }
+  // repo : job_workflow_ref
+  // => repo:qoomon@111111/sandbox@999999:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${immutableRepository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
+  // => repo:qoomon/sandbox:job_workflow_ref:qoomon/sandbox/.github/workflows/build.yml@refs/heads/main
+  subjects.push(`repo:${callerIdentity.repository}:job_workflow_ref:${callerIdentity.job_workflow_ref}`);
 
   return unique(subjects);
 }

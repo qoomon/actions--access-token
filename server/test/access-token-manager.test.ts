@@ -64,32 +64,11 @@ describe('getEffectiveCallerIdentitySubjects', () => {
     expect(subjects).toContain(`repo:${identity.repository}:ref:${identity.ref}`);
   });
 
-  it('does NOT add repo:…:ref:… for pull-request refs', () => {
-    // For PR events, the real OIDC sub claim is something like
-    // "repo:octocat/sandbox:pull_request", NOT "repo:…:ref:refs/pull/…".
-    // The function should not add the artificial ref subject for PR refs.
-    const identity = makeIdentity({
-      ref: 'refs/pull/42/head',
-      sub: 'repo:octocat/sandbox:pull_request',
-    });
-    const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).not.toContain(`repo:${identity.repository}:ref:${identity.ref}`);
-  });
-
   it('adds repo:…:workflow_ref:… for branch-based workflow refs', () => {
     const identity = makeIdentity();
     const subjects = getEffectiveCallerIdentitySubjects(identity);
     expect(subjects).toContain(
         `repo:${identity.repository}:workflow_ref:${identity.workflow_ref}`);
-  });
-
-  it('does NOT add workflow_ref subject for pull-request workflow refs', () => {
-    const ref = 'refs/pull/42/head';
-    const workflowRef = `octocat/sandbox/.github/workflows/build.yml@${ref}`;
-    const identity = makeIdentity({ref, workflow_ref: workflowRef, job_workflow_ref: workflowRef});
-    const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).not.toContain(`repo:${identity.repository}:workflow_ref:${workflowRef}`);
-    expect(subjects).not.toContain(`repo:${identity.repository}:job_workflow_ref:${workflowRef}`);
   });
 
   it('adds repo:…:job_workflow_ref:… for branch-based job workflow refs', () => {

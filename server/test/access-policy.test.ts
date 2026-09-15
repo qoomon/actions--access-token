@@ -148,6 +148,37 @@ describe('matchSubject', () => {
     });
   });
 
+  describe('pull request matching', () => {
+    it('rejects implicit wildcard matching (ref claim)', () => {
+      expect(matchSubject(
+          'repo:octocat/sandbox:ref:refs/*',
+          'repo:octocat/sandbox:ref:refs/pull/123/head',
+      )).toBe(false);
+    });
+
+    it('allow explicit matching (ref claim)', () => {
+      expect(matchSubject(
+          'repo:octocat/sandbox:ref:refs/pull/*',
+          'repo:octocat/sandbox:ref:refs/pull/123/head',
+      )).toBe(true);
+    });
+
+    it('rejects implicit wildcard matching (workflow_ref claim)', () => {
+      expect(matchSubject(
+          'repo:octocat/sandbox/.github/workflows/example.yml@refs/*',
+          'repo:octocat/sandbox/.github/workflows/example.yml@refs/pull/123/head',
+      )).toBe(false);
+    });
+
+    it('allow explicit matching (workflow_ref claim)', () => {
+      expect(matchSubject(
+          'repo:octocat/sandbox/.github/workflows/example.yml@refs/pull/*',
+          'repo:octocat/sandbox/.github/workflows/example.yml@refs/pull/123/head',
+      )).toBe(true);
+    });
+
+  });
+
   describe('array overloads', () => {
     it('accepts an array of patterns and returns true if any match', () => {
       expect(matchSubject(
