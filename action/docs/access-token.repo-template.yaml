@@ -10,6 +10,8 @@ statements:
       # - repo:${origin}:ref:refs/heads/main
       # grant access jobs running on any tag starting with a v
       # - repo:${origin}:ref:refs/tags/v*
+      # grant access to jobs running on any branch or tag (refs/pull/... needs to be explicitly granted)
+      # - repo:${origin}:ref:refs/*
       # grant access to jobs using production environment
       # - repo:${origin}:environment:production
       # grant access to jobs of a specific workflow file
