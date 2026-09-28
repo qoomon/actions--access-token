@@ -1,6 +1,5 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import jest from 'eslint-plugin-jest';
 
 export default [
   eslint.configs.recommended,
@@ -19,7 +18,6 @@ export default [
   },
   {
     files: ['test/**'],
-    ...jest.configs['flat/recommended'],
   },
   {
     ignores: [

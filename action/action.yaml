@@ -54,5 +54,5 @@ outputs:
 
 runs:
   using: node24
-  main: action/dist/main/index.js
-  post: action/dist/post/index.js
+  main: action/dist/main.mjs
+  post: action/dist/post.mjs

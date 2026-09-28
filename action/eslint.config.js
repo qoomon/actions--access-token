@@ -1,6 +1,5 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import jest from 'eslint-plugin-jest';
 import {FlatCompat} from '@eslint/eslintrc';
 
 const compat = new FlatCompat({
@@ -21,7 +20,6 @@ export default [
   },
   {
     files: ['test/**'],
-    ...jest.configs['flat/recommended'],
   },
   {
     ignores: [

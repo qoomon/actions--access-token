@@ -17,7 +17,8 @@
 
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "ignoreDeprecations": "6.0"
   },
   "exclude": [
     "./dist",

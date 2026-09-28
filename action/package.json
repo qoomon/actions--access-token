@@ -5,8 +5,8 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "lint": "eslint .",
-    "build": "ncc build src/action-main.ts -o dist/main; ncc build src/action-post.ts -o dist/post",
+    "lint": "eslint",
+    "build": "tsup",
     "test": "node --experimental-transform-types --import tsx --experimental-test-module-mocks --test test/**.test.ts"
   },
   "dependencies": {
@@ -23,15 +23,15 @@
     "@eslint/eslintrc": "^3.3.7",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.0",
-    "@typescript-eslint/eslint-plugin": "^8.70.0",
-    "@typescript-eslint/parser": "^8.70.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@vercel/ncc": "^0.45.0",
     "eslint": "^10.10.1",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-require-extensions": "^0.1.3",
+    "tsup": "^8.5.1",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.59.0"
   },
   "engines": {
