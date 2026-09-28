@@ -11,9 +11,8 @@ export default defineConfig({
   },
   target: 'node24',
   outDir: 'dist',
-  bundle: true,
   noExternal: [/(.*)/], // Bundle all dependencies into dist/index.mjs
-  splitting: false,
+  // splitting: false,
   clean: true,
   // minify: true,
   treeshake: true,
