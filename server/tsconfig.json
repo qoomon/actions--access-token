@@ -19,7 +19,10 @@
     "useDefineForClassFields": true,
     "resolveJsonModule": true,
     "allowJs": false,
-    "noEmit": true
+
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "rewriteRelativeImportExtensions": true
   },
   "exclude": [
     "./node_modules",

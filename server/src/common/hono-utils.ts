@@ -39,7 +39,6 @@ export function errorHandler(logger: Logger): ErrorHandler {
       context.status(err.status);
       return context.json({
         requestId,
-        status: err.status,
         error: StatusPhrases[err.status as Exclude<StatusCode, UnofficialStatusCode>],
         message: err.message,
       });

@@ -1,17 +1,18 @@
-import {describe, expect, it} from '@jest/globals';
+import assert from 'node:assert/strict';
+import {describe, it} from 'node:test';
 import {YamlTransformer} from '../../src/common/zod-utils.js';
 
 describe('YamlTransformer', () => {
 
   it('parses valid YAML', () => {
     const result = YamlTransformer.safeParse('key: value');
-    expect(result.success).toBe(true);
-    expect(result.data).toEqual({key: 'value'});
+    assert.ok(result.success);
+    assert.deepEqual(result.data, {key: 'value'});
   });
 
   it('returns a parse error for invalid YAML', () => {
     const result = YamlTransformer.safeParse(': invalid: yaml:');
-    expect(result.success).toBe(false);
+    assert.equal(result.success, false);
   });
 
   it('rejects YAML with excessive alias expansion (billion-laughs DoS)', () => {
@@ -25,6 +26,6 @@ describe('YamlTransformer', () => {
     ].join('\n');
 
     const result = YamlTransformer.safeParse(yaml);
-    expect(result.success).toBe(false);
+    assert.equal(result.success, false);
   });
 });

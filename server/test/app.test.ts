@@ -4,7 +4,9 @@
 
 import process from 'process';
 import YAML from 'yaml';
-import {beforeEach, describe, expect, it, jest} from '@jest/globals';
+import {expect} from 'expect';
+import {after, beforeEach, describe, it, mock} from 'node:test';
+import {createRemoteJWKSet, jwtVerify,} from 'jose';
 import {RequestError} from '@octokit/request-error';
 import {GitHubAppRepositoryPermissions, parseRepository, verifyPermission} from '../src/common/github-utils.js';
 import * as Fixtures from './fixtures.js';
@@ -17,7 +19,6 @@ import {
   Repository
 } from './fixtures.js';
 import {joinRegExp, Optional} from '../src/common/common-utils.js';
-import './jest-utils.js';
 import {Status} from '../src/common/http-utils.js';
 import {
   GitHubOwnerAccessPolicy,
@@ -31,17 +32,18 @@ process.env.GITHUB_APP_ID = Fixtures.GITHUB_APP_AUTH.appId;
 process.env.GITHUB_APP_PRIVATE_KEY = Fixtures.GITHUB_APP_AUTH.privateKey;
 process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE = Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.aud;
 
-await mockJwks();
+const GITHUB_ACTIONS_JWKS_URL = 'https://token.actions.githubusercontent.com/.well-known/jwks';
+
+mockJwks();
 const githubMockEnvironment = mockGithub();
 
-const {config} = await import('../src/config');
-const {appInit} = await import('../src/app');
+const {config} = await import('../src/config.js');
+const {appInit} = await import('../src/app.js');
 
 const app = appInit();
 
 beforeEach(() => githubMockEnvironment.reset());
-
-
+after(() => mock.restoreAll());
 
 describe('App path /', () => {
 
@@ -52,7 +54,7 @@ describe('App path /', () => {
 
       // --- Then ---
       expect(response.status).toBe(Status.OK);
-      expect(await response.text()).toContain('https://github.com/qoomon/actions--access-token');
+      expect(await response.text()).toMatch(/https:\/\/github\.com\/qoomon\/actions--access-token/);
     });
   });
 });
@@ -67,7 +69,10 @@ describe('App path /unknown', () => {
       const response = await app.request(path, {method: 'GET'});
 
       // --- Then ---
-      await expect(response).toMatchResponse({status: Status.NOT_FOUND});
+      await assertResponse(response, {
+        status: Status.NOT_FOUND,
+        body: expect.any(Object),
+      });
     });
   });
 });
@@ -82,7 +87,10 @@ describe('App path /access_tokens', () => {
       const response = await app.request(path, {method: 'GET'});
 
       // --- Then ---
-      await expect(response).toMatchResponse({status: Status.NOT_FOUND});
+      await assertResponse(response, {
+        status: Status.NOT_FOUND,
+        body: expect.any(Object),
+      });
     });
   });
 
@@ -94,7 +102,7 @@ describe('App path /access_tokens', () => {
         const response = await app.request(path, {method: 'POST'});
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.UNAUTHORIZED,
           body: {
             requestId: expect.any(String),
@@ -112,7 +120,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.UNAUTHORIZED,
           body: {
             requestId: expect.any(String),
@@ -130,7 +138,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.UNAUTHORIZED,
           body: {
             requestId: expect.any(String),
@@ -155,7 +163,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.UNAUTHORIZED,
           body: {
             requestId: expect.any(String),
@@ -178,7 +186,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.UNAUTHORIZED,
           body: {
             requestId: expect.any(String),
@@ -206,7 +214,10 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({status: Status.REQUEST_TOO_LONG});
+          await assertResponse(response, {
+            status: Status.REQUEST_TOO_LONG,
+            body: expect.any(Object),
+          });
         });
 
         it('should respond with BAD_REQUEST if request body is invalid json', async () => {
@@ -218,7 +229,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -244,7 +255,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -268,7 +279,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -292,7 +303,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -319,7 +330,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -347,7 +358,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -373,7 +384,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -398,7 +409,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -425,7 +436,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -451,7 +462,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.BAD_REQUEST,
             body: {
               requestId: expect.any(String),
@@ -477,7 +488,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.BAD_REQUEST,
           body: {
             requestId: expect.any(String),
@@ -510,7 +521,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.FORBIDDEN,
           body: {
             requestId: expect.any(String),
@@ -544,7 +555,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.FORBIDDEN,
           body: {
             requestId: expect.any(String),
@@ -578,7 +589,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.FORBIDDEN,
           body: {
             requestId: expect.any(String),
@@ -622,7 +633,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.FORBIDDEN,
           body: {
             requestId: expect.any(String),
@@ -662,7 +673,7 @@ describe('App path /access_tokens', () => {
         });
 
         // --- Then ---
-        await expect(response).toMatchResponse({
+        await assertResponse(response, {
           status: Status.FORBIDDEN,
           body: {
             requestId: expect.any(String),
@@ -711,7 +722,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -741,7 +752,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -779,7 +790,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -816,7 +827,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -853,7 +864,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -890,7 +901,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -929,7 +940,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -974,7 +985,7 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.FORBIDDEN,
             body: {
               requestId: expect.any(String),
@@ -1040,13 +1051,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [parseRepository(actionRepo.name).repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1076,13 +1088,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [parseRepository(actionRepo.name).repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1112,13 +1125,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [parseRepository(actionRepo.name).repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1150,13 +1164,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [actionRepo.repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1188,13 +1203,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [actionRepo.repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1233,13 +1249,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: expect.arrayContaining([actionRepo.repo, targetRepo.repo]),
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1269,12 +1286,12 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
-            body: {
+            body: expect.objectContaining({
               // sha256 returns a 64-char hex string; base64-encoding that hex text yields exactly 88 chars ending with ==
               token_hash: expect.stringMatching(/^[A-Za-z0-9+/]{86}==$/),
-            },
+            }),
           });
         });
 
@@ -1302,13 +1319,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [actionRepo.repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1342,13 +1360,14 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [actionRepo.repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1382,13 +1401,14 @@ describe('App path /access_tokens', () => {
             }),
           });
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [actionRepo.repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1420,13 +1440,14 @@ describe('App path /access_tokens', () => {
             }),
           });
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {'pull-requests': 'write'},
               repositories: [actionRepo.repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1462,12 +1483,13 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {'organization-secrets': 'write'},
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1500,12 +1522,13 @@ describe('App path /access_tokens', () => {
           });
 
           // --- Then ---
-          await expect(response).toMatchResponse({
+          await assertResponse(response, {
             status: Status.OK,
             body: {
               owner: actionRepo.owner,
               permissions: {'pull-requests': 'write'},
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
             },
           });
@@ -1516,6 +1539,26 @@ describe('App path /access_tokens', () => {
 });
 
 
+// --- Assertion Helpers --------------------------------------------------
+
+/**
+ * Assert response status and body match expectations
+ * @param response - Response to assert
+ * @param expected - Expected status and body
+ */
+async function assertResponse(
+    response: Response,
+    expected: {
+      status: number;
+      body?: Record<string, unknown>;
+    },
+): Promise<void> {
+  expect({
+    status: response.status,
+    body: await response.json().catch(() => null)
+  }).toEqual(expected)
+}
+
 // --- Mocks ------------------------------------------------------------------
 
 /**
@@ -1523,19 +1566,20 @@ describe('App path /access_tokens', () => {
  * @return void
  */
 
-async function mockJwks() {
-  const actual = await import('jose');
-
-  jest.unstable_mockModule('jose', async () => {
-    return {
-      ...actual,
-      createRemoteJWKSet: (url: URL, options?: RemoteJWKSetOptions) => {
-        if (url.toString() === 'https://token.actions.githubusercontent.com/.well-known/jwks') {
+function mockJwks() {
+  mock.module('jose', {
+    namedExports: {
+      createRemoteJWKSet: (
+          url: URL,
+          options?: RemoteJWKSetOptions,
+      ) => {
+        if (url.toString() === GITHUB_ACTIONS_JWKS_URL) {
           return GITHUB_ACTIONS_TOKEN_SIGNING.key.publicKey;
         }
-        return actual.createRemoteJWKSet(url, options);
-      }
-    }
+        return createRemoteJWKSet(url, options);
+      },
+      jwtVerify,
+    },
   });
 }
 
@@ -1544,7 +1588,7 @@ async function mockJwks() {
  * @return GitHub environment
  */
 function mockGithub() {
-  const mock: {
+  const githubMockState: {
     repositories: Record<string, Repository>,
     appInstallations: Record<string, AppInstallation>,
   } = {
@@ -1553,28 +1597,28 @@ function mockGithub() {
   };
 
   const Octokit = Object.assign(
-      jest.fn().mockImplementation((paramsOctokit: any) => {
+      mock.fn(function (this: unknown, paramsOctokit: any) {
 
         // GitHub app
         if (paramsOctokit.auth.appId) {
           return {
             rest: {
               apps: {
-                getAuthenticated: jest.fn().mockReturnValue(Promise.resolve({
+                getAuthenticated: mock.fn(async () => ({
                   data: {
                     name: 'GitHub Actions Access Manager',
                     html_url: 'https://example.org',
                   },
                 })),
-                getUserInstallation: jest.fn().mockImplementation(async (params: any) => {
-                  const installation = mock.appInstallations[params.username];
+                getUserInstallation: mock.fn(async (params: any) => {
+                  const installation = githubMockState.appInstallations[params.username];
                   if (installation) return {data: installation};
                   throw new RequestError('Not Found', Status.NOT_FOUND, {
                     request: {headers: {}, url: 'http://localhost/tests'} as any,
                   });
                 }),
-                createInstallationAccessToken: jest.fn().mockImplementation(async (params: any) => {
-                  const installation = Object.values(mock.appInstallations)
+                createInstallationAccessToken: mock.fn(async (params: any) => {
+                  const installation = Object.values(githubMockState.appInstallations)
                       .find((installation) => installation.id === params.installation_id);
                   if (installation) {
                     Object.entries(params.permissions).forEach(([scope, permission]) => {
@@ -1607,39 +1651,39 @@ function mockGithub() {
                   throw new Error('Not Implemented');
                 }),
               },
-               users: {
-                 getByUsername: jest.fn().mockImplementation(async (params: any) => {
-                   // Return mock user ID based on username
-                   // IDs must match those used in test fixtures for consistency
-                   const ownerIdMap: Record<string, number> = {
-                     'octocat': 789012,
-                     'qoomon': 789012,
-                     'myorg': 789012,
-                     'github': 789012,
-                   };
-                   const id = ownerIdMap[params.username.toLowerCase()] ?? 789012;
-                   return {data: {id, login: params.username}};
-                 }),
-               },
-             },
-           };
-         }
+              users: {
+                getByUsername: mock.fn(async (params: any) => {
+                  // Return mock user ID based on username
+                  // IDs must match those used in test fixtures for consistency
+                  const ownerIdMap: Record<string, number> = {
+                    'octocat': 789012,
+                    'qoomon': 789012,
+                    'myorg': 789012,
+                    'github': 789012,
+                  };
+                  const id = ownerIdMap[params.username.toLowerCase()] ?? 789012;
+                  return {data: {id, login: params.username}};
+                }),
+              },
+            },
+          };
+        }
 
         // GitHub app installation
         if (typeof paramsOctokit.auth === 'string') {
-          const installation = Object.values(mock.appInstallations)
+          const installation = Object.values(githubMockState.appInstallations)
               .find((installation) => installation.id === parseInt(paramsOctokit.auth.split('@')[1]));
 
           if (installation) {
             return {
               rest: {
                 repos: {
-                  getContent: jest.fn().mockImplementation(async (params: any) => {
+                  getContent: mock.fn(async (params: any) => {
                     if (params.owner !== installation.owner) {
                       throw new Error('Access Denied');
                     }
 
-                    const repository = mock.repositories[`${params.owner}/${params.repo}`];
+                    const repository = githubMockState.repositories[`${params.owner}/${params.repo}`];
 
                     if (repository?.accessPolicy
                         && config.accessPolicy.location.repo.paths.includes(params.path)) {
@@ -1658,32 +1702,37 @@ function mockGithub() {
                     });
                   }),
                 },
-              users: {
-                getByUsername: jest.fn().mockImplementation(async (params: any) => {
-                  // Return mock user ID based on username
-                  // IDs must match those used in test fixtures for consistency
+                users: {
+                  getByUsername: mock.fn(async (params: any) => {
+                    // Return mock user ID based on username
+                    // IDs must match those used in test fixtures for consistency
 
-                  const id = DEFAULT_OWNER_ID;
-                  return {data: {id, login: params.username}};
-                }),
-               },
-             }
+                    const id = DEFAULT_OWNER_ID;
+                    return {data: {id, login: params.username}};
+                  }),
+                },
+              },
             };
           }
         }
 
         throw new Error('Not Implemented');
-      }), {
+      }),
+      {
         plugin: () => Octokit,
-      });
-  jest.unstable_mockModule('@octokit/core', () => ({
-    Octokit
-  }));
+      }
+  );
+
+  mock.module('@octokit/core', {
+    namedExports: {
+      Octokit,
+    },
+  });
 
   return {
     reset() {
-      mock.repositories = {};
-      mock.appInstallations = {};
+      githubMockState.repositories = {};
+      githubMockState.appInstallations = {};
     },
     addOwnerRepository({owner, accessPolicy, ownerAccessPolicy}: {
       owner?: string,
@@ -1717,7 +1766,7 @@ function mockGithub() {
         };
       }
 
-      mock.repositories[repository.name] = repository;
+      githubMockState.repositories[repository.name] = repository;
 
       return repository;
     },
@@ -1726,7 +1775,7 @@ function mockGithub() {
       accessPolicy?: Optional<GitHubRepositoryAccessPolicy,
           'origin' | 'statements'> | null,
     }): Repository {
-      name = name || `${DEFAULT_OWNER}/${DEFAULT_REPO}-${Object.keys(mock.repositories).length}`;
+      name = name || `${DEFAULT_OWNER}/${DEFAULT_REPO}-${Object.keys(githubMockState.repositories).length}`;
 
       const repository: Repository = {
         name,
@@ -1741,7 +1790,7 @@ function mockGithub() {
         };
       }
 
-      mock.repositories[repository.name] = repository;
+      githubMockState.repositories[repository.name] = repository;
 
       return repository;
     },
@@ -1754,7 +1803,7 @@ function mockGithub() {
       targetType = targetType || 'User';
       owner = owner || DEFAULT_OWNER;
       permissions = permissions || {};
-      const id = 1000 + Object.keys(mock.appInstallations).length;
+      const id = 1000 + Object.keys(githubMockState.appInstallations).length;
 
       const installation = {
         id,
@@ -1766,7 +1815,7 @@ function mockGithub() {
           ...config.accessPolicy.location.repo.paths,
         ] : undefined,
       };
-      mock.appInstallations[installation.owner] = installation;
+      githubMockState.appInstallations[installation.owner] = installation;
       return installation;
     },
   };

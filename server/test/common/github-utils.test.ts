@@ -1,5 +1,6 @@
-import {describe, expect, it} from '@jest/globals';
-import {parseRepository} from '../../src/common/github-utils.js';
+import assert from 'node:assert/strict';
+import {describe, it} from 'node:test';
+import {parseRepository} from '../../src/common/github-utils';
 
 describe('parseRepository', () => {
   it('should throw an Error for an invalid repository format', () => {
@@ -12,6 +13,6 @@ describe('parseRepository', () => {
     };
 
     // --- Then ---
-    expect(call).toThrow(Error);
+    assert.throws(call, Error);
   });
 });

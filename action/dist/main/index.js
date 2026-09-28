@@ -55052,46 +55052,47 @@ function plainValue(source, onError) {
     }
     if (badChar)
         onError(0, 'BAD_SCALAR_START', `Plain value cannot start with ${badChar}`);
-    return foldLines(source);
+    return unfoldLines(source);
 }
 function singleQuotedValue(source, onError) {
     if (source[source.length - 1] !== "'" || source.length === 1)
         onError(source.length, 'MISSING_CHAR', "Missing closing 'quote");
-    return foldLines(source.slice(1, -1)).replace(/''/g, "'");
+    return unfoldLines(source.slice(1, -1)).replace(/''/g, "'");
 }
-function foldLines(source) {
-    /**
-     * The negative lookbehind here and in the `re` RegExp is to
-     * prevent causing a polynomial search time in certain cases.
-     *
-     * The try-catch is for Safari, which doesn't support this yet:
-     * https://caniuse.com/js-regexp-lookbehind
-     */
-    let first, line;
-    try {
-        first = new RegExp('(.*?)(?<![ \t])[ \t]*\r?\n', 'sy');
-        line = new RegExp('[ \t]*(.*?)(?:(?<![ \t])[ \t]*)?\r?\n', 'sy');
-    }
-    catch {
-        first = /(.*?)[ \t]*\r?\n/sy;
-        line = /[ \t]*(.*?)[ \t]*\r?\n/sy;
-    }
-    let match = first.exec(source);
+function unfoldLines(source) {
+    const line = /(.*?)\r?\n/sy;
+    let match = line.exec(source);
     if (!match)
         return source;
-    let res = match[1];
+    /**
+     * The negative lookbehinds in these RegExps are to
+     * prevent causing a polynomial search time in certain cases.
+     *
+     * The try-catch is for Safari < 16.4 and other old browsers:
+     * https://caniuse.com/js-regexp-lookbehind
+     */
+    let trimEnd, trimBoth;
+    try {
+        trimEnd = new RegExp('(?<![ \t])[ \t]+$');
+        trimBoth = new RegExp('^[ \t]+|(?<![ \t])[ \t]+$', 'g');
+    }
+    catch {
+        trimEnd = /[ \t]+$/;
+        trimBoth = /^[ \t]+|[ \t]+$/g;
+    }
+    let res = match[1].replace(trimEnd, '');
     let sep = ' ';
-    let pos = first.lastIndex;
-    line.lastIndex = pos;
+    let pos = line.lastIndex;
     while ((match = line.exec(source))) {
-        if (match[1] === '') {
+        const lm = match[1].replace(trimBoth, '');
+        if (lm === '') {
             if (sep === '\n')
                 res += sep;
             else
                 sep = '\n';
         }
         else {
-            res += sep + match[1];
+            res += sep + lm;
             sep = ' ';
         }
         pos = line.lastIndex;
@@ -56470,38 +56471,40 @@ class Alias extends Node.NodeBase {
             if (node.anchor === this.source)
                 found = node;
         }
+        if (found && ctx) {
+            const { anchors, doc, maxAliasCount } = ctx;
+            let data = anchors.get(found);
+            if (!data) {
+                // Resolve anchors for Node.prototype.toJS()
+                toJS.toJS(found, null, ctx);
+                data = anchors.get(found);
+            }
+            /* istanbul ignore if */
+            if (data?.res === undefined) {
+                const msg = 'This should not happen: Alias anchor was not resolved?';
+                throw new ReferenceError(msg);
+            }
+            if (maxAliasCount >= 0) {
+                data.count += 1;
+                if (data.aliasCount === 0)
+                    data.aliasCount = getAliasCount(doc, found, anchors);
+                if (data.count * data.aliasCount > maxAliasCount) {
+                    const msg = 'Excessive alias count indicates a resource exhaustion attack';
+                    throw new ReferenceError(msg);
+                }
+            }
+        }
         return found;
     }
     toJSON(_arg, ctx) {
         if (!ctx)
             return { source: this.source };
-        const { anchors, doc, maxAliasCount } = ctx;
-        const source = this.resolve(doc, ctx);
+        const source = this.resolve(ctx.doc, ctx);
         if (!source) {
             const msg = `Unresolved alias (the anchor must be set before the alias): ${this.source}`;
             throw new ReferenceError(msg);
         }
-        let data = anchors.get(source);
-        if (!data) {
-            // Resolve anchors for Node.prototype.toJS()
-            toJS.toJS(source, null, ctx);
-            data = anchors.get(source);
-        }
-        /* istanbul ignore if */
-        if (data?.res === undefined) {
-            const msg = 'This should not happen: Alias anchor was not resolved?';
-            throw new ReferenceError(msg);
-        }
-        if (maxAliasCount >= 0) {
-            data.count += 1;
-            if (data.aliasCount === 0)
-                data.aliasCount = getAliasCount(doc, source, anchors);
-            if (data.count * data.aliasCount > maxAliasCount) {
-                const msg = 'Excessive alias count indicates a resource exhaustion attack';
-                throw new ReferenceError(msg);
-            }
-        }
-        return data.res;
+        return ctx.anchors.get(source).res;
     }
     toString(ctx, _onComment, _onChompKeep) {
         const src = `*${this.source}`;
@@ -65298,7 +65301,7 @@ __nccwpck_require__.d(__webpack_exports__, {
   KCZ: () => (/* binding */ union)
 });
 
-// UNUSED EXPORTS: ZodAny, ZodArray, ZodBase64, ZodBase64URL, ZodBigInt, ZodBigIntFormat, ZodBoolean, ZodCIDRv4, ZodCIDRv6, ZodCUID, ZodCUID2, ZodCatch, ZodCodec, ZodCreditCard, ZodCustom, ZodCustomStringFormat, ZodDate, ZodDefault, ZodDiscriminatedUnion, ZodE164, ZodEmail, ZodEmoji, ZodEnum, ZodExactOptional, ZodFile, ZodFunction, ZodGUID, ZodIBAN, ZodIPv4, ZodIPv6, ZodISODate, ZodISODateTime, ZodISODuration, ZodISOTime, ZodInstanceOf, ZodIntersection, ZodJWT, ZodKSUID, ZodLazy, ZodLiteral, ZodMAC, ZodMap, ZodNaN, ZodNanoID, ZodNever, ZodNonOptional, ZodNull, ZodNullable, ZodNumber, ZodNumberFormat, ZodObject, ZodOptional, ZodPipe, ZodPrefault, ZodPreprocess, ZodPromise, ZodProperties, ZodReadonly, ZodRecord, ZodSet, ZodString, ZodStringFormat, ZodSuccess, ZodSymbol, ZodTemplateLiteral, ZodTransform, ZodTuple, ZodType, ZodULID, ZodURL, ZodUUID, ZodUndefined, ZodUnion, ZodUnknown, ZodVoid, ZodXID, ZodXor, _ZodString, _default, _function, any, base64, base64url, bigint, boolean, catch, check, cidrv4, cidrv6, codec, creditCard, cuid, cuid2, custom, date, describe, discriminatedUnion, e164, email, emoji, enum, exactOptional, file, float32, float64, function, guid, hash, hex, hostname, httpUrl, iban, instanceof, int, int32, int64, intersection, invertCodec, ipv4, ipv6, json, jwt, keyof, ksuid, lazy, looseObject, looseRecord, mac, map, meta, nan, nanoid, nativeEnum, never, nonoptional, null, nullable, nullish, number, object, optional, partialRecord, pipe, prefault, preprocess, promise, properties, readonly, refine, set, strictObject, stringFormat, stringbool, success, superRefine, symbol, templateLiteral, transform, tuple, uint32, uint64, ulid, undefined, unknown, url, uuid, uuidv4, uuidv6, uuidv7, void, xid, xor
+// UNUSED EXPORTS: ZodAny, ZodArray, ZodBase64, ZodBase64URL, ZodBigInt, ZodBigIntFormat, ZodBoolean, ZodCIDRv4, ZodCIDRv6, ZodCUID, ZodCUID2, ZodCatch, ZodCodec, ZodCreditCard, ZodCustom, ZodCustomStringFormat, ZodDate, ZodDefault, ZodDiscriminatedUnion, ZodE164, ZodEmail, ZodEmoji, ZodEnum, ZodExactOptional, ZodFile, ZodFunction, ZodGUID, ZodIBAN, ZodIPv4, ZodIPv6, ZodISODate, ZodISODateTime, ZodISODuration, ZodISOTime, ZodInstanceOf, ZodIntersection, ZodJWT, ZodKSUID, ZodLazy, ZodLiteral, ZodMAC, ZodMap, ZodNaN, ZodNanoID, ZodNever, ZodNonOptional, ZodNull, ZodNullable, ZodNumber, ZodNumberFormat, ZodObject, ZodOptional, ZodPipe, ZodPrefault, ZodPreprocess, ZodPromise, ZodReadonly, ZodRecord, ZodSet, ZodString, ZodStringFormat, ZodSuccess, ZodSymbol, ZodTemplateLiteral, ZodTransform, ZodTuple, ZodType, ZodULID, ZodURL, ZodUUID, ZodUndefined, ZodUnion, ZodUnknown, ZodVoid, ZodXID, ZodXor, _ZodString, _default, _function, any, base64, base64url, bigint, boolean, catch, check, cidrv4, cidrv6, codec, creditCard, cuid, cuid2, currencyCode, custom, date, describe, discriminatedUnion, e164, email, emoji, enum, exactOptional, file, float32, float64, function, guid, hash, hex, hostname, httpUrl, iban, instanceof, int, int32, int64, intersection, invertCodec, ipv4, ipv6, json, jwt, keyof, ksuid, lazy, looseObject, looseRecord, mac, map, meta, nan, nanoid, nativeEnum, never, nonoptional, null, nullable, nullish, number, object, optional, partialRecord, pipe, prefault, preprocess, promise, readonly, refine, set, strictObject, stringFormat, stringbool, success, superRefine, symbol, templateLiteral, transform, tuple, uint32, uint64, ulid, undefined, unknown, url, uuid, uuidv4, uuidv6, uuidv7, void, xid, xor
 
 ;// CONCATENATED MODULE: ./node_modules/zod/v4/core/util.js
 
@@ -66028,10 +66031,6 @@ function members(proto, table) {
         else
             defineBound(proto, key, desc.value);
     }
-    // for..in sees no symbol keys, so well-known members like Symbol.iterator install here
-    for (const sym of Object.getOwnPropertySymbols(table)) {
-        defineBound(proto, sym, table[sym]);
-    }
 }
 /** Shadows a prototype member with an own value, so a getter that builds from the instance runs once. */
 function own(inst, key, value, enumerable = true) {
@@ -66226,7 +66225,7 @@ proto, params) {
                 _zodDesc.value = undefined;
             }
         }
-        if (inst._zod.traits.has(name)) {
+        else if (inst._zod.traits.has(name)) {
             return;
         }
         inst._zod.traits.add(name);
@@ -66319,9 +66318,9 @@ class $ZodCyclicError extends Error {
 /** Keyed off the context object every schema in one parse call already shares. */
 const STATE = "~memo";
 const NO_ISSUES = [];
-// a value a cycle can close through; callables count, since z.properties asserts on one
+// a value a cycle can close through
 function isRef(value) {
-    return value !== null && (typeof value === "object" || typeof value === "function");
+    return value !== null && typeof value === "object";
 }
 // Receivers prefix paths in place, so the cache and every hand-out need their own copies.
 function cloneIssues(issues) {
@@ -66378,9 +66377,6 @@ function isRecursive(inst, stack, resolve) {
             check(def.catchall);
             break;
         }
-        case "properties":
-            merge(shape(def.shape, false));
-            break;
         case "array":
             check(def.element);
             break;
@@ -66693,6 +66689,8 @@ const httpProtocol = /^https?$/;
 const e164 = /^\+[1-9]\d{6,14}$/;
 // Credit card shape: 12–19 digits, optionally separated by single spaces or single hyphens. ISO/IEC 7812 caps the PAN at 19 digits; 12 is the shortest issued length (Maestro).
 const creditCard = /^\d(?:[ -]?\d){11,18}$/;
+// ISO 4217 alpha codes from the SIX list, regenerated by scripts/update-iso-4217.ts
+const currencyCode = /^(?:AED|AFN|ALL|AMD|AOA|ARS|AUD|AWG|AZN|BAM|BBD|BDT|BHD|BIF|BMD|BND|BOB|BOV|BRL|BSD|BTN|BWP|BYN|BZD|CAD|CDF|CHE|CHF|CHW|CLF|CLP|CNY|COP|COU|CRC|CUP|CVE|CZK|DJF|DKK|DOP|DZD|EGP|ERN|ETB|EUR|FJD|FKP|GBP|GEL|GHS|GIP|GMD|GNF|GTQ|GYD|HKD|HNL|HTG|HUF|IDR|ILS|INR|IQD|IRR|ISK|JMD|JOD|JPY|KES|KGS|KHR|KMF|KPW|KRW|KWD|KYD|KZT|LAK|LBP|LKR|LRD|LSL|LYD|MAD|MDL|MGA|MKD|MMK|MNT|MOP|MRU|MUR|MVR|MWK|MXN|MXV|MYR|MZN|NAD|NGN|NIO|NOK|NPR|NZD|OMR|PAB|PEN|PGK|PHP|PKR|PLN|PYG|QAR|RON|RSD|RUB|RWF|SAR|SBD|SCR|SDG|SEK|SGD|SHP|SLE|SOS|SRD|SSP|STN|SVC|SYP|SZL|THB|TJS|TMT|TND|TOP|TRY|TTD|TWD|TZS|UAH|UGX|USD|USN|UYI|UYU|UYW|UZS|VED|VES|VND|VUV|WST|XAD|XAF|XAG|XAU|XBA|XBB|XBC|XBD|XCD|XCG|XDR|XOF|XPD|XPF|XPT|XSU|XTS|XUA|XXX|YER|ZAR|ZMW|ZWG)$/;
 // iban electronic format: 2-letter country, check digits 02-98 (the only values `98 - remainder` can produce), 11-30 bban characters
 const iban = /^[A-Z]{2}(?!00|01|99)\d{2}[A-Z0-9]{11,30}$/;
 const dateSource = `(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))`;
@@ -67228,7 +67226,7 @@ const $ZodCheckEndsWith = /*@__PURE__*/ $constructor("$ZodCheckEndsWith", (inst,
 ///////////////////////////////////
 function handleCheckPropertyResult(result, payload, property) {
     if (result.issues.length) {
-        payload.issues.push(...util.prefixIssues(property, result.issues));
+        payload.issues.push(...prefixIssues(property, result.issues));
     }
 }
 const $ZodCheckProperty = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("$ZodCheckProperty", (inst, def) => {
@@ -67245,6 +67243,37 @@ const $ZodCheckProperty = /*@__PURE__*/ (/* unused pure expression or super */ n
         return;
     };
 })));
+const $ZodCheckProperties = /*@__PURE__*/ $constructor("$ZodCheckProperties", (inst, def) => {
+    $ZodCheck.init(inst, def);
+    hide(inst, Symbol.iterator, function* () {
+        yield inst;
+    });
+    // key and schema snapshotted together: reading one live and the other cached lets a later mutation of the caller's shape object pair a stale key with a missing schema
+    let entries;
+    inst._zod.check = (payload) => {
+        // the base schema already typed the value, so only a nullish one is rejected here: the properties read on a primitive too, matching z.property() on a string's length
+        if (payload.value == null) {
+            payload.issues.push({ expected: "object", code: "invalid_type", input: payload.value, inst });
+            return undefined;
+        }
+        entries ?? (entries = Reflect.ownKeys(def.shape).map((key) => [key, def.shape[key]]));
+        const input = payload.value;
+        let proms;
+        for (const [key, schema] of entries) {
+            const result = schema._zod.run({ value: input[key], issues: [] }, {});
+            if (result instanceof Promise) {
+                proms ?? (proms = []);
+                proms.push(result.then((result) => handleCheckPropertyResult(result, payload, key)));
+            }
+            else {
+                handleCheckPropertyResult(result, payload, key);
+            }
+        }
+        if (proms)
+            return Promise.all(proms).then(() => undefined);
+        return undefined;
+    };
+});
 const $ZodCheckMimeType = /*@__PURE__*/ (/* unused pure expression or super */ null && (core.$constructor("$ZodCheckMimeType", (inst, def) => {
     $ZodCheck.init(inst, def);
     const mimeSet = new Set(def.mime);
@@ -67311,7 +67340,7 @@ class Doc {
 const version = {
     major: 4,
     minor: 6,
-    patch: 2,
+    patch: 5,
 };
 
 ;// CONCATENATED MODULE: ./node_modules/zod/v4/core/schemas.js
@@ -67526,15 +67555,37 @@ const $ZodEmail = /*@__PURE__*/ $constructor("$ZodEmail", (inst, def) => {
 });
 /** The `://` guard rejected the input before the URL constructor saw it. */
 const URL_BAD_FORMAT = 1;
-/** The URL constructor rejected the input. */
+/** The URL parser rejected the input. */
 const URL_UNPARSEABLE = 2;
-/** Parses a URL for `$ZodURL`, applying the one guard the URL constructor cannot express. Returns the parsed URL, or a code naming the stage that rejected it — the runtime needs that distinction to pick an issue note, and compiled code only needs to know it is not a URL. */
+function canParseURL(input) {
+    try {
+        if (typeof URL !== "undefined" && typeof URL.canParse === "function")
+            return URL.canParse(input);
+        new URL(input);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function validateURL(trimmed, def) {
+    if (!("normalize" in def) && !("hostname" in def) && !("protocol" in def)) {
+        return canParseURL(trimmed) || URL_UNPARSEABLE;
+    }
+    return parseURLObject(trimmed, def);
+}
+/** Parses a URL while preserving the non-normalizing HTTP guard. */
 function parseURLObject(trimmed, def) {
     // When normalize is off, require :// for http/https URLs. This prevents strings like "http:example.com" or "https:/path" from being silently accepted
     if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed)) {
         return URL_BAD_FORMAT;
     }
     try {
+        if (typeof URL !== "undefined") {
+            const URLStatic = URL;
+            if (typeof URLStatic.parse === "function")
+                return URLStatic.parse(trimmed) ?? URL_UNPARSEABLE;
+        }
         // @ts-ignore
         return new URL(trimmed);
     }
@@ -67561,7 +67612,7 @@ const $ZodURL = /*@__PURE__*/ $constructor("$ZodURL", (inst, def) => {
         try {
             // Trim whitespace from input
             const trimmed = payload.value.trim();
-            const url = parseURLObject(trimmed, def);
+            const url = validateURL(trimmed, def);
             if (url === URL_BAD_FORMAT) {
                 payload.issues.push({
                     code: "invalid_format",
@@ -67581,6 +67632,10 @@ const $ZodURL = /*@__PURE__*/ $constructor("$ZodURL", (inst, def) => {
                     inst,
                     continue: !def.abort,
                 });
+                return;
+            }
+            if (url === true) {
+                payload.value = stripTabAndNewline(trimmed);
                 return;
             }
             if (def.hostname && !urlHostnameOk(url, def.hostname)) {
@@ -67680,14 +67735,7 @@ const ipv6Alphabet = /^[0-9a-fA-F:.]+$/;
 function isValidIPv6(value) {
     if (!ipv6Alphabet.test(value))
         return false;
-    try {
-        // @ts-ignore
-        new URL(`http://[${value}]`);
-        return true;
-    }
-    catch {
-        return false;
-    }
+    return canParseURL(`http://[${value}]`);
 }
 const $ZodIPv6 = /*@__PURE__*/ $constructor("$ZodIPv6", (inst, def) => {
     def.pattern ?? (def.pattern = ipv6);
@@ -69902,67 +69950,6 @@ function handleRefineResult(result, payload, input, inst) {
         payload.issues.push(util_issue(_iss));
     }
 }
-// asserts in place: the child result's value is discarded, matching z.property(), because a nested object or array schema rebuilds its output even when nothing transformed
-function handlePropertiesResult(result, payload, key) {
-    if (result.issues.length) {
-        payload.issues.push(...prefixIssues(key, result.issues));
-    }
-}
-const $ZodProperties = /*@__PURE__*/ $constructor("$ZodProperties", (inst, def) => {
-    // $ZodType.init prepends an instance that already carries the $ZodCheck trait to its own `checks`, which would run the shape a second time and cost the parse context. Initializing the check trait after it keeps the schema role in `parse`, where the context arrives.
-    $ZodType.init(inst, def);
-    $ZodCheck.init(inst, def);
-    const memo = globalConfig.memoizer;
-    memo?.attach(inst);
-    // key and schema snapshotted together: reading one live and the other cached lets a later mutation of the caller's shape object pair a stale key with a missing schema
-    let entries;
-    const runShape = (payload, ctx) => {
-        entries ?? (entries = Reflect.ownKeys(def.shape).map((key) => [key, def.shape[key]]));
-        const input = payload.value;
-        let proms;
-        for (const [key, schema] of entries) {
-            const result = schema._zod.run({ value: input[key], issues: [] }, ctx);
-            if (result instanceof Promise) {
-                proms ?? (proms = []);
-                proms.push(result.then((result) => handlePropertiesResult(result, payload, key)));
-            }
-            else {
-                handlePropertiesResult(result, payload, key);
-            }
-        }
-        if (proms)
-            return Promise.all(proms).then(() => undefined);
-        return undefined;
-    };
-    inst._zod.parse = (payload, ctx) => {
-        const input = payload.value;
-        // as a schema this is the type gate, and it infers an object shape, so a primitive is a type error. A function passes: its properties read like any other object's, and z.instanceof allows one.
-        if (input === null || (typeof input !== "object" && typeof input !== "function")) {
-            payload.issues.push({ expected: "object", code: "invalid_type", input, inst });
-            return payload;
-        }
-        // both sides declare the shape's input type, so the assertion runs forward in either direction; encoding the children backward would reject the very type this schema claims to take
-        if (ctx.direction === "backward")
-            ctx = { ...ctx, direction: "forward" };
-        // the input is its own output here, so it registers as its own memo entry: a cycle re-entering this node hits the bucket instead of recursing forever
-        if (memo)
-            memo.alloc(inst, payload, input, ctx);
-        const result = runShape(payload, ctx);
-        return result instanceof Promise ? result.then(() => payload) : payload;
-    };
-    // as a check the base schema already typed the value, so this only asserts the properties — which read on a primitive too, matching z.property() on a string's length. It gets no context of its own, so a cycle through a spread schema is not tracked.
-    inst._zod.check = (payload) => {
-        if (payload.value == null) {
-            payload.issues.push({ expected: "object", code: "invalid_type", input: payload.value, inst });
-            return undefined;
-        }
-        return runShape(payload, {});
-    };
-}, {
-    *[Symbol.iterator]() {
-        yield this;
-    },
-});
 
 ;// CONCATENATED MODULE: ./node_modules/zod/v4/core/registries.js
 var registries_a;
@@ -70022,20 +70009,18 @@ const globalRegistry = globalThis.__zod_globalRegistry;
 
 
 
+function snapshotChecks(def) {
+    if (def.checks)
+        def.checks = [...def.checks];
+    return def;
+}
 // @__NO_SIDE_EFFECTS__
 function _string(Class, params) {
-    return new Class({
-        type: "string",
-        ...normalizeParams(params),
-    });
+    return new Class(snapshotChecks({ type: "string", ...normalizeParams(params) }));
 }
 // @__NO_SIDE_EFFECTS__
 function _coercedString(Class, params) {
-    return new Class({
-        type: "string",
-        coerce: true,
-        ...util.normalizeParams(params),
-    });
+    return new Class(snapshotChecks({ type: "string", coerce: true, ...util.normalizeParams(params) }));
 }
 // @__NO_SIDE_EFFECTS__
 function _email(Class, params) {
@@ -70344,20 +70329,11 @@ function _isoDuration(Class, params) {
 }
 // @__NO_SIDE_EFFECTS__
 function _number(Class, params) {
-    return new Class({
-        type: "number",
-        checks: [],
-        ...util.normalizeParams(params),
-    });
+    return new Class(snapshotChecks({ type: "number", checks: [], ...util.normalizeParams(params) }));
 }
 // @__NO_SIDE_EFFECTS__
 function _coercedNumber(Class, params) {
-    return new Class({
-        type: "number",
-        coerce: true,
-        checks: [],
-        ...util.normalizeParams(params),
-    });
+    return new Class(snapshotChecks({ type: "number", coerce: true, checks: [], ...util.normalizeParams(params) }));
 }
 // @__NO_SIDE_EFFECTS__
 function _int(Class, params) {
@@ -70704,9 +70680,8 @@ function _property(property, schema, params) {
     });
 }
 // @__NO_SIDE_EFFECTS__
-function _properties(Class, shape, params) {
-    return new Class({
-        type: "properties",
+function _properties(shape, params) {
+    return new $ZodCheckProperties({
         check: "properties",
         shape,
         ...normalizeParams(params),
@@ -72185,18 +72160,15 @@ const objectProcessor = (schema, ctx, _json, params) => {
         }));
     }
     // required keys
-    const allKeys = new Set(Object.keys(shape));
-    const requiredKeys = new Set([...allKeys].filter((key) => {
+    const requiredKeys = [];
+    for (const key of Object.keys(shape)) {
         const field = def.shape[key];
-        if (ctx.io === "input") {
-            return inputOptin(field) === undefined;
+        if (ctx.io === "input" ? inputOptin(field) === undefined : field._zod.optout === undefined) {
+            requiredKeys.push(key);
         }
-        else {
-            return field._zod.optout === undefined;
-        }
-    }));
-    if (requiredKeys.size > 0) {
-        json.required = Array.from(requiredKeys);
+    }
+    if (requiredKeys.length > 0) {
+        json.required = requiredKeys;
     }
     // catchall
     if (def.catchall?._zod.def.type === "never") {
@@ -72214,37 +72186,6 @@ const objectProcessor = (schema, ctx, _json, params) => {
             path: [...params.path, "additionalProperties"],
         });
     }
-};
-// asserts named properties in place and passes everything else through, so no additionalProperties constraint is emitted
-const propertiesProcessor = (schema, ctx, _json, params) => {
-    const json = _json;
-    const def = schema._zod.def;
-    // dropping a symbol key silently would emit a schema that asserts less than this one does
-    if (Object.getOwnPropertySymbols(def.shape).length &&
-        handleUnrepresentable(schema, ctx, json, params, "Symbol keys cannot be represented in JSON Schema")) {
-        return;
-    }
-    // the parsed value is the input, so an output-mode emission would describe a transformed value this schema never returns
-    if (ctx.io === "output") {
-        for (const key in def.shape) {
-            if (isTransforming(def.shape[key]) &&
-                handleUnrepresentable(schema, ctx, json, params, `z.properties() returns its input, so the output of a transforming schema at key "${key}" cannot be represented in JSON Schema`)) {
-                return;
-            }
-        }
-    }
-    json.type = "object";
-    json.properties = {};
-    for (const key in def.shape) {
-        util_assignProp(json.properties, key, to_json_schema_processSchema(def.shape[key], ctx, {
-            ...params,
-            path: [...params.path, "properties", key],
-        }));
-    }
-    // input-side optionality in both modes: the parsed value is the input, so a defaulted key that stays absent must not be required of the output either
-    const required = Object.keys(def.shape).filter((key) => inputOptin(def.shape[key]) === undefined);
-    if (required.length > 0)
-        json.required = required;
 };
 const unionProcessor = (schema, ctx, json, params) => {
     const def = schema._zod.def;
@@ -72605,7 +72546,6 @@ const allProcessors = {
     file: fileProcessor,
     success: successProcessor,
     custom: customProcessor,
-    properties: propertiesProcessor,
     function: functionProcessor,
     transform: transformProcessor,
     map: mapProcessor,
@@ -72708,6 +72648,7 @@ const error = () => {
         base64url: "base64url-encoded string",
         json_string: "JSON string",
         e164: "E.164 number",
+        currency_code: "currency code",
         credit_card: "credit card number",
         iban: "IBAN",
         jwt: "JWT",
@@ -73324,6 +73265,7 @@ const parse_safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
 
 
 
+
 // Register English as the default locale on first ZodType construction. Hooked into the `ZodType` `$constructor` (rather than a top-level `config(en())` in `external.ts`) so bundlers honoring `sideEffects: false` can't tree-shake it out — see #5953, #5725. An explicit `z.config(z.locales.xx())` call wins regardless of order, since this only sets the default when none is present.
 function _ensureDefaultLocale() {
     if (!globalConfig.localeError)
@@ -73718,8 +73660,8 @@ function url(params) {
 }
 function httpUrl(params) {
     return core._url(ZodURL, {
-        protocol: core.regexes.httpProtocol,
-        hostname: core.regexes.domain,
+        protocol: regexes.httpProtocol,
+        hostname: regexes.domain,
         ...util.normalizeParams(params),
     });
 }
@@ -73884,10 +73826,13 @@ function stringFormat(format, fnOrRegex, _params = {}) {
     return core._stringFormat(ZodCustomStringFormat, format, fnOrRegex, _params);
 }
 function schemas_hostname(_params) {
-    return core._stringFormat(ZodCustomStringFormat, "hostname", core.regexes.hostname, _params);
+    return core._stringFormat(ZodCustomStringFormat, "hostname", regexes.hostname, _params);
 }
 function schemas_hex(_params) {
-    return core._stringFormat(ZodCustomStringFormat, "hex", core.regexes.hex, _params);
+    return core._stringFormat(ZodCustomStringFormat, "hex", regexes.hex, _params);
+}
+function schemas_currencyCode(_params) {
+    return core._stringFormat(ZodCustomStringFormat, "currency_code", regexes.currencyCode, _params);
 }
 function hash(alg, params) {
     const enc = params?.enc ?? "hex";
@@ -74774,14 +74719,6 @@ const ZodCustom = /*@__PURE__*/ $constructor("ZodCustom", (inst, def) => {
     ZodType.init(inst, def);
     inst._zod.processJSONSchema = (ctx, json, params) => customProcessor(inst, ctx, json, params);
 });
-const ZodProperties = /*@__PURE__*/ $constructor("ZodProperties", (inst, def) => {
-    _ensureDefaultMemoizer();
-    $ZodProperties.init(inst, def);
-    ZodType.init(inst, def);
-});
-function properties(shape, params) {
-    return _properties(ZodProperties, shape, params);
-}
 // custom checks
 function check(fn) {
     const ch = new core.$ZodCheck({
@@ -74809,7 +74746,7 @@ const ZodInstanceOf = /*@__PURE__*/ $constructor("ZodInstanceOf", (inst, def) =>
 }, {
     properties(shape, params) {
         // asserts in place, so the narrowed output type is truthful without a wrapper
-        return this.check(properties(shape, params));
+        return this.check(_properties(shape, params));
     },
 });
 function _instanceof(cls, params = {}) {

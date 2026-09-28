@@ -1,8 +1,8 @@
-import {it, expect} from '@jest/globals';
+import assert from 'node:assert/strict';
+import {it} from 'node:test';
 
 it('Test', async () => {
   // await import('../src/action')
 
-  expect(true).toBe(true);
+  assert.equal(true, true);
 });
-

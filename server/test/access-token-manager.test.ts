@@ -1,6 +1,14 @@
-import {describe, expect, it} from '@jest/globals';
-import {getEffectiveCallerIdentitySubjects} from '../src/access-token-manager.js';
+import assert from 'node:assert/strict';
+import process from 'node:process';
+import {describe, it} from 'node:test';
+import * as Fixtures from './fixtures.js';
 import {GitHubActionsJwtPayload} from '../src/common/github-utils.js';
+
+process.env.GITHUB_APP_ID = Fixtures.GITHUB_APP_AUTH.appId;
+process.env.GITHUB_APP_PRIVATE_KEY = Fixtures.GITHUB_APP_AUTH.privateKey;
+process.env.GITHUB_ACTIONS_TOKEN_ALLOWED_AUDIENCE = Fixtures.GITHUB_ACTIONS_TOKEN_SIGNING.aud;
+
+const {getEffectiveCallerIdentitySubjects} = await import('../src/access-token-manager.js');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -37,7 +45,7 @@ describe('getEffectiveCallerIdentitySubjects', () => {
   it('always includes the raw sub claim', () => {
     const identity = makeIdentity();
     const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).toContain(identity.sub);
+    assert.ok(subjects.includes(identity.sub));
   });
 
   it('adds immutable repository subject for legacy sub claim', () => {
@@ -46,36 +54,36 @@ describe('getEffectiveCallerIdentitySubjects', () => {
       ref: 'refs/pull/42/head',
     });
     const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).toContain(
+    assert.ok(subjects.includes(
         `repo:${identity.repository_owner}@${identity.repository_owner_id}` +
         `/${identity.repository.split('/')[1]}@${identity.repository_id}` +
-        `:pull_request`);
+        `:pull_request`));
   });
 
   it('adds repo:…:ref:… for branch refs', () => {
     const identity = makeIdentity({ref: 'refs/heads/main'});
     const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).toContain(`repo:${identity.repository}:ref:${identity.ref}`);
+    assert.ok(subjects.includes(`repo:${identity.repository}:ref:${identity.ref}`));
   });
 
   it('adds repo:…:ref:… for tag refs', () => {
     const identity = makeIdentity({ref: 'refs/tags/v1.0.0'});
     const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).toContain(`repo:${identity.repository}:ref:${identity.ref}`);
+    assert.ok(subjects.includes(`repo:${identity.repository}:ref:${identity.ref}`));
   });
 
   it('adds repo:…:workflow_ref:… for branch-based workflow refs', () => {
     const identity = makeIdentity();
     const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).toContain(
-        `repo:${identity.repository}:workflow_ref:${identity.workflow_ref}`);
+    assert.ok(subjects.includes(
+        `repo:${identity.repository}:workflow_ref:${identity.workflow_ref}`));
   });
 
   it('adds repo:…:job_workflow_ref:… for branch-based job workflow refs', () => {
     const identity = makeIdentity();
     const subjects = getEffectiveCallerIdentitySubjects(identity);
-    expect(subjects).toContain(
-        `repo:${identity.repository}:job_workflow_ref:${identity.job_workflow_ref}`);
+    assert.ok(subjects.includes(
+        `repo:${identity.repository}:job_workflow_ref:${identity.job_workflow_ref}`));
   });
 
   it('returns deduplicated subjects when workflow_ref and job_workflow_ref are equal', () => {
@@ -88,6 +96,6 @@ describe('getEffectiveCallerIdentitySubjects', () => {
     });
     const subjects = getEffectiveCallerIdentitySubjects(identity);
     const uniqueSubjects = new Set(subjects);
-    expect(subjects.length).toBe(uniqueSubjects.size);
+    assert.equal(subjects.length, uniqueSubjects.size);
   });
 });
