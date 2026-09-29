@@ -1,6 +1,6 @@
 import { createRequire } from 'module';
-import { NoOpLogger } from './chunk-TTV4QKES.mjs';
-import { v4, parseRfc7231DateTime } from './chunk-2D7RHDR7.mjs';
+import { NoOpLogger } from './chunk-AY2K4GWE.mjs';
+import { v4, parseRfc7231DateTime } from './chunk-GXHTACOW.mjs';
 import { loadConfig, NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS, booleanSelector, SelectorType, CONFIG_PREFIX_SEPARATOR } from './chunk-HAYTZHRA.mjs';
 import { EndpointURLScheme, hasOwn, normalizeProvider, HttpRequest, isValidHostLabel, parseUrl, getSmithyContext, toEndpointV1, HttpResponse } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -1070,7 +1070,7 @@ var isBrowserNetworkError = (error) => {
   return errorMessages.has(error.message);
 };
 var isThrottlingError = (error) => error.$metadata?.httpStatusCode === 429 || THROTTLING_ERROR_CODES.includes(error.name) || error.$retryable?.throttling == true;
-var isTransientError = (error, depth = 0) => isRetryableByTrait(error) || isClockSkewCorrectedError(error) || error.name === "InvalidSignatureException" && error.message?.includes("Signature expired") || TRANSIENT_ERROR_CODES.includes(error.name) || NODEJS_TIMEOUT_ERROR_CODES.includes(error?.code || "") || NODEJS_NETWORK_ERROR_CODES.includes(error?.code || "") || TRANSIENT_ERROR_STATUS_CODES.includes(error.$metadata?.httpStatusCode || 0) || isBrowserNetworkError(error) || isNodeJsHttp2TransientError(error) || error.cause !== void 0 && depth <= 10 && isTransientError(error.cause, depth + 1);
+var isTransientError = (error, depth = 0) => error?.name !== "AbortError" && (isRetryableByTrait(error) || isClockSkewCorrectedError(error) || error.name === "InvalidSignatureException" && error.message?.includes("Signature expired") || TRANSIENT_ERROR_CODES.includes(error.name) || NODEJS_TIMEOUT_ERROR_CODES.includes(error?.code || "") || NODEJS_NETWORK_ERROR_CODES.includes(error?.code || "") || TRANSIENT_ERROR_STATUS_CODES.includes(error.$metadata?.httpStatusCode || 0) || isBrowserNetworkError(error) || isNodeJsHttp2TransientError(error) || error.cause !== void 0 && depth <= 10 && isTransientError(error.cause, depth + 1));
 var isServerError = (error) => {
   if (error.$metadata?.httpStatusCode !== void 0) {
     const statusCode = error.$metadata.httpStatusCode;

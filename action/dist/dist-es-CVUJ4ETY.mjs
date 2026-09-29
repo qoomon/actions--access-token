@@ -1,8 +1,8 @@
 import { createRequire } from 'module';
-import { setCredentialFeature } from './chunk-CNVAVDG2.mjs';
-import './chunk-TTV4QKES.mjs';
-import './chunk-CKKARQCR.mjs';
-import './chunk-2D7RHDR7.mjs';
+import { setCredentialFeature } from './chunk-5O5CB24P.mjs';
+import './chunk-AY2K4GWE.mjs';
+import './chunk-BB2CEPRS.mjs';
+import './chunk-GXHTACOW.mjs';
 import { parseKnownFiles, getProfileName, CredentialsProviderError } from './chunk-HAYTZHRA.mjs';
 import { HttpRequest } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -70,7 +70,7 @@ var LoginCredentialsFetcher = class _LoginCredentialsFetcher {
     if (freshExpiry - Date.now() > _LoginCredentialsFetcher.REFRESH_THRESHOLD) {
       return this.toCredentials(freshToken.accessToken);
     }
-    const { SigninClient, CreateOAuth2TokenCommand } = await import('./signin-4KRNY25G.mjs');
+    const { SigninClient, CreateOAuth2TokenCommand } = await import('./signin-FOXMBP5T.mjs');
     const { logger, userAgentAppId } = this.callerClientConfig ?? {};
     const isH2 = (requestHandler2) => {
       return requestHandler2?.metadata?.handlerProtocol === "h2";

@@ -1,5 +1,5 @@
 import { createRequire } from 'module';
-import { NormalizedSchema } from './chunk-2D7RHDR7.mjs';
+import { NormalizedSchema } from './chunk-GXHTACOW.mjs';
 import { AlgorithmId, SMITHY_CONTEXT_KEY, hasOwn } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
 
@@ -372,20 +372,27 @@ var Command = class {
     }
     const stack = clientStack.concat(this.middlewareStack);
     const { logger } = configuration;
+    const additionalSmithyContext = additionalContext[SMITHY_CONTEXT_KEY];
     const handlerExecutionContext = {
       logger,
       clientName,
       commandName,
       inputFilterSensitiveLog,
       outputFilterSensitiveLog,
+      ...additionalContext,
       [SMITHY_CONTEXT_KEY]: {
+        ...additionalSmithyContext,
         commandInstance: this,
-        ...smithyContext
-      },
-      ...additionalContext
+        ...smithyContext,
+        ...options?.metricsRecorder === void 0 ? {} : { metricsRecorder: options.metricsRecorder }
+      }
     };
     const { requestHandler } = configuration;
     let requestOptions = options ?? {};
+    if (requestOptions.metricsRecorder) {
+      requestOptions = { ...requestOptions };
+      delete requestOptions.metricsRecorder;
+    }
     if (smithyContext.eventStream) {
       requestOptions = {
         isEventStream: true,
@@ -569,10 +576,25 @@ var ServiceException = class _ServiceException extends Error {
       return _ServiceException.isInstance(instance);
     }
     if (_ServiceException.isInstance(instance)) {
-      if (candidate.name && this.name) {
-        return this.prototype.isPrototypeOf(instance) || candidate.name === this.name;
+      if (this.prototype.isPrototypeOf(instance)) {
+        return true;
       }
-      return this.prototype.isPrototypeOf(instance);
+      const targetName = this.name;
+      if (!targetName || !candidate.name) {
+        return false;
+      }
+      if (candidate.name === targetName) {
+        return true;
+      }
+      let proto = Object.getPrototypeOf(candidate);
+      while (proto && proto !== Object.prototype) {
+        const ctorName = proto.constructor?.name;
+        if (ctorName && ctorName !== "Error" && ctorName === targetName) {
+          return true;
+        }
+        proto = Object.getPrototypeOf(proto);
+      }
+      return false;
     }
     return false;
   }

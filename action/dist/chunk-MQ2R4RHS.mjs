@@ -1,12 +1,12 @@
 import { createRequire } from 'module';
-import { AwsSdkSigV4Signer, AwsSdkSigV4ASigner, NODE_SIGV4A_CONFIG_OPTIONS, package_default, NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, resolveAwsSdkSigV4Config, resolveAwsSdkSigV4AConfig, AwsQueryProtocol } from './chunk-PLMJQQI7.mjs';
-import { NodeHttpHandler } from './chunk-E5WDDCGV.mjs';
-import { signatureV4aContainer, SignatureV4 } from './chunk-W3GIPFDL.mjs';
-import { Sha256Node } from './chunk-BSGV3LZS.mjs';
-import { BinaryDecisionDiagram, EndpointCache, awsEndpointFunctions, customEndpointFunctions, getEndpointPlugin, resolveUserAgentConfig, resolveRetryConfig, resolveHostHeaderConfig, resolveEndpointConfig, getUserAgentPlugin, getRetryPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin, getHttpAuthSchemeEndpointRuleSetPlugin, DefaultIdentityProviderConfig, getHttpSigningPlugin, emitWarningIfUnsupportedVersion as emitWarningIfUnsupportedVersion$1, NoAuthSigner, NODE_APP_ID_CONFIG_OPTIONS, DEFAULT_RETRY_MODE, NODE_RETRY_MODE_CONFIG_OPTIONS, NODE_MAX_ATTEMPT_CONFIG_OPTIONS, createDefaultUserAgentProvider, getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, resolveParams, decideEndpoint, setCredentialFeature, stsRegionDefaultResolver } from './chunk-CNVAVDG2.mjs';
-import { makeBuilder, createAggregatedClient, ServiceException, Client, emitWarningIfUnsupportedVersion, getDefaultExtensionConfiguration, resolveDefaultRuntimeConfig, NoOpLogger, loadConfigsForDefaultMode } from './chunk-TTV4QKES.mjs';
-import { getContentLengthPlugin, getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig } from './chunk-CKKARQCR.mjs';
-import { TypeRegistry, getSchemaSerdePlugin, streamCollector, calculateBodyLength, toUtf8, fromUtf8, toBase64, fromBase64 } from './chunk-2D7RHDR7.mjs';
+import { AwsSdkSigV4Signer, AwsSdkSigV4ASigner, NODE_SIGV4A_CONFIG_OPTIONS, package_default, NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, resolveAwsSdkSigV4Config, resolveAwsSdkSigV4AConfig, AwsQueryProtocol } from './chunk-O6HLDTN3.mjs';
+import { NodeHttpHandler } from './chunk-CXIOFGPI.mjs';
+import { signatureV4aContainer, SignatureV4 } from './chunk-2XSHXKPI.mjs';
+import { Sha256Node } from './chunk-7VSAPNGJ.mjs';
+import { BinaryDecisionDiagram, EndpointCache, awsEndpointFunctions, customEndpointFunctions, getEndpointPlugin, resolveUserAgentConfig, resolveRetryConfig, resolveHostHeaderConfig, resolveEndpointConfig, getUserAgentPlugin, getRetryPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin, getHttpAuthSchemeEndpointRuleSetPlugin, DefaultIdentityProviderConfig, getHttpSigningPlugin, emitWarningIfUnsupportedVersion as emitWarningIfUnsupportedVersion$1, NoAuthSigner, NODE_APP_ID_CONFIG_OPTIONS, DEFAULT_RETRY_MODE, NODE_RETRY_MODE_CONFIG_OPTIONS, NODE_MAX_ATTEMPT_CONFIG_OPTIONS, createDefaultUserAgentProvider, getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, resolveParams, decideEndpoint, setCredentialFeature, stsRegionDefaultResolver } from './chunk-5O5CB24P.mjs';
+import { makeBuilder, createAggregatedClient, ServiceException, Client, emitWarningIfUnsupportedVersion, getDefaultExtensionConfiguration, resolveDefaultRuntimeConfig, NoOpLogger, loadConfigsForDefaultMode } from './chunk-AY2K4GWE.mjs';
+import { getContentLengthPlugin, getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig } from './chunk-BB2CEPRS.mjs';
+import { TypeRegistry, getSchemaSerdePlugin, streamCollector, calculateBodyLength, toUtf8, fromUtf8, toBase64, fromBase64 } from './chunk-GXHTACOW.mjs';
 import { resolveRegionConfig, resolveDefaultsModeConfig, loadConfig, NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS } from './chunk-HAYTZHRA.mjs';
 import { normalizeProvider, parseUrl, getSmithyContext } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -597,6 +597,7 @@ var _IDPRCE = "IDPRejectedClaimException";
 var _IITE = "InvalidIdentityTokenException";
 var _K = "Key";
 var _MPDE = "MalformedPolicyDocumentException";
+var _MSTS = "MinimumSessionTokenSize";
 var _P = "Policy";
 var _PA = "PolicyArns";
 var _PAr = "ProviderArn";
@@ -616,6 +617,8 @@ var _SFWIT = "SubjectFromWebIdentityToken";
 var _SI = "SourceIdentity";
 var _SN = "SerialNumber";
 var _ST = "SessionToken";
+var _STS = "SessionTokenSize";
+var _STU = "SessionTokenUtilization";
 var _T = "Tags";
 var _TC = "TokenCode";
 var _TTK = "TransitiveTagKeys";
@@ -634,10 +637,10 @@ var _pDLT = "policyDescriptorListType";
 var _s = "smithy.ts.sdk.synthetic.com.amazonaws.sts";
 var _tLT = "tagListType";
 var n0 = "com.amazonaws.sts";
-var _s_registry = TypeRegistry.for(_s);
+var _s_registry = new TypeRegistry(_s);
 var STSServiceException$ = [-3, _s, "STSServiceException", 0, [], []];
 _s_registry.registerError(STSServiceException$, STSServiceException);
-var n0_registry = TypeRegistry.for(n0);
+var n0_registry = new TypeRegistry(n0);
 var ExpiredTokenException$ = [
   -3,
   n0,
@@ -721,8 +724,8 @@ var AssumeRoleRequest$ = [
   n0,
   _ARR,
   0,
-  [_RA, _RSN, _PA, _P, _DS, _T, _TTK, _EI, _SN, _TC, _SI, _PC],
-  [0, 0, () => policyDescriptorListType, 0, 1, () => tagListType, 64 | 0, 0, 0, 0, 0, () => ProvidedContextsListType],
+  [_RA, _RSN, _PA, _P, _DS, _T, _TTK, _EI, _SN, _TC, _SI, _PC, _MSTS],
+  [0, 0, () => policyDescriptorListType, 0, 1, () => tagListType, 64 | 0, 0, 0, 0, 0, () => ProvidedContextsListType, 1],
   2
 ];
 var AssumeRoleResponse$ = [
@@ -730,16 +733,16 @@ var AssumeRoleResponse$ = [
   n0,
   _ARRs,
   0,
-  [_C, _ARU, _PPS, _SI],
-  [[() => Credentials$, 0], () => AssumedRoleUser$, 1, 0]
+  [_C, _ARU, _PPS, _SI, _STU, _STS],
+  [[() => Credentials$, 0], () => AssumedRoleUser$, 1, 0, 1, 1]
 ];
 var AssumeRoleWithWebIdentityRequest$ = [
   3,
   n0,
   _ARWWIR,
   0,
-  [_RA, _RSN, _WIT, _PI, _PA, _P, _DS],
-  [0, 0, [() => clientTokenType, 0], 0, () => policyDescriptorListType, 0, 1],
+  [_RA, _RSN, _WIT, _PI, _PA, _P, _DS, _MSTS],
+  [0, 0, [() => clientTokenType, 0], 0, () => policyDescriptorListType, 0, 1, 1],
   3
 ];
 var AssumeRoleWithWebIdentityResponse$ = [
@@ -747,8 +750,8 @@ var AssumeRoleWithWebIdentityResponse$ = [
   n0,
   _ARWWIRs,
   0,
-  [_C, _SFWIT, _ARU, _PPS, _Pr, _Au, _SI],
-  [[() => Credentials$, 0], 0, () => AssumedRoleUser$, 1, 0, 0, 0]
+  [_C, _SFWIT, _ARU, _PPS, _Pr, _Au, _SI, _STU, _STS],
+  [[() => Credentials$, 0], 0, () => AssumedRoleUser$, 1, 0, 0, 0, 1, 1]
 ];
 var Credentials$ = [
   3,

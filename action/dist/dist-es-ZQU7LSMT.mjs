@@ -1,9 +1,9 @@
 import { createRequire } from 'module';
-import { NodeHttpHandler } from './chunk-E5WDDCGV.mjs';
-import { setCredentialFeature } from './chunk-CNVAVDG2.mjs';
-import './chunk-TTV4QKES.mjs';
-import './chunk-CKKARQCR.mjs';
-import { sdkStreamMixin, parseRfc3339DateTime } from './chunk-2D7RHDR7.mjs';
+import { NodeHttpHandler } from './chunk-CXIOFGPI.mjs';
+import { setCredentialFeature } from './chunk-5O5CB24P.mjs';
+import './chunk-AY2K4GWE.mjs';
+import './chunk-BB2CEPRS.mjs';
+import { sdkStreamMixin, parseRfc3339DateTime } from './chunk-GXHTACOW.mjs';
 import { CredentialsProviderError } from './chunk-HAYTZHRA.mjs';
 import { HttpRequest } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';

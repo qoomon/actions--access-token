@@ -1,12 +1,12 @@
 import { createRequire } from 'module';
-import { package_default, NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, resolveAwsSdkSigV4Config, AwsJson1_1Protocol, AwsSdkSigV4Signer } from './chunk-PLMJQQI7.mjs';
-import { NodeHttpHandler } from './chunk-E5WDDCGV.mjs';
-import './chunk-W3GIPFDL.mjs';
-import { Sha256Node } from './chunk-BSGV3LZS.mjs';
-import { BinaryDecisionDiagram, EndpointCache, awsEndpointFunctions, customEndpointFunctions, getEndpointPlugin, resolveUserAgentConfig, resolveRetryConfig, resolveHostHeaderConfig, resolveEndpointConfig, getUserAgentPlugin, getRetryPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin, getHttpAuthSchemeEndpointRuleSetPlugin, DefaultIdentityProviderConfig, getHttpSigningPlugin, emitWarningIfUnsupportedVersion as emitWarningIfUnsupportedVersion$1, NODE_APP_ID_CONFIG_OPTIONS, DEFAULT_RETRY_MODE, NODE_RETRY_MODE_CONFIG_OPTIONS, NODE_MAX_ATTEMPT_CONFIG_OPTIONS, createDefaultUserAgentProvider, getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, NoAuthSigner, decideEndpoint } from './chunk-CNVAVDG2.mjs';
-import { makeBuilder, ServiceException, Client, emitWarningIfUnsupportedVersion, getDefaultExtensionConfiguration, resolveDefaultRuntimeConfig, NoOpLogger, loadConfigsForDefaultMode } from './chunk-TTV4QKES.mjs';
-import { getContentLengthPlugin, getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig } from './chunk-CKKARQCR.mjs';
-import { TypeRegistry, getSchemaSerdePlugin, streamCollector, calculateBodyLength, toUtf8, fromUtf8, toBase64, fromBase64 } from './chunk-2D7RHDR7.mjs';
+import { package_default, NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, resolveAwsSdkSigV4Config, AwsJson1_1Protocol, AwsSdkSigV4Signer } from './chunk-O6HLDTN3.mjs';
+import { NodeHttpHandler } from './chunk-CXIOFGPI.mjs';
+import './chunk-2XSHXKPI.mjs';
+import { Sha256Node } from './chunk-7VSAPNGJ.mjs';
+import { BinaryDecisionDiagram, EndpointCache, awsEndpointFunctions, customEndpointFunctions, getEndpointPlugin, resolveUserAgentConfig, resolveRetryConfig, resolveHostHeaderConfig, resolveEndpointConfig, getUserAgentPlugin, getRetryPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin, getHttpAuthSchemeEndpointRuleSetPlugin, DefaultIdentityProviderConfig, getHttpSigningPlugin, emitWarningIfUnsupportedVersion as emitWarningIfUnsupportedVersion$1, NODE_APP_ID_CONFIG_OPTIONS, DEFAULT_RETRY_MODE, NODE_RETRY_MODE_CONFIG_OPTIONS, NODE_MAX_ATTEMPT_CONFIG_OPTIONS, createDefaultUserAgentProvider, getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, NoAuthSigner, decideEndpoint } from './chunk-5O5CB24P.mjs';
+import { makeBuilder, ServiceException, Client, emitWarningIfUnsupportedVersion, getDefaultExtensionConfiguration, resolveDefaultRuntimeConfig, NoOpLogger, loadConfigsForDefaultMode } from './chunk-AY2K4GWE.mjs';
+import { getContentLengthPlugin, getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig } from './chunk-BB2CEPRS.mjs';
+import { TypeRegistry, getSchemaSerdePlugin, streamCollector, calculateBodyLength, toUtf8, fromUtf8, toBase64, fromBase64 } from './chunk-GXHTACOW.mjs';
 import { resolveRegionConfig, resolveDefaultsModeConfig, loadConfig, NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS } from './chunk-HAYTZHRA.mjs';
 import { normalizeProvider, getSmithyContext, parseUrl } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -382,10 +382,10 @@ var _m = "message";
 var _s = "smithy.ts.sdk.synthetic.com.amazonaws.cognitoidentity";
 var _se = "server";
 var n0 = "com.amazonaws.cognitoidentity";
-var _s_registry = TypeRegistry.for(_s);
+var _s_registry = new TypeRegistry(_s);
 var CognitoIdentityServiceException$ = [-3, _s, "CognitoIdentityServiceException", 0, [], []];
 _s_registry.registerError(CognitoIdentityServiceException$, CognitoIdentityServiceException);
-var n0_registry = TypeRegistry.for(n0);
+var n0_registry = new TypeRegistry(n0);
 var ExternalServiceException$ = [
   -3,
   n0,

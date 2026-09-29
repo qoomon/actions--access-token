@@ -32,7 +32,7 @@ function resolveLogins(logins) {
 function fromCognitoIdentity(parameters) {
   return async (awsIdentityProperties) => {
     parameters.logger?.debug("@aws-sdk/credential-provider-cognito-identity - fromCognitoIdentity");
-    const { GetCredentialsForIdentityCommand, CognitoIdentityClient } = await import('./loadCognitoIdentity-CHMS7E3T.mjs');
+    const { GetCredentialsForIdentityCommand, CognitoIdentityClient } = await import('./loadCognitoIdentity-6OJZ7PB2.mjs');
     const fromConfigs = (property) => parameters.clientConfig?.[property] ?? parameters.parentClientConfig?.[property] ?? awsIdentityProperties?.callerClientConfig?.[property];
     const { Credentials: { AccessKeyId = throwOnMissingAccessKeyId(parameters.logger), Expiration, SecretKey = throwOnMissingSecretKey(parameters.logger), SessionToken } = throwOnMissingCredentials(parameters.logger) } = await (parameters.client ?? new CognitoIdentityClient(Object.assign({}, parameters.clientConfig ?? {}, {
       region: fromConfigs("region"),
@@ -177,7 +177,7 @@ function fromCognitoIdentityPool({ accountId, cache = localStorage(), client, cl
   logger?.debug("@aws-sdk/credential-provider-cognito-identity - fromCognitoIdentity");
   const cacheKey = userIdentifier ? `aws:cognito-identity-credentials:${identityPoolId}:${userIdentifier}` : void 0;
   let provider = async (awsIdentityProperties) => {
-    const { GetIdCommand, CognitoIdentityClient } = await import('./loadCognitoIdentity-CHMS7E3T.mjs');
+    const { GetIdCommand, CognitoIdentityClient } = await import('./loadCognitoIdentity-6OJZ7PB2.mjs');
     const fromConfigs = (property) => clientConfig?.[property] ?? parentClientConfig?.[property] ?? awsIdentityProperties?.callerClientConfig?.[property];
     const _client = client ?? new CognitoIdentityClient(Object.assign({}, clientConfig ?? {}, {
       region: fromConfigs("region"),

@@ -1,5 +1,5 @@
 import { createRequire } from 'module';
-import { Uint8ArrayBlobAdapter, NormalizedSchema, translateTraits, sdkStreamMixin, splitEvery, splitHeader, fromBase64, _parseEpochTimestamp, _parseRfc7231DateTime, _parseRfc3339DateTimeWithOffset, LazyJsonString, NumericValue, toUtf8, fromUtf8, TypeRegistry, generateIdempotencyToken, toBase64, dateToUtcString, quoteHeader } from './chunk-2D7RHDR7.mjs';
+import { Uint8ArrayBlobAdapter, NormalizedSchema, translateTraits, sdkStreamMixin, splitEvery, splitHeader, fromBase64, _parseEpochTimestamp, _parseRfc7231DateTime, _parseRfc3339DateTimeWithOffset, LazyJsonString, NumericValue, toUtf8, fromUtf8, TypeRegistry, generateIdempotencyToken, toBase64, dateToUtcString, quoteHeader } from './chunk-GXHTACOW.mjs';
 import { HttpRequest, hasOwn, HttpResponse, isValidHostname } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
 
@@ -90,7 +90,7 @@ var HttpProtocol = class extends SerdeContext {
   constructor(options) {
     super();
     this.options = options;
-    this.compositeErrorRegistry = TypeRegistry.for(options.defaultNamespace);
+    this.compositeErrorRegistry = new TypeRegistry(options.defaultNamespace);
     for (const etr of options.errorTypeRegistries ?? []) {
       this.compositeErrorRegistry.copyFrom(etr);
     }
@@ -184,6 +184,44 @@ var HttpProtocol = class extends SerdeContext {
       cfId: output.headers["x-amz-cf-id"]
     };
   }
+  resolveError(name, namespaces, registries) {
+    const defaultErrorSchema = [-3, "", "Error", 0, [], [], 0];
+    let schema;
+    for (const registry of registries) {
+      for (const ns of namespaces) {
+        try {
+          if (ns === "*") {
+            schema = registry.getSchema(name);
+          } else {
+            schema = registry.getSchema(ns + "#" + name);
+          }
+          const errorCtor = registry.getErrorCtor(schema);
+          if (errorCtor) {
+            return [schema, errorCtor, "modeled"];
+          } else {
+            const syntheticErrorSchema = registry.getBaseException();
+            if (syntheticErrorSchema) {
+              const syntheticErrorCtor = registry.getErrorCtor(syntheticErrorSchema);
+              if (syntheticErrorCtor) {
+                return [schema, syntheticErrorCtor, "synthetic"];
+              }
+            }
+          }
+        } catch (ignored) {
+        }
+      }
+    }
+    for (const registry of registries) {
+      const syntheticErrorSchema = registry.getBaseException();
+      if (syntheticErrorSchema) {
+        const syntheticErrorCtor = registry.getErrorCtor(syntheticErrorSchema);
+        if (syntheticErrorCtor) {
+          return [syntheticErrorSchema, syntheticErrorCtor, "synthetic"];
+        }
+      }
+    }
+    return [defaultErrorSchema, Error, "native"];
+  }
   async serializeEventStream({ eventStream, requestSchema, initialRequest }) {
     const eventStreamSerde = await this.loadEventStreamCapability();
     return eventStreamSerde.serializeEventStream({
@@ -201,7 +239,7 @@ var HttpProtocol = class extends SerdeContext {
     });
   }
   async loadEventStreamCapability() {
-    const { EventStreamSerde, eventStreamSerdeProvider } = await import('./event-streams-YDHF2WMB.mjs');
+    const { EventStreamSerde, eventStreamSerdeProvider } = await import('./event-streams-FDNBUUD3.mjs');
     const marshaller = this.resolveEventStreamMarshaller(eventStreamSerdeProvider);
     return new EventStreamSerde({
       marshaller,
@@ -211,13 +249,6 @@ var HttpProtocol = class extends SerdeContext {
       defaultContentType: this.getDefaultContentType(),
       compositeErrorRegistry: this.compositeErrorRegistry
     });
-  }
-  resolveEventStreamMarshaller(importedProvider) {
-    const context = this.serdeContext;
-    if (context.eventStreamMarshaller) {
-      return context.eventStreamMarshaller;
-    }
-    return importedProvider(this.serdeContext);
   }
   getDefaultContentType() {
     throw new Error(`@smithy/core/protocols - ${this.constructor.name} getDefaultContentType() implementation missing.`);
@@ -231,6 +262,13 @@ var HttpProtocol = class extends SerdeContext {
       throw new Error("@smithy/core - HttpProtocol: eventStreamMarshaller missing in serdeContext.");
     }
     return context.eventStreamMarshaller;
+  }
+  resolveEventStreamMarshaller(importedProvider) {
+    const context = this.serdeContext;
+    if (context.eventStreamMarshaller) {
+      return context.eventStreamMarshaller;
+    }
+    return importedProvider(this.serdeContext);
   }
 };
 

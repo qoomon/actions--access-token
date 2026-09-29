@@ -226,12 +226,12 @@ var TypeRegistry = class _TypeRegistry {
     this.namespace = namespace;
     this.schemas = schemas;
     this.exceptions = exceptions;
+    if (!_TypeRegistry.registries.has(namespace)) {
+      _TypeRegistry.registries.set(namespace, this);
+    }
   }
   static for(namespace) {
-    if (!_TypeRegistry.registries.has(namespace)) {
-      _TypeRegistry.registries.set(namespace, new _TypeRegistry(namespace));
-    }
-    return _TypeRegistry.registries.get(namespace);
+    return _TypeRegistry.registries.get(namespace) ?? new _TypeRegistry(namespace);
   }
   copyFrom(other) {
     const { schemas, exceptions } = this;
@@ -249,7 +249,9 @@ var TypeRegistry = class _TypeRegistry {
   register(shapeId, schema) {
     const qualifiedName = this.normalizeShapeId(shapeId);
     for (const r of [this, _TypeRegistry.for(qualifiedName.split("#")[0])]) {
-      r.schemas.set(qualifiedName, schema);
+      if (!r.schemas.has(qualifiedName)) {
+        r.schemas.set(qualifiedName, schema);
+      }
     }
   }
   getSchema(shapeId) {
@@ -274,9 +276,12 @@ var TypeRegistry = class _TypeRegistry {
   registerError(es, ctor) {
     const $error = es;
     const ns = $error[1];
+    const qualifiedName = ns + "#" + $error[2];
     for (const r of [this, _TypeRegistry.for(ns)]) {
-      r.schemas.set(ns + "#" + $error[2], $error);
-      r.exceptions.set($error, ctor);
+      if (!r.schemas.has(qualifiedName) && !r.exceptions.has($error)) {
+        r.schemas.set(qualifiedName, $error);
+        r.exceptions.set($error, ctor);
+      }
     }
   }
   getErrorCtor(es) {

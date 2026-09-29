@@ -1,8 +1,8 @@
 import { createRequire } from 'module';
-import { setCredentialFeature } from './chunk-CNVAVDG2.mjs';
-import './chunk-TTV4QKES.mjs';
-import './chunk-CKKARQCR.mjs';
-import './chunk-2D7RHDR7.mjs';
+import { setCredentialFeature } from './chunk-5O5CB24P.mjs';
+import './chunk-AY2K4GWE.mjs';
+import './chunk-BB2CEPRS.mjs';
+import './chunk-GXHTACOW.mjs';
 import { CredentialsProviderError, getProfileName, parseKnownFiles, loadSsoSessionData, getSSOTokenFromFile, TokenProviderError, getSSOTokenFilepath } from './chunk-HAYTZHRA.mjs';
 import './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -40,7 +40,7 @@ init_esm_shims();
 // node_modules/@aws-sdk/token-providers/dist-es/getSsoOidcClient.js
 init_esm_shims();
 var getSsoOidcClient = async (ssoRegion, init = {}, callerClientConfig) => {
-  const { SSOOIDCClient } = await import('./sso-oidc-JJ7S6ACH.mjs');
+  const { SSOOIDCClient } = await import('./sso-oidc-YKCXZW7L.mjs');
   const coalesce = (prop) => init.clientConfig?.[prop] ?? init.parentClientConfig?.[prop] ?? callerClientConfig?.[prop];
   const ssoOidcClient = new SSOOIDCClient(Object.assign({}, init.clientConfig ?? {}, {
     region: ssoRegion ?? init.clientConfig?.region,
@@ -52,7 +52,7 @@ var getSsoOidcClient = async (ssoRegion, init = {}, callerClientConfig) => {
 
 // node_modules/@aws-sdk/token-providers/dist-es/getNewSsoOidcToken.js
 var getNewSsoOidcToken = async (ssoToken, ssoRegion, init = {}, callerClientConfig) => {
-  const { CreateTokenCommand } = await import('./sso-oidc-JJ7S6ACH.mjs');
+  const { CreateTokenCommand } = await import('./sso-oidc-YKCXZW7L.mjs');
   const ssoOidcClient = await getSsoOidcClient(ssoRegion, init, callerClientConfig);
   return ssoOidcClient.send(new CreateTokenCommand({
     clientId: ssoToken.clientId,
@@ -206,7 +206,7 @@ var resolveSSOCredentials = async ({ ssoStartUrl, ssoSession, ssoAccountId, ssoR
     });
   }
   const { accessToken } = token;
-  const { SSOClient, GetRoleCredentialsCommand } = await import('./loadSso-P23YRWWE.mjs');
+  const { SSOClient, GetRoleCredentialsCommand } = await import('./loadSso-4DVEXEHN.mjs');
   const sso = ssoClient || new SSOClient(Object.assign({}, clientConfig ?? {}, {
     logger: clientConfig?.logger ?? callerClientConfig?.logger ?? parentClientConfig?.logger,
     region: clientConfig?.region ?? ssoRegion,

@@ -1,5 +1,5 @@
 import { createRequire } from 'module';
-import { setCredentialFeature } from './chunk-CNVAVDG2.mjs';
+import { setCredentialFeature } from './chunk-5O5CB24P.mjs';
 import { CredentialsProviderError } from './chunk-HAYTZHRA.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
 

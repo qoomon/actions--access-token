@@ -1,6 +1,6 @@
 import { createRequire } from 'module';
-import { Crc32Node } from './chunk-BSGV3LZS.mjs';
-import { toHex, fromHex, toUtf8, TypeRegistry, fromUtf8 } from './chunk-2D7RHDR7.mjs';
+import { Crc32Node } from './chunk-7VSAPNGJ.mjs';
+import { toHex, fromHex, toUtf8, TypeRegistry, fromUtf8 } from './chunk-GXHTACOW.mjs';
 import { hasOwn } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
 import { Readable } from 'stream';

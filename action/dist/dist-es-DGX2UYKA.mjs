@@ -1,9 +1,9 @@
 import { createRequire } from 'module';
-import { ENV_KEY, ENV_SECRET, fromEnv } from './chunk-I2HKL6QZ.mjs';
-import './chunk-CNVAVDG2.mjs';
-import './chunk-TTV4QKES.mjs';
-import './chunk-CKKARQCR.mjs';
-import './chunk-2D7RHDR7.mjs';
+import { ENV_KEY, ENV_SECRET, fromEnv } from './chunk-YTYGN54M.mjs';
+import './chunk-5O5CB24P.mjs';
+import './chunk-AY2K4GWE.mjs';
+import './chunk-BB2CEPRS.mjs';
+import './chunk-GXHTACOW.mjs';
 import { ENV_PROFILE, CredentialsProviderError, chain } from './chunk-HAYTZHRA.mjs';
 import './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -20,10 +20,10 @@ init_esm_shims();
 init_esm_shims();
 var ENV_IMDS_DISABLED = "AWS_EC2_METADATA_DISABLED";
 var remoteProvider = async (init) => {
-  const { ENV_CMDS_FULL_URI, ENV_CMDS_RELATIVE_URI, fromContainerMetadata, fromInstanceMetadata } = await import('./dist-es-SANWK3ZD.mjs');
+  const { ENV_CMDS_FULL_URI, ENV_CMDS_RELATIVE_URI, fromContainerMetadata, fromInstanceMetadata } = await import('./dist-es-NCOZWEGW.mjs');
   if (process.env[ENV_CMDS_RELATIVE_URI] || process.env[ENV_CMDS_FULL_URI]) {
     init.logger?.debug("@aws-sdk/credential-provider-node - remoteProvider::fromHttp/fromContainerMetadata");
-    const { fromHttp } = await import('./dist-es-353KEZTB.mjs');
+    const { fromHttp } = await import('./dist-es-ZQU7LSMT.mjs');
     return chain(fromHttp(init), fromContainerMetadata(init));
   }
   if (process.env[ENV_IMDS_DISABLED] && process.env[ENV_IMDS_DISABLED] !== "false") {
@@ -137,22 +137,22 @@ var defaultProvider = (init = {}) => memoizeChain([
     if (!ssoStartUrl && !ssoAccountId && !ssoRegion && !ssoRoleName && !ssoSession) {
       throw new CredentialsProviderError("Skipping SSO provider in default chain (inputs do not include SSO fields).", { logger: init.logger });
     }
-    const { fromSSO } = await import('./dist-es-KQN6IWDH.mjs');
+    const { fromSSO } = await import('./dist-es-T24A53FH.mjs');
     return fromSSO(init)(awsIdentityProperties);
   },
   async (awsIdentityProperties) => {
     init.logger?.debug("@aws-sdk/credential-provider-node - defaultProvider::fromIni");
-    const { fromIni } = await import('./dist-es-62OQCFYX.mjs');
+    const { fromIni } = await import('./dist-es-7RG6REGO.mjs');
     return fromIni(init)(awsIdentityProperties);
   },
   async (awsIdentityProperties) => {
     init.logger?.debug("@aws-sdk/credential-provider-node - defaultProvider::fromProcess");
-    const { fromProcess } = await import('./dist-es-U47QPRFV.mjs');
+    const { fromProcess } = await import('./dist-es-DRQEPONO.mjs');
     return fromProcess(init)(awsIdentityProperties);
   },
   async (awsIdentityProperties) => {
     init.logger?.debug("@aws-sdk/credential-provider-node - defaultProvider::fromTokenFile");
-    const { fromTokenFile } = await import('./dist-es-TWP7FYJQ.mjs');
+    const { fromTokenFile } = await import('./dist-es-KEYGGBXL.mjs');
     return fromTokenFile(init)(awsIdentityProperties);
   },
   async () => {

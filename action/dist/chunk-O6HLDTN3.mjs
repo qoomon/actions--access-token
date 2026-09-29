@@ -1,9 +1,9 @@
 import { createRequire } from 'module';
-import { SignatureV4 } from './chunk-W3GIPFDL.mjs';
-import { normalizeProvider, setCredentialFeature, memoizeIdentityProvider, isIdentityExpired, doesIdentityRequireRefresh } from './chunk-CNVAVDG2.mjs';
-import { decorateServiceException, getValueFromTextNode } from './chunk-TTV4QKES.mjs';
-import { determineTimestampFormat, HttpBindingProtocol, HttpInterceptingShapeSerializer, HttpInterceptingShapeDeserializer, RpcProtocol, collectBody, extendedEncodeURIComponent, FromStringShapeDeserializer } from './chunk-CKKARQCR.mjs';
-import { NormalizedSchema, generateIdempotencyToken, LazyJsonString, NumericValue, toBase64, dateToUtcString, toUtf8, deref, TypeRegistry, fromBase64, parseEpochTimestamp, parseRfc7231DateTime, parseRfc3339DateTimeWithOffset } from './chunk-2D7RHDR7.mjs';
+import { SignatureV4 } from './chunk-2XSHXKPI.mjs';
+import { normalizeProvider, setCredentialFeature, memoizeIdentityProvider, isIdentityExpired, doesIdentityRequireRefresh } from './chunk-5O5CB24P.mjs';
+import { decorateServiceException, getValueFromTextNode } from './chunk-AY2K4GWE.mjs';
+import { determineTimestampFormat, HttpBindingProtocol, HttpInterceptingShapeSerializer, HttpInterceptingShapeDeserializer, RpcProtocol, collectBody, extendedEncodeURIComponent, FromStringShapeDeserializer } from './chunk-BB2CEPRS.mjs';
+import { NormalizedSchema, generateIdempotencyToken, LazyJsonString, NumericValue, toBase64, dateToUtcString, toUtf8, deref, TypeRegistry, fromBase64, parseEpochTimestamp, parseRfc7231DateTime, parseRfc3339DateTimeWithOffset } from './chunk-GXHTACOW.mjs';
 import { loadConfig, booleanSelector, SelectorType, ProviderError } from './chunk-HAYTZHRA.mjs';
 import { HttpRequest, HttpResponse } from './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -373,7 +373,7 @@ var resolveAwsSdkSigV4Config = bindResolveAwsSdkSigV4Config(DEFAULT_DISABLE_CLOC
 // node_modules/@aws-sdk/nested-clients/package.json
 var package_default = {
   name: "@aws-sdk/nested-clients",
-  version: "3.997.45",
+  version: "3.997.46",
   description: "Nested clients for AWS SDK packages.",
   homepage: "https://github.com/aws/aws-sdk-js-v3/tree/main/packages/nested-clients",
   license: "Apache-2.0",
@@ -473,13 +473,13 @@ var package_default = {
     "test:watch": "yarn g:vitest watch"
   },
   dependencies: {
-    "@aws-sdk/core": "^3.978.0",
-    "@aws-sdk/signature-v4-multi-region": "^3.996.46",
-    "@aws-sdk/types": "^3.974.5",
-    "@smithy/core": "^3.33.3",
-    "@smithy/fetch-http-handler": "^5.7.2",
-    "@smithy/node-http-handler": "^4.11.3",
-    "@smithy/types": "^4.17.2",
+    "@aws-sdk/core": "^3.978.1",
+    "@aws-sdk/signature-v4-multi-region": "^3.996.47",
+    "@aws-sdk/types": "^3.974.6",
+    "@smithy/core": "^3.35.0",
+    "@smithy/fetch-http-handler": "^5.8.0",
+    "@smithy/node-http-handler": "^4.12.1",
+    "@smithy/types": "^4.19.0",
     tslib: "^2.6.2"
   },
   devDependencies: {

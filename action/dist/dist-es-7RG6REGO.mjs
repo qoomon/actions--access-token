@@ -1,8 +1,8 @@
 import { createRequire } from 'module';
-import { setCredentialFeature } from './chunk-CNVAVDG2.mjs';
-import './chunk-TTV4QKES.mjs';
-import './chunk-CKKARQCR.mjs';
-import './chunk-2D7RHDR7.mjs';
+import { setCredentialFeature } from './chunk-5O5CB24P.mjs';
+import './chunk-AY2K4GWE.mjs';
+import './chunk-BB2CEPRS.mjs';
+import './chunk-GXHTACOW.mjs';
 import { parseKnownFiles, getProfileName, CredentialsProviderError, chain } from './chunk-HAYTZHRA.mjs';
 import './chunk-MBUECYHF.mjs';
 import { init_esm_shims } from './chunk-MIA7WKEC.mjs';
@@ -26,19 +26,19 @@ init_esm_shims();
 var resolveCredentialSource = (credentialSource, profileName, logger) => {
   const sourceProvidersMap = {
     EcsContainer: async (options) => {
-      const { fromHttp } = await import('./dist-es-353KEZTB.mjs');
-      const { fromContainerMetadata } = await import('./dist-es-SANWK3ZD.mjs');
+      const { fromHttp } = await import('./dist-es-ZQU7LSMT.mjs');
+      const { fromContainerMetadata } = await import('./dist-es-NCOZWEGW.mjs');
       logger?.debug("@aws-sdk/credential-provider-ini - credential_source is EcsContainer");
       return async () => chain(fromHttp(options ?? {}), fromContainerMetadata(options))().then(setNamedProvider);
     },
     Ec2InstanceMetadata: async (options) => {
       logger?.debug("@aws-sdk/credential-provider-ini - credential_source is Ec2InstanceMetadata");
-      const { fromInstanceMetadata } = await import('./dist-es-SANWK3ZD.mjs');
+      const { fromInstanceMetadata } = await import('./dist-es-NCOZWEGW.mjs');
       return async () => fromInstanceMetadata(options)().then(setNamedProvider);
     },
     Environment: async (options) => {
       logger?.debug("@aws-sdk/credential-provider-ini - credential_source is Environment");
-      const { fromEnv } = await import('./dist-es-BDSFBWLS.mjs');
+      const { fromEnv } = await import('./dist-es-62GBPYRK.mjs');
       return async () => fromEnv(options)().then(setNamedProvider);
     }
   };
@@ -73,7 +73,7 @@ var resolveAssumeRoleCredentials = async (profileName, profiles, options, caller
   const profileData = profiles[profileName];
   const { source_profile, region } = profileData;
   if (!options.roleAssumer) {
-    const { getDefaultRoleAssumer } = await import('./sts-KTITM4IQ.mjs');
+    const { getDefaultRoleAssumer } = await import('./sts-6STYON2F.mjs');
     options.roleAssumer = getDefaultRoleAssumer({
       ...options.clientConfig,
       credentialProviderLogger: options.logger,
@@ -123,7 +123,7 @@ var isLoginProfile = (data) => {
   return Boolean(data && data.login_session);
 };
 var resolveLoginCredentials = async (profileName, options, callerClientConfig) => {
-  const { fromLoginCredentials } = await import('./dist-es-L6H73D2Z.mjs');
+  const { fromLoginCredentials } = await import('./dist-es-CVUJ4ETY.mjs');
   const credentials = await fromLoginCredentials({
     ...options,
     profile: profileName
@@ -135,7 +135,7 @@ var resolveLoginCredentials = async (profileName, options, callerClientConfig) =
 init_esm_shims();
 var isProcessProfile = (arg) => Boolean(arg) && typeof arg === "object" && typeof arg.credential_process === "string";
 var resolveProcessCredentials = async (options, profile) => {
-  const { fromProcess } = await import('./dist-es-U47QPRFV.mjs');
+  const { fromProcess } = await import('./dist-es-DRQEPONO.mjs');
   const credentials = await fromProcess({
     ...options,
     profile
@@ -146,7 +146,7 @@ var resolveProcessCredentials = async (options, profile) => {
 // node_modules/@aws-sdk/credential-provider-ini/dist-es/resolveSsoCredentials.js
 init_esm_shims();
 var resolveSsoCredentials = async (profile, profileData, options = {}, callerClientConfig) => {
-  const { fromSSO } = await import('./dist-es-KQN6IWDH.mjs');
+  const { fromSSO } = await import('./dist-es-T24A53FH.mjs');
   return fromSSO({
     profile,
     logger: options.logger,
@@ -183,7 +183,7 @@ var resolveStaticCredentials = async (profile, options) => {
 init_esm_shims();
 var isWebIdentityProfile = (arg) => Boolean(arg) && typeof arg === "object" && typeof arg.web_identity_token_file === "string" && typeof arg.role_arn === "string" && ["undefined", "string"].indexOf(typeof arg.role_session_name) > -1;
 var resolveWebIdentityCredentials = async (profile, options, callerClientConfig) => {
-  const { fromTokenFile } = await import('./dist-es-TWP7FYJQ.mjs');
+  const { fromTokenFile } = await import('./dist-es-KEYGGBXL.mjs');
   const credentials = await fromTokenFile({
     webIdentityTokenFile: profile.web_identity_token_file,
     roleArn: profile.role_arn,
