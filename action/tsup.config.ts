@@ -1,24 +1,23 @@
-import { defineConfig } from 'tsup';
+import {defineConfig} from 'tsup';
 
 export default defineConfig({
+  clean: true,
   entry: {
     main: 'src/action-main.ts',
     post: 'src/action-post.ts',
   },
+  target: 'node24',
+  noExternal: [/(.*)/], // Bundle all dependencies
+  minify:true,
+  treeshake:true,
   format: ['esm'],
   outExtension() {
-    return { js: '.mjs' };
+    return {js: '.mjs'};
   },
-  target: 'node24',
-  outDir: 'dist',
-  noExternal: [/(.*)/], // Bundle all dependencies into dist/index.mjs
-  // splitting: false,
-  clean: true,
-  // minify: true,
-  treeshake: true,
   shims: true, // Polyfills __dirname and __filename for ESM
   banner: {
-    // Shims CommonJS 'require' calls if imported third-party libs use it internally
-    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+    // Shims CommonJS 'require' for ESM
+    js: "import { createRequire } from 'module';" +
+        "const require = createRequire(import.meta.url);",
   },
 });

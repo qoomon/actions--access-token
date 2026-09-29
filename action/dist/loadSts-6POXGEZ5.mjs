@@ -1,0 +1,2 @@
+import {createRequire}from'module';export{D as AssumeRoleCommand,C as STSClient}from'./chunk-CQ6E66YX.mjs';import'./chunk-LGNHJIH7.mjs';import'./chunk-GEPZRUPN.mjs';import'./chunk-47MYPJMG.mjs';import'./chunk-ZGKQANMB.mjs';import'./chunk-DJ6Q6WXQ.mjs';import'./chunk-I6NSE263.mjs';import'./chunk-YTM4L6MS.mjs';import'./chunk-7KCGXOEI.mjs';import'./chunk-NNAQU4BQ.mjs';import'./chunk-XGEJLZSS.mjs';import {e}from'./chunk-YJFE2PJT.mjs';createRequire(import.meta.url);
+e();
