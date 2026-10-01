@@ -24,7 +24,6 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vercel/ncc": "^0.45.0",
     "eslint": "^10.10.1",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-node": "^11.1.0",
