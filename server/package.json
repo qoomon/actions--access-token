@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "lint": "eslint",
-    "test": "node --experimental-transform-types --import tsx --experimental-test-module-mocks --test test/**.test.ts",
+    "test": "node --experimental-transform-types --import tsx --experimental-test-module-mocks --test \"test/**/*.test.ts\"",
     "start": "node --experimental-transform-types --import tsx src/server.ts",
     "build": "npx npm-run-all build:*",
     "build:server": "tsup src/server.ts",

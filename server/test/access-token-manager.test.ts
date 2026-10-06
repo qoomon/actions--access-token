@@ -60,6 +60,69 @@ describe('getEffectiveCallerIdentitySubjects', () => {
         `:pull_request`));
   });
 
+  it('adds legacy repository subject for immutable sub claim', () => {
+    const identity = makeIdentity();
+    const subjects = getEffectiveCallerIdentitySubjects(identity);
+    assert.ok(subjects.includes(identity.sub));
+    assert.ok(subjects.includes(`repo:${identity.repository}:ref:${identity.ref}`));
+  });
+
+  describe('sub claim binding', () => {
+    // The sub claim can be customized by repository admins, e.g. to `ref:refs/heads/main` or `environment:production`,
+    // which is indistinguishable from the sub claim of any other repository.
+    // Therefore, the sub claim is only trusted if it is bound to the repository of the caller identity.
+
+    const BOUND_SUBS = [
+      'repo:octocat/sandbox',
+      'repo:octocat/sandbox:environment:production',
+      'repo:octocat/sandbox:pull_request',
+      'repo:octocat@583231/sandbox@1234567',
+      'repo:octocat@583231/sandbox@1234567:environment:production',
+    ];
+    for (const sub of BOUND_SUBS) {
+      it(`includes the sub claim '${sub}' that is bound to the repository`, () => {
+        const identity = makeIdentity({sub});
+        const subjects = getEffectiveCallerIdentitySubjects(identity);
+        assert.ok(subjects.includes(sub));
+        // both formats are included
+        const suffix = sub.replace(/^repo:[^:]+/, '');
+        assert.ok(subjects.includes(`repo:octocat/sandbox${suffix}`));
+        assert.ok(subjects.includes(`repo:octocat@583231/sandbox@1234567${suffix}`));
+      });
+    }
+
+    const UNBOUND_SUBS = [
+      'ref:refs/heads/main',
+      'environment:production',
+      'repo',
+      'octocat/sandbox',
+      'workflow:build:repo:octocat/sandbox',
+      'x:repo:octocat/sandbox:ref:refs/heads/main',
+      'repo:octocat/other:ref:refs/heads/main',
+      'repo:octocat/sandbox-other:ref:refs/heads/main',
+      'repo:octocat/sandbox2',
+      'repo:other/sandbox:ref:refs/heads/main',
+      'repo:octocat@583231/other@1234567:ref:refs/heads/main',
+      'repo:octocat@583231/sandbox@7654321:ref:refs/heads/main',
+      'repo:octocat@111111/sandbox@1234567:ref:refs/heads/main',
+      'repo:octocat@583231/sandbox@1234567x:ref:refs/heads/main',
+    ];
+    for (const sub of UNBOUND_SUBS) {
+      it(`does NOT include the sub claim '${sub}' that is not bound to the repository`, () => {
+        const identity = makeIdentity({sub});
+        const subjects = getEffectiveCallerIdentitySubjects(identity);
+        assert.equal(subjects.includes(sub), false);
+        // artificial subjects are still available
+        assert.ok(subjects.includes('repo:octocat/sandbox:ref:refs/heads/main'));
+        assert.ok(subjects.includes('repo:octocat@583231/sandbox@1234567:ref:refs/heads/main'));
+        // all subjects are bound to the repository
+        for (const subject of subjects) {
+          assert.match(subject, /^repo:octocat(@583231)?\/sandbox(@1234567)?:/);
+        }
+      });
+    }
+  });
+
   it('adds repo:…:ref:… for branch refs', () => {
     const identity = makeIdentity({ref: 'refs/heads/main'});
     const subjects = getEffectiveCallerIdentitySubjects(identity);

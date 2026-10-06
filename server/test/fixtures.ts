@@ -49,30 +49,37 @@ export const GITHUB_ACTIONS_TOKEN_SIGNING = {
   }),
 };
 
-export async function createGitHubActionsToken({claims, expirationTime, signing}: {
+export async function createGitHubActionsToken({claims, omitClaims, expirationTime, signing}: {
   claims?: {
+    sub?: string,
     repository?: string,
     ref?: string,
+    workflow?: string,
     workflow_ref?: string,
     repository_id?: string,
     repository_owner_id?: string,
     immutableSub?: boolean,
   },
+  omitClaims?: string[],
   expirationTime?: string | number,
-  signing?: { key: crypto.KeyObject },
+  signing?: { key: crypto.KeyObject, alg?: string },
 }) {
-  const payload = createGitHubActionsTokenPayload(claims);
+  const payload = Object.fromEntries(Object.entries(createGitHubActionsTokenPayload(claims))
+      .filter(([claim]) => !omitClaims?.includes(claim)));
 
-  return await new SignJWT(payload as unknown as JWTPayload)
+  const jwt = new SignJWT(payload as unknown as JWTPayload)
       .setProtectedHeader({
-        alg: 'RS256',
+        alg: signing?.alg ?? 'RS256',
         kid: GITHUB_ACTIONS_TOKEN_SIGNING.kid,
-      })
-      .setExpirationTime(expirationTime ?? '1h')
-      .sign(signing?.key ?? GITHUB_ACTIONS_TOKEN_SIGNING.key.privateKey)
+      });
+  if (!omitClaims?.includes('exp')) {
+    jwt.setExpirationTime(expirationTime ?? '1h');
+  }
+  return await jwt.sign(signing?.key ?? GITHUB_ACTIONS_TOKEN_SIGNING.key.privateKey)
 }
 
 function createGitHubActionsTokenPayload(claims?: {
+  sub?: string,
   repository?: string,
   ref?: string,
   workflow?: string,
@@ -87,9 +94,9 @@ function createGitHubActionsTokenPayload(claims?: {
   const repository_id = claims?.repository_id ?? DEFAULT_REPO_ID;
   const repository_owner_id = claims?.repository_owner_id ?? DEFAULT_OWNER_ID;
 
-  const subClaim = (claims?.immutableSub ?? true)
+  const subClaim = claims?.sub ?? ((claims?.immutableSub ?? true)
       ? `repo:${owner}@${repository_owner_id}/${repo}@${repository_id}:ref:${ref}`
-      : `repo:${repository}:ref:${ref}`;
+      : `repo:${repository}:ref:${ref}`);
 
   return {
     iss: GITHUB_ACTIONS_TOKEN_SIGNING.iss,

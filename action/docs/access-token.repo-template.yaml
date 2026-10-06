@@ -22,11 +22,15 @@ statements:
       # ${origin} - resolves to the origin repository name e.g. qoomon/sandbox
       # '*' - match every character except ':'
       # ':**' - match every following claim, can only be used at the end of a subject pattern
+      #
+      # Subject patterns are case-sensitive, except for owner/repository names and environment names.
+      # e.g. repo:${origin}:ref:refs/heads/main does NOT match a job running on branch 'Main'
 
       # === GitHub Actions OIDC Token Subjects ===
       #
       # A GitHub Actions job will always have the following subjects
       # The original OIDC token 'sub' claim e.g. repo:${origin}:ref:refs/heads/main or repo:${origin}:environment:production
+      #   (a customized 'sub' claim, that does not start with the 'repo' claim of the job's repository, is ignored)
       # repo:${origin}:ref:<ref> e.g. repo:${origin}:ref:refs/heads/main
       # repo:${origin}:environment:<environment> e.g. repo:${origin}:environment:production
       # repo:${origin}:workflow_ref:<workflow_ref> e.g. repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main

@@ -195,6 +195,57 @@ describe('App path /access_tokens', () => {
           },
         });
       });
+
+      it('should respond with UNAUTHORIZED if authorization token is signed with an unexpected algorithm', async () => {
+        // --- Given ---
+        const githubToken = await Fixtures.createGitHubActionsToken({
+          signing: {
+            key: GITHUB_ACTIONS_TOKEN_SIGNING.key.privateKey,
+            alg: 'PS256',
+          },
+        });
+
+        // --- When ---
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+        });
+
+        // --- Then ---
+        await assertResponse(response, {
+          status: Status.UNAUTHORIZED,
+          body: {
+            requestId: expect.any(String),
+            error: 'Unauthorized',
+            message: 'Invalid token: "alg" (Algorithm) Header Parameter value not allowed',
+          },
+        });
+      });
+
+      for (const claim of ['exp', 'sub', 'repository', 'repository_owner', 'repository_id', 'repository_owner_id']) {
+        it(`should respond with UNAUTHORIZED if authorization token does not contain the ${claim} claim`, async () => {
+          // --- Given ---
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            omitClaims: [claim],
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+          });
+
+          // --- Then ---
+          await assertResponse(response, {
+            status: Status.UNAUTHORIZED,
+            body: {
+              requestId: expect.any(String),
+              error: 'Unauthorized',
+              message: `Invalid token: missing required "${claim}" claim`,
+            },
+          });
+        });
+      }
     });
 
     describe('request body validation', () => {
@@ -914,6 +965,118 @@ describe('App path /access_tokens', () => {
           });
         });
 
+        it('should respond with FORBIDDEN if the caller repository customized the OIDC sub claim to impersonate a subject of the target repo policy', async () => {
+          // --- Given ---
+          const callerRepo = githubMockEnvironment.addRepository({});
+          const targetRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                // legacy pattern without repo claim, which is completed to 'repo:${origin}:ref:refs/heads/main'
+                subjects: ['ref:refs/heads/main'],
+                permissions: {contents: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            // the sub claim template of the caller repository is customized to only contain the ref claim
+            claims: {repository: callerRepo.name, ref: 'refs/heads/main', sub: 'ref:refs/heads/main'},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              repositories: [targetRepo.repo],
+              permissions: {contents: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await assertResponse(response, {
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${targetRepo.name}:\n`,
+                / {2}- Not authorized\n/,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with FORBIDDEN if the caller ref differs in case from the ref granted by the target repo policy', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:${origin}:ref:refs/heads/main'],
+                permissions: {contents: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name, ref: 'refs/heads/Main'},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {contents: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await assertResponse(response, {
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.stringMatching(joinRegExp([/^Issues:\n/,
+                `- ${actionRepo.name}:\n`,
+                / {2}- Not authorized\n/,
+              ])),
+            },
+          });
+        });
+
+        it('should respond with FORBIDDEN for a pull request ref even if the workflow file name contains a colon', async () => {
+          // --- Given ---
+          const actionRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: ['repo:${origin}:**'],
+                permissions: {contents: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            claims: {repository: actionRepo.name, ref: 'refs/pull/1/merge', workflow: 'build:pr.yml'},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              permissions: {contents: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await assertResponse(response, {
+            status: Status.FORBIDDEN,
+            body: {
+              requestId: expect.any(String),
+              error: 'Forbidden',
+              message: expect.any(String),
+            },
+          });
+        });
+
         it('should respond with FORBIDDEN if requested target repo permission scope was not granted by repo', async () => {
           // --- Given ---
           const actionRepo = githubMockEnvironment.addRepository({
@@ -1131,6 +1294,46 @@ describe('App path /access_tokens', () => {
               owner: actionRepo.owner,
               permissions: {secrets: 'write'},
               repositories: [parseRepository(actionRepo.name).repo],
+              token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
+              token_hash: expect.any(String),
+              expires_at: expect.stringMatching(/Z$/),
+            },
+          });
+        });
+
+        it('should respond with OK if the caller repository customized the OIDC sub claim and the target repo policy grants access to the caller repository', async () => {
+          // --- Given ---
+          const callerRepo = githubMockEnvironment.addRepository({});
+          const targetRepo = githubMockEnvironment.addRepository({
+            accessPolicy: {
+              statements: [{
+                subjects: [`repo:${callerRepo.name}:ref:refs/heads/main`],
+                permissions: {secrets: 'write'},
+              }],
+            },
+          });
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            // the sub claim template of the caller repository is customized to only contain the ref claim
+            claims: {repository: callerRepo.name, ref: 'refs/heads/main', sub: 'ref:refs/heads/main'},
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+            body: JSON.stringify({
+              repositories: [targetRepo.repo],
+              permissions: {secrets: 'write'},
+            }),
+          });
+
+          // --- Then ---
+          await assertResponse(response, {
+            status: Status.OK,
+            body: {
+              owner: targetRepo.owner,
+              permissions: {secrets: 'write'},
+              repositories: [targetRepo.repo],
               token: expect.stringMatching(/^INSTALLATION_ACCESS_TOKEN@/),
               token_hash: expect.any(String),
               expires_at: expect.stringMatching(/Z$/),
