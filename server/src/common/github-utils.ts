@@ -192,7 +192,8 @@ export function buildWorkflowRunUrl(token: GitHubActionsJwtPayload) {
 const GitHubRepositoryOwnerRegex = /^[a-z\d](-?[a-z\d])+$/i;
 export const GitHubRepositoryOwnerSchema = z.string().regex(GitHubRepositoryOwnerRegex,
     {abort: true});
-const GitHubRepositoryNameRegex = /^[a-z\d-._]+$/i;
+// BE AWARE to reject '.' and '..', otherwise these would be treated as path segments of the GitHub API url
+const GitHubRepositoryNameRegex = /^(?!\.{1,2}$)[a-z\d-._]+$/i;
 export const GitHubRepositoryNameSchema = z.string().regex(GitHubRepositoryNameRegex,
     {abort: true});
 

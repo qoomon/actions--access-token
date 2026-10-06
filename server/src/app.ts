@@ -52,6 +52,9 @@ export function appInit(prepare?: (app: Hono) => void) {
           {
             issuer: 'https://token.actions.githubusercontent.com',
             audience: config.githubActionsTokenVerifier.allowedAud,
+            // GitHub Actions OIDC tokens are always signed with RS256 and always expire
+            algorithms: ['RS256'],
+            requiredClaims: ['exp', 'sub', 'repository', 'repository_owner', 'repository_id', 'repository_owner_id'],
             subjects: config.githubActionsTokenVerifier.allowedSub,
           },
       ),

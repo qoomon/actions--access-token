@@ -112,7 +112,7 @@ async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client
           return null;
         });
   });
-  if (!policyValue) {
+  if (policyValue === null) {
     throw new GithubAccessPolicyError(`Access policy not found`);
   }
 
@@ -253,9 +253,8 @@ export function filterValidPermissions(
 /**
  * Expand and resolve subjects in an access policy statement.
  *
- * Substitutes `${origin}` variables and adds legacy artificial subjects so
- * that abbreviated patterns written before the full OIDC subject format was
- * required continue to match.
+ * Substitutes `${origin}` variables and completes legacy abbreviated patterns
+ * (written before the full OIDC subject format was required) to the full subject format.
  *
  * @param statement - access policy statement (mutated in place)
  * @param owner - policy file owner
@@ -266,11 +265,9 @@ export function resolveAccessPolicyStatementSubjects(statement: { subjects: stri
   repo: string,
 }) {
   statement.subjects = statement.subjects
-      .map((it) => resolveSubjectVariables(it, {owner, repo}));
-
-  // LEGACY SUPPORT for the artificial subject pattern
-  const artificialSubjects = buildLegacyArtificialSubjects(statement.subjects, {owner, repo});
-  statement.subjects.push(...artificialSubjects);
+      .map((it) => resolveSubjectVariables(it, {owner, repo}))
+      // LEGACY SUPPORT for the artificial subject pattern
+      .map((it) => completeLegacySubject(it, {owner, repo}));
 }
 
 /**
@@ -285,44 +282,40 @@ function resolveSubjectVariables(subject: string, {owner, repo}: {
 
 /**
  * LEGACY SUPPORT
- * Generate additional subject patterns that match older abbreviated subject formats
- * @param subjects - resolved subjects
+ * Complete an older abbreviated subject pattern (e.g. `ref:refs/heads/main`) to the full subject format
+ * (e.g. `repo:owner/repo:ref:refs/heads/main`).
+ *
+ * BE AWARE that the abbreviated pattern must be replaced and not be kept next to the completed one,
+ * otherwise it would also match the raw `sub` claim of any repository that customized its OIDC `sub` claim
+ * (e.g. to only contain the `ref` claim) and therefore grant the permissions to unrelated repositories.
+ *
+ * @param subject - resolved subject
  * @param owner - policy file owner
  * @param repo - policy file repository
- * @return additional legacy subjects (may be empty)
+ * @return subject in the full subject format
  */
-function buildLegacyArtificialSubjects(subjects: string[], {owner, repo}: {
+function completeLegacySubject(subject: string, {owner, repo}: {
   owner: string,
   repo: string,
-}): string[] {
-  const artificialSubjects: string[] = [];
+}): string {
+  const subjectRepo = subject.match(/(^|:)repo:(?<repo>[^:]+)/)?.groups?.repo ?? `${owner}/${repo}`;
 
-  subjects.forEach((it) => {
-    const subjectRepo = it.match(/(^|:)repo:(?<repo>[^:]+)/)?.groups?.repo ?? `${owner}/${repo}`;
+  // prefix subject with repo claim, if not already prefixed
+  let completedSubject = subject.startsWith('repo:') ? subject :
+      `repo:${subjectRepo}:${subject}`;
 
-    let artificialSubject = it;
-
-    // prefix subject with repo claim, if not already prefixed
-    artificialSubject = artificialSubject.startsWith('repo:') ? artificialSubject :
-        `repo:${subjectRepo}:${artificialSubject}`;
-
-    // prefix (job_)workflow_ref claim value with repo, if not already prefixed
-    const workflowRefPattern = /(?<=^|:)(?<claim>(job_)?workflow_ref):(?<value>[^:]+)/;
-    const workflowRefMatch = workflowRefPattern.exec(artificialSubject);
-    if (workflowRefMatch?.groups) {
-      const {claim, value} = workflowRefMatch.groups;
-      if (value.startsWith('/')) {
-        artificialSubject = artificialSubject.replace(
-            `${claim}:${value}`, `${claim}:${subjectRepo}${value}`);
-      }
+  // prefix (job_)workflow_ref claim value with repo, if not already prefixed
+  const workflowRefPattern = /(?<=^|:)(?<claim>(job_)?workflow_ref):(?<value>[^:]+)/;
+  const workflowRefMatch = workflowRefPattern.exec(completedSubject);
+  if (workflowRefMatch?.groups) {
+    const {claim, value} = workflowRefMatch.groups;
+    if (value.startsWith('/')) {
+      completedSubject = completedSubject.replace(
+          `${claim}:${value}`, `${claim}:${subjectRepo}${value}`);
     }
+  }
 
-    if (artificialSubject !== it) {
-      artificialSubjects.push(artificialSubject);
-    }
-  });
-
-  return artificialSubjects;
+  return completedSubject;
 }
 
 // --- Permission evaluation ----------------------------------------------------------------------------------------
@@ -345,6 +338,12 @@ export function evaluateGrantedPermissions({statements, callerIdentitySubjects}:
 }
 
 /**
+ * Matches pull request refs (e.g. `refs/pull/123/merge`) at the start of a claim value
+ * or as suffix of a workflow ref (e.g. `owner/repo/.github/workflows/build.yml@refs/pull/123/merge`)
+ */
+const PULL_REQUEST_REF_PATTERN = /(?:^|[:@])refs\/pull\//;
+
+/**
  * Returns true if `subject` matches any of the `subjectPattern`(s).
  *
  * Wildcards: `**` matches any characters; `*` matches any characters except `:`;
@@ -353,6 +352,10 @@ export function evaluateGrantedPermissions({statements, callerIdentitySubjects}:
  * Subject pattern claims (the key parts) must not themselves contain wildcards
  * (e.g. `repo:foo/bar:*` is rejected) to prevent accidentally broad grants.
  * The trailing `:**` form is allowed as a special case.
+ *
+ * Pull request refs (`refs/pull/…`) are only matched by patterns that explicitly contain `refs/pull/`.
+ *
+ * Matching is case-sensitive, except for owner/repository names and environment names (see `regexpOfSubjectPattern`).
  *
  * @param subjectPattern - single pattern or array of patterns
  * @param subject - single subject or array of subjects
@@ -375,6 +378,13 @@ export function matchSubject(subjectPattern: string | string[], subject: string 
     return false;
   }
 
+  // pull request refs are not trusted, they must be matched explicitly by the subject pattern
+  // BE AWARE that claim values can contain ':' (e.g. workflow file names), which shifts the pairing of claim names and
+  // values, so pull request refs must be detected regardless of the claim they are part of
+  if (PULL_REQUEST_REF_PATTERN.test(subject) && !subjectPattern.includes('refs/pull/')) {
+    return false;
+  }
+
   const pullRequestRefPatterns = [/^refs\/pull\//, /@refs\/pull\/[^@]+$/];
   const subjectClaims = parseOIDCSubject(subject)
   const subjectPatternsClaims = parseOIDCSubject(subjectPattern)
@@ -389,14 +399,79 @@ export function matchSubject(subjectPattern: string | string[], subject: string 
 }
 
 /**
- * Compile a wildcard subject pattern into a regular expression
+ * Compile a wildcard subject pattern into a regular expression.
+ *
+ * The regular expression is case-sensitive, except for the claim values GitHub treats as case-insensitive, which are
+ * owner and repository names (`repo` claim and the repository part of (job_)workflow_ref claims) and environment names.
+ * In contrast, git refs and file paths are case-sensitive, e.g. the branches `main` and `Main` are different branches.
  */
 function regexpOfSubjectPattern(subjectPattern: string): RegExp {
-  const regexp = RegExp.escape(subjectPattern)
-      .replaceAll('\\*\\*', '(?:.*)') // **  matches zero or more characters
-      .replaceAll('\\*', '(?:[^:]*)') //  *  matches zero or more characters except ':'
-      .replaceAll('\\?', '[^:]'); //  ?  matches one character except ':'
-  return RegExp(`^${regexp}$`, 'i');
+  const segments = subjectPattern.split(':');
+  const regexp = segments
+      .map((segment, index) => {
+        const [caseInsensitivePart, caseSensitivePart] = splitCaseInsensitivePart(segment, segments[index - 1]);
+        return regexpSourceOfWildcardPattern(caseInsensitivePart, true) +
+            regexpSourceOfWildcardPattern(caseSensitivePart, false);
+      })
+      .join(':');
+  return RegExp(`^${regexp}$`);
+}
+
+/**
+ * Split a subject pattern segment into a leading part that must be matched case-insensitively
+ * and a remaining part that must be matched case-sensitively
+ * @param segment - subject pattern segment (a claim value, if the previous segment is a claim name)
+ * @param previousSegment - previous subject pattern segment
+ * @return case-insensitive part and case-sensitive part
+ */
+function splitCaseInsensitivePart(segment: string, previousSegment?: string): [string, string] {
+  switch (previousSegment) {
+    case 'repo': // <owner>/<repo> or immutable <owner>@<owner id>/<repo>@<repo id>
+    case 'environment':
+      return [segment, ''];
+    case 'workflow_ref': // <owner>/<repo>/.github/workflows/<file>@<ref>
+    case 'job_workflow_ref': {
+      const repositoryLength = /^[^/]*\/[^/]*/.exec(segment)?.[0].length ?? 0;
+      return [segment.slice(0, repositoryLength), segment.slice(repositoryLength)];
+    }
+    default:
+      return ['', segment];
+  }
+}
+
+/**
+ * Convert a wildcard pattern into a regular expression source
+ * @param pattern - wildcard pattern
+ * @param ignoreCase - true to match ASCII letters case-insensitively
+ * @return regular expression source
+ */
+function regexpSourceOfWildcardPattern(pattern: string, ignoreCase: boolean): string {
+  // splitting by a capturing group keeps the wildcards as every second entry
+  return pattern.split(/(\*\*|\*|\?)/)
+      .map((token, index) => {
+        if (index % 2 === 0) {
+          return ignoreCase ? regexpSourceOfCaseInsensitiveText(token) : RegExp.escape(token);
+        }
+        switch (token) {
+          case '**':
+            return '(?:.*)'; // **  matches zero or more characters
+          case '*':
+            return '(?:[^:]*)'; //  *  matches zero or more characters except ':'
+          default:
+            return '[^:]'; //  ?  matches one character except ':'
+        }
+      })
+      .join('');
+}
+
+/**
+ * Convert a text into a regular expression source that matches the text case-insensitively.
+ * BE AWARE that only ASCII letters are matched case-insensitively (no unicode case folding),
+ * e.g. the Kelvin sign (U+212A) must not match the letter k.
+ */
+function regexpSourceOfCaseInsensitiveText(text: string): string {
+  return Array.from(text, (char) => /^[A-Za-z]$/.test(char) ?
+      `[${char.toLowerCase()}${char.toUpperCase()}]` : RegExp.escape(char)).join('');
 }
 
 // --- Error formatting ---------------------------------------------------------------------------------------------

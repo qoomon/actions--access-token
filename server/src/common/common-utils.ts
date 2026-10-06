@@ -35,13 +35,14 @@ export async function resultOf<T>(promise: Promise<T>): Promise<
 
 /**
  * This function will return the first non-null value from the given values
+ * BE AWARE that only `null` and `undefined` are considered as null values, e.g. an empty string is a valid value.
  * @param values - input values
  * @param fn - mapping function
  */
 export async function findFirstNotNull<T, R>(values: T[], fn: (value: T) => Promise<R | null>): Promise<R | null> {
   for (const inputValue of values) {
     const outputValue = await fn(inputValue);
-    if (outputValue) {
+    if (outputValue !== null && outputValue !== undefined) {
       return outputValue;
     }
   }

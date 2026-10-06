@@ -536,22 +536,28 @@ function normalizeTokenRequest(
  * policy patterns can use shorter forms. Pull-request refs are excluded
  * because they are not trusted for access grants.
  *
+ * BE AWARE that the `sub` claim can be customized by repository and organization admins and might lack the `repo`
+ * claim (e.g. `ref:refs/heads/main`). Such a `sub` claim is indistinguishable from the `sub` claim of any other
+ * repository, so the raw `sub` claim is only trusted if it is bound to the repository of the caller identity.
+ *
  * @param callerIdentity - caller identity from GitHub Actions OIDC token
  * @return deduplicated list of effective subjects
  */
 export function getEffectiveCallerIdentitySubjects(callerIdentity: GitHubActionsJwtPayload): string[] {
-  const subjects = [callerIdentity.sub];
+  const subjects: string[] = [];
 
   // https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims
   const immutableRepository = `${callerIdentity.repository_owner}@${callerIdentity.repository_owner_id}`
       + `/${callerIdentity.repository.split('/')[1]}@${callerIdentity.repository_id}`;
+  const repositoryFormats = [immutableRepository, callerIdentity.repository];
 
-  // Ensure the immutable and the legacy subject format are both included for backward compatibility with existing access policies
-  if (callerIdentity.sub.includes(`repo:${immutableRepository}`)) {
-    subjects.push(callerIdentity.sub.replace(`repo:${immutableRepository}`, `repo:${callerIdentity.repository}`));
-  }
-  if (callerIdentity.sub.includes(`repo:${callerIdentity.repository}`)) {
-    subjects.push(callerIdentity.sub.replace(`repo:${callerIdentity.repository}`, `repo:${immutableRepository}`));
+  const subRepositoryPrefix = repositoryFormats
+      .map((repository) => RegExp(`^repo:${RegExp.escape(repository)}(?=:|$)`, 'i').exec(callerIdentity.sub)?.[0])
+      .find((prefix) => prefix !== undefined);
+  if (subRepositoryPrefix !== undefined) {
+    const subSuffix = callerIdentity.sub.slice(subRepositoryPrefix.length);
+    // Ensure the immutable and the legacy subject format are both included for backward compatibility with existing access policies
+    subjects.push(callerIdentity.sub, ...repositoryFormats.map((repository) => `repo:${repository}${subSuffix}`));
   }
 
   // repo : ref
