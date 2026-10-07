@@ -48,8 +48,7 @@ export const GITHUB_ACTIONS_TOKEN_SIGNING = {
     modulusLength: 2048,
   }),
 };
-
-export async function createGitHubActionsToken({claims, expirationTime, signing}: {
+export async function createGitHubActionsToken({claims, omitClaims, expirationTime, signing}: {
   claims?: {
     repository?: string,
     ref?: string,
@@ -58,18 +57,22 @@ export async function createGitHubActionsToken({claims, expirationTime, signing}
     repository_owner_id?: string,
     immutableSub?: boolean,
   },
+  omitClaims?: string[],
   expirationTime?: string | number,
-  signing?: { key: crypto.KeyObject },
+  signing?: { key: crypto.KeyObject, alg?: string },
 }) {
-  const payload = createGitHubActionsTokenPayload(claims);
+  const payload = Object.fromEntries(Object.entries(createGitHubActionsTokenPayload(claims))
+      .filter(([claim]) => !omitClaims?.includes(claim)));
 
-  return await new SignJWT(payload as unknown as JWTPayload)
+  const jwt = new SignJWT(payload as unknown as JWTPayload)
       .setProtectedHeader({
-        alg: 'RS256',
+        alg: signing?.alg ?? 'RS256',
         kid: GITHUB_ACTIONS_TOKEN_SIGNING.kid,
-      })
-      .setExpirationTime(expirationTime ?? '1h')
-      .sign(signing?.key ?? GITHUB_ACTIONS_TOKEN_SIGNING.key.privateKey)
+      });
+  if (!omitClaims?.includes('exp')) {
+    jwt.setExpirationTime(expirationTime ?? '1h');
+  }
+  return await jwt.sign(signing?.key ?? GITHUB_ACTIONS_TOKEN_SIGNING.key.privateKey)
 }
 
 function createGitHubActionsTokenPayload(claims?: {

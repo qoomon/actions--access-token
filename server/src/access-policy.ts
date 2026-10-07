@@ -112,7 +112,7 @@ async function getAccessPolicy<T extends typeof GitHubAccessPolicySchema>(client
           return null;
         });
   });
-  if (!policyValue) {
+  if (policyValue == null) {
     throw new GithubAccessPolicyError(`Access policy not found`);
   }
 
@@ -253,9 +253,7 @@ export function filterValidPermissions(
 /**
  * Expand and resolve subjects in an access policy statement.
  *
- * Substitutes `${origin}` variables and adds legacy artificial subjects so
- * that abbreviated patterns written before the full OIDC subject format was
- * required continue to match.
+ * Substitutes `${origin}` variables and completes legacy abbreviated patterns
  *
  * @param statement - access policy statement (mutated in place)
  * @param owner - policy file owner

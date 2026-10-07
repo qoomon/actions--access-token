@@ -41,7 +41,7 @@ export async function resultOf<T>(promise: Promise<T>): Promise<
 export async function findFirstNotNull<T, R>(values: T[], fn: (value: T) => Promise<R | null>): Promise<R | null> {
   for (const inputValue of values) {
     const outputValue = await fn(inputValue);
-    if (outputValue) {
+    if (outputValue != null) {
       return outputValue;
     }
   }

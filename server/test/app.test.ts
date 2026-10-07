@@ -195,6 +195,62 @@ describe('App path /access_tokens', () => {
           },
         });
       });
+
+      it('should respond with UNAUTHORIZED if authorization token is signed with an unexpected algorithm', async () => {
+        // --- Given ---
+        const githubToken = await Fixtures.createGitHubActionsToken({
+          signing: {
+            key: GITHUB_ACTIONS_TOKEN_SIGNING.key.privateKey,
+            alg: 'PS256',
+          },
+        });
+
+        // --- When ---
+        const response = await app.request(path, {
+          method: 'POST',
+          headers: {Authorization: `Bearer ${githubToken}`},
+        });
+
+        // --- Then ---
+        await assertResponse(response, {
+          status: Status.UNAUTHORIZED,
+          body: {
+            requestId: expect.any(String),
+            error: 'Unauthorized',
+            message: 'Invalid token: "alg" (Algorithm) Header Parameter value not allowed',
+          },
+        });
+      });
+
+      for (const claim of [
+        'exp', 'sub',
+        'repository_owner', 'repository_owner_id',
+        'repository', 'repository_id',
+        'workflow_ref', 'job_workflow_ref',
+      ]) {
+        it(`should respond with UNAUTHORIZED if authorization token does not contain the ${claim} claim`, async () => {
+          // --- Given ---
+          const githubToken = await Fixtures.createGitHubActionsToken({
+            omitClaims: [claim],
+          });
+
+          // --- When ---
+          const response = await app.request(path, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${githubToken}`},
+          });
+
+          // --- Then ---
+          await assertResponse(response, {
+            status: Status.UNAUTHORIZED,
+            body: {
+              requestId: expect.any(String),
+              error: 'Unauthorized',
+              message: `Invalid token: missing required "${claim}" claim`,
+            },
+          });
+        });
+      }
     });
 
     describe('request body validation', () => {

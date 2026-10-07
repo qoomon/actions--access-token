@@ -42,7 +42,7 @@ export function appInit(prepare?: (app: Hono) => void) {
   app.use(prettyJSON());
 
   app.get('/', (context) => {
-      return context.text('https://github.com/qoomon/actions--access-token');
+    return context.text('https://github.com/qoomon/actions--access-token');
   });
 
   // --- handle access token request -----------------------------------------------------------------------------------
@@ -53,6 +53,13 @@ export function appInit(prepare?: (app: Hono) => void) {
             issuer: 'https://token.actions.githubusercontent.com',
             audience: config.githubActionsTokenVerifier.allowedAud,
             subjects: config.githubActionsTokenVerifier.allowedSub,
+            algorithms: ['RS256'],
+            requiredClaims: [
+              'exp', 'sub',
+              'repository_owner', 'repository_owner_id',
+              'repository', 'repository_id',
+              'workflow_ref', 'job_workflow_ref',
+            ],
           },
       ),
       async (context) => {
