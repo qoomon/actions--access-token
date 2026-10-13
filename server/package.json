@@ -8,7 +8,7 @@
     "build": "npx npm-run-all build:*",
     "build:server": "tsup src/server.ts",
     "build:cloudflare-worker": "tsup deployments/cloudflare/index.ts",
-    "build:aws-lambda": "tsup deployments/aws/lambda-handler.ts",
+    "build:aws-lambda": "tsup deployments/aws/index.ts",
     "build:vercel-function": "tsup deployments/vercel/api/index.ts",
     "build:netlify-function": "tsup deployments/netlify/functions/index.ts",
     "build:docker-container": "docker build -t localhost/github-access-token-server:latest ."

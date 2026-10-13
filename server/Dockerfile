@@ -19,5 +19,5 @@ WORKDIR /app
 
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["index.js"]
+CMD ["server.mjs"]
 
