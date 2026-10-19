@@ -41,7 +41,7 @@
     "eslint-plugin-node": "^11.1.0",
     "expect": "^30.5.2",
     "pino-pretty": "^13.2.0",
-    "tsup": "^8.5.1",
+    "tsup": "^9.0.0",
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.66.0"
