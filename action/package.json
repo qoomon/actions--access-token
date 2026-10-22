@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "lint": "eslint",
-    "build": "tsup",
+    "build": "tsdown",
     "test": "node --experimental-transform-types --import tsx --experimental-test-module-mocks --test test/**.test.ts"
   },
   "dependencies": {
@@ -28,7 +28,7 @@
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-require-extensions": "^0.1.3",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.22.2",
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.59.0"
