@@ -17,25 +17,26 @@ export const hasEntries: z.core.$ZodCheck<object> = z.superRefine((obj, ctx) => 
  * @return formatted issue
  */
 export function formatZodIssue(issue: z.core.$ZodIssue): string {
-  let result = '- ';
+  let result = '-';
   if (issue.path.length > 0) {
-    result += `${issue.path.join('.')}: `;
+    result += ` ${issue.path.join('.')}:`;
   }
 
   if (issue.code === 'invalid_union') {
-    result += `Union errors:\n` + issue.errors
-        .map((error) => error
-            .map((error) => formatZodIssue(error)
-                .split('\n')
-                .map((line) => '  ' + line)
-                .join('\n')
-            ).join('\n')
-        ).join('\n');
+    result += '\n' + issue.errors.map((issues) =>
+      issues.map(formatZodIssue)
+        .map(it => indent(it, '  '))
+        .join('\n').replace(/[\r\n]+$/, '')
+      ).join('\n');
   } else {
-    result += issue.message;
+    result += ' ' + issue.message;
   }
 
   return result;
+}
+
+function indent(text: string, indention: string) {
+  return text.split('\n').map((line) => indention + line).join('\n')
 }
 
 export const JsonTransformer = z.string().transform((val, ctx) => {

@@ -71,6 +71,13 @@ describe('resolveAccessPolicyStatementSubjects', () => {
       const result = resolve([subject]);
       assert.ok(result.includes(subject));
     });
+
+    it('append repo subject to prefix-less subjects', () => {
+      const result = resolve(['environment:production', 'ref:refs/heads/main']);
+      assert.equal(result.every((s) => s.startsWith(`repo:${ORIGIN}:`)), true);
+      assert.equal(result.includes('environment:production'), false);
+      assert.equal(result.includes('ref:refs/heads/main'), false);
+    });
   });
 
   describe('deduplication of subjects is preserved by the caller', () => {

@@ -393,7 +393,10 @@ describe('App path /access_tokens', () => {
               error: 'Bad Request',
               message: expect.stringMatching(joinRegExp([
                 /^Invalid request body:\n/,
-                / {2}- repositories: Union errors:/,
+                / {2}- repositories:\n/,
+                / {4}- 0:\n/,
+                / {6}- Invalid string: must match pattern/,
+
               ])),
             },
           });
@@ -421,7 +424,8 @@ describe('App path /access_tokens', () => {
               error: 'Bad Request',
               message: expect.stringMatching(joinRegExp([
                 /^Invalid request body:\n/,
-                / {2}- repositories: Too big: /,
+                / {2}- repositories:\n/,
+                / {4}- Too big: /,
               ])),
             },
           });

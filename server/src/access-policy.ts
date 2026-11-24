@@ -266,9 +266,10 @@ export function resolveAccessPolicyStatementSubjects(statement: { subjects: stri
   statement.subjects = statement.subjects
       .map((it) => resolveSubjectVariables(it, {owner, repo}));
 
-  // LEGACY SUPPORT for the artificial subject pattern
-  const artificialSubjects = buildLegacyArtificialSubjects(statement.subjects, {owner, repo});
-  statement.subjects.push(...artificialSubjects);
+  // LEGACY SUPPORT
+  pefixSubjectsWithRepoClaimIfMissing(statement.subjects, { owner, repo });
+  // LEGACY SUPPORT
+  resolveWorkflowRefPaths(statement.subjects, { owner, repo });
 }
 
 /**
@@ -282,45 +283,45 @@ function resolveSubjectVariables(subject: string, {owner, repo}: {
 }
 
 /**
- * LEGACY SUPPORT
- * Generate additional subject patterns that match older abbreviated subject formats
+ * Ensures every subject is starting with repo:... claim
  * @param subjects - resolved subjects
  * @param owner - policy file owner
  * @param repo - policy file repository
- * @return additional legacy subjects (may be empty)
  */
-function buildLegacyArtificialSubjects(subjects: string[], {owner, repo}: {
+function pefixSubjectsWithRepoClaimIfMissing(subjects: string[], {owner, repo}: {
   owner: string,
   repo: string,
-}): string[] {
-  const artificialSubjects: string[] = [];
-
-  subjects.forEach((it) => {
-    const subjectRepo = it.match(/(^|:)repo:(?<repo>[^:]+)/)?.groups?.repo ?? `${owner}/${repo}`;
-
-    let artificialSubject = it;
-
-    // prefix subject with repo claim, if not already prefixed
-    artificialSubject = artificialSubject.startsWith('repo:') ? artificialSubject :
-        `repo:${subjectRepo}:${artificialSubject}`;
-
-    // prefix (job_)workflow_ref claim value with repo, if not already prefixed
-    const workflowRefPattern = /(?<=^|:)(?<claim>(job_)?workflow_ref):(?<value>[^:]+)/;
-    const workflowRefMatch = workflowRefPattern.exec(artificialSubject);
-    if (workflowRefMatch?.groups) {
-      const {claim, value} = workflowRefMatch.groups;
-      if (value.startsWith('/')) {
-        artificialSubject = artificialSubject.replace(
-            `${claim}:${value}`, `${claim}:${subjectRepo}${value}`);
-      }
-    }
-
-    if (artificialSubject !== it) {
-      artificialSubjects.push(artificialSubject);
+}){
+  subjects.forEach((subject, index) => {
+    if (!subject.startsWith('repo:')) {
+      subjects[index] = `repo:${owner}/${repo}:` + subject;
     }
   });
+}
 
-  return artificialSubjects;
+/**
+ * LEGACY SUPPORT
+ * Resolves all (job_)workflow_ref claims pathes if starts with a / instead of owner/repo
+ * @param subjects - resolved subjects
+ * @param owner - policy file owner
+ * @param repo - policy file repository
+ */
+function resolveWorkflowRefPaths(subjects: string[], {owner, repo}: {
+  owner: string,
+  repo: string,
+}){
+  subjects.forEach((subject, index) => {
+    subjects[index] = subject.replace(
+      // prefix (job_)workflow_ref claim value with repo, if not already prefixed
+      /(?<=^|:)(?<claim>(?:job_)?workflow_ref):(?<value>[^:]+)/,
+      (fullMatch, claim: string, value: string) => {
+        if (value.startsWith('/')) {
+          fullMatch = `${claim}:${owner}/${repo}${value}` + value;
+        }
+        return fullMatch;
+      },
+    );
+  });
 }
 
 // --- Permission evaluation ----------------------------------------------------------------------------------------
